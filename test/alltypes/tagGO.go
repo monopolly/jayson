@@ -112,8 +112,8 @@ const (
 	TagFieldName  = "name"  // string
 	TagFieldOwner = "owner" // int
 	TagFieldMeta  = "meta"  // map[string]int
-	TagFieldFrom  = "from"  // int reserved sql word: column froms
-	TagFieldTo    = "to"    // int reserved sql word: column tos
+	TagFieldFrom  = "from"  // int reserved sql word: column ifrom
+	TagFieldTo    = "to"    // int reserved sql word: column ito
 )
 
 // index func
@@ -130,8 +130,8 @@ type Tag struct {
 	Name  string         `json:"name,omitempty"`  //
 	Owner int            `json:"owner,omitempty"` //
 	Meta  map[string]int `json:"meta,omitempty"`  //
-	From  int            `json:"from,omitempty"`  // reserved sql word: column froms
-	To    int            `json:"to,omitempty"`    // reserved sql word: column tos
+	From  int            `json:"from,omitempty"`  // reserved sql word: column ifrom
+	To    int            `json:"to,omitempty"`    // reserved sql word: column ito
 }
 
 // init struct
