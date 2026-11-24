@@ -86,6 +86,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 
@@ -463,24 +464,25 @@ const orderSQLInsert = "insert into order (sender, receiver, sum) values ($1, $2
 
 const orderSQLInsertFull = "insert into order (id, sender, receiver, sum) values ($1, $2, $3, $4)"
 
-func (a *OrderSQL) stdInsert(v *Order) error {
-	return a.db.QueryRow(context.Background(), orderSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *OrderSQL) stdInsert(v Order) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), orderSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-func (a *OrderSQL) stdInsertNoConflict(v *Order) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), orderSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *OrderSQL) stdInsertNoConflict(v Order) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), orderSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if stderrors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
-func (a *OrderSQL) stdInsertFull(v *Order) error {
+func (a *OrderSQL) stdInsertFull(v Order) error {
 	_, err := a.db.Exec(context.Background(), orderSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
-func (a *OrderSQL) stdUpsert(v *Order) error {
+func (a *OrderSQL) stdUpsert(v Order) error {
 	_, err := a.db.Exec(context.Background(), "insert into order (id, sender, receiver, sum) values ($1, $2, $3, $4) on conflict (id) do update set sender = excluded.sender, receiver = excluded.receiver, sum = excluded.sum", v.sqlAllArgs()...)
 	return err
 }
@@ -491,17 +493,17 @@ func (a *OrderSQL) stdInsertMany(list []Order) (int64, error) {
 	}))
 }
 
-func (a *OrderSQL) stdInsertBatch(list []*Order) error {
+func (a *OrderSQL) stdInsertBatch(list []Order) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(orderSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(orderSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -529,7 +531,7 @@ func (a *OrderSQL) stdUpdates(id int, v map[OrderIndexTyped]any) error {
 	return orderSQLAffected(a.db.Exec(context.Background(), "update order set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
-func (a *OrderSQL) stdSave(v *Order, fields ...OrderIndexTyped) error {
+func (a *OrderSQL) stdSave(v Order, fields ...OrderIndexTyped) error {
 	if len(fields) == 0 {
 		fields = orderSQLFields
 	}
@@ -819,97 +821,98 @@ func orderSQLErr(err error) errors.E {
 
 // Get returns row by id
 func (a *OrderSQL) Get(id int, fields ...OrderIndexTyped) (Order, errors.E) {
-	res, err := a.stdGet(id, fields...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdGet(id, fields...)
+	return r1, orderSQLErr(err)
 }
 
 // Exists checks row by id
 func (a *OrderSQL) Exists(id int) (bool, errors.E) {
-	res, err := a.stdExists(id)
-	return res, orderSQLErr(err)
+	r1, err := a.stdExists(id)
+	return r1, orderSQLErr(err)
 }
 
 // GetBy returns first row with field = v
 func (a *OrderSQL) GetBy(field OrderIndexTyped, v any, fields ...OrderIndexTyped) (Order, errors.E) {
-	res, err := a.stdGetBy(field, v, fields...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdGetBy(field, v, fields...)
+	return r1, orderSQLErr(err)
 }
 
 // GetWhere returns first row by condition
 //
 //	db.GetWhere(nil, "title = $1 order by created desc", "James")
 func (a *OrderSQL) GetWhere(fields []OrderIndexTyped, where string, args ...any) (Order, errors.E) {
-	res, err := a.stdGetWhere(fields, where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdGetWhere(fields, where, args...)
+	return r1, orderSQLErr(err)
 }
 
 // Has checks row with field = v
 func (a *OrderSQL) Has(field OrderIndexTyped, v any) (bool, errors.E) {
-	res, err := a.stdHas(field, v)
-	return res, orderSQLErr(err)
+	r1, err := a.stdHas(field, v)
+	return r1, orderSQLErr(err)
 }
 
 // All returns all rows
 func (a *OrderSQL) All(fields ...OrderIndexTyped) ([]Order, errors.E) {
-	res, err := a.stdAll(fields...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdAll(fields...)
+	return r1, orderSQLErr(err)
 }
 
 // List returns page of rows
 func (a *OrderSQL) List(limit, offset int, fields ...OrderIndexTyped) ([]Order, errors.E) {
-	res, err := a.stdList(limit, offset, fields...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdList(limit, offset, fields...)
+	return r1, orderSQLErr(err)
 }
 
 // Select returns rows by condition, all rows when where is empty
 //
 //	db.Select(nil, "views > $1 order by views desc limit 10", 100)
 func (a *OrderSQL) Select(fields []OrderIndexTyped, where string, args ...any) ([]Order, errors.E) {
-	res, err := a.stdSelect(fields, where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdSelect(fields, where, args...)
+	return r1, orderSQLErr(err)
 }
 
 // Count returns count of rows
 func (a *OrderSQL) Count() (int, errors.E) {
-	res, err := a.stdCount()
-	return res, orderSQLErr(err)
+	r1, err := a.stdCount()
+	return r1, orderSQLErr(err)
 }
 
 // CountWhere returns count of rows by condition
 func (a *OrderSQL) CountWhere(where string, args ...any) (int, errors.E) {
-	res, err := a.stdCountWhere(where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdCountWhere(where, args...)
+	return r1, orderSQLErr(err)
 }
 
-// Insert adds row and sets generated v.ID
-func (a *OrderSQL) Insert(v *Order) errors.E {
-	return orderSQLErr(a.stdInsert(v))
+// Insert adds row and returns generated id
+func (a *OrderSQL) Insert(v Order) (int, errors.E) {
+	r1, err := a.stdInsert(v)
+	return r1, orderSQLErr(err)
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *OrderSQL) InsertNoConflict(v *Order) (bool, errors.E) {
-	res, err := a.stdInsertNoConflict(v)
-	return res, orderSQLErr(err)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *OrderSQL) InsertNoConflict(v Order) (int, bool, errors.E) {
+	r1, r2, err := a.stdInsertNoConflict(v)
+	return r1, r2, orderSQLErr(err)
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *OrderSQL) InsertFull(v *Order) errors.E {
+func (a *OrderSQL) InsertFull(v Order) errors.E {
 	return orderSQLErr(a.stdInsertFull(v))
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *OrderSQL) Upsert(v *Order) errors.E {
+func (a *OrderSQL) Upsert(v Order) errors.E {
 	return orderSQLErr(a.stdUpsert(v))
 }
 
 // InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
 func (a *OrderSQL) InsertMany(list []Order) (int64, errors.E) {
-	res, err := a.stdInsertMany(list)
-	return res, orderSQLErr(err)
+	r1, err := a.stdInsertMany(list)
+	return r1, orderSQLErr(err)
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *OrderSQL) InsertBatch(list []*Order) errors.E {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *OrderSQL) InsertBatch(list []Order) errors.E {
 	return orderSQLErr(a.stdInsertBatch(list))
 }
 
@@ -924,7 +927,7 @@ func (a *OrderSQL) Updates(id int, v map[OrderIndexTyped]any) errors.E {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *OrderSQL) Save(v *Order, fields ...OrderIndexTyped) errors.E {
+func (a *OrderSQL) Save(v Order, fields ...OrderIndexTyped) errors.E {
 	return orderSQLErr(a.stdSave(v, fields...))
 }
 
@@ -942,26 +945,26 @@ func (a *OrderSQL) Delete(id int) errors.E {
 //
 //	db.UpdateWhere(IndexActive, false, "created < $1", date)
 func (a *OrderSQL) UpdateWhere(field OrderIndexTyped, v any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdateWhere(field, v, where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdUpdateWhere(field, v, where, args...)
+	return r1, orderSQLErr(err)
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
 func (a *OrderSQL) UpdatesWhere(v map[OrderIndexTyped]any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdatesWhere(v, where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdUpdatesWhere(v, where, args...)
+	return r1, orderSQLErr(err)
 }
 
 // DeleteWhere removes rows by condition, returns count of rows
 func (a *OrderSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
-	res, err := a.stdDeleteWhere(where, args...)
-	return res, orderSQLErr(err)
+	r1, err := a.stdDeleteWhere(where, args...)
+	return r1, orderSQLErr(err)
 }
 
 // Search returns rows by query
 func (a *OrderSQL) Search(q *OrderQuery) ([]Order, errors.E) {
-	res, err := a.stdSearch(q)
-	return res, orderSQLErr(err)
+	r1, err := a.stdSearch(q)
+	return r1, orderSQLErr(err)
 }
 
 // CreateTable creates table if not exists

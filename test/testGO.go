@@ -1129,28 +1129,29 @@ const newsSQLInsert = "insert into news (role, key, t, d, ints, ints8, ints16, i
 
 const newsSQLInsertFull = "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL_OK, renameGO, renameJS, mast_upper_go, intToSmallInt, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60)"
 
-// Insert adds row and sets generated v.Inc
-func (a *NewsSQL) Insert(v *News) error {
-	return a.db.QueryRow(context.Background(), newsSQLInsert+" returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
+// Insert adds row and returns generated inc
+func (a *NewsSQL) Insert(v News) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), newsSQLInsert+" returning inc", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-// InsertNoConflict adds row and sets v.Inc, false when row exists
-func (a *NewsSQL) InsertNoConflict(v *News) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), newsSQLInsert+" on conflict do nothing returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
+// InsertNoConflict adds row and returns generated inc, false when row exists
+func (a *NewsSQL) InsertNoConflict(v News) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), newsSQLInsert+" on conflict do nothing returning inc", v.sqlInsertArgs()...).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *NewsSQL) InsertFull(v *News) error {
+func (a *NewsSQL) InsertFull(v News) error {
 	_, err := a.db.Exec(context.Background(), newsSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (sql_primary)
-func (a *NewsSQL) Upsert(v *News) error {
+func (a *NewsSQL) Upsert(v News) error {
 	_, err := a.db.Exec(context.Background(), "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL_OK, renameGO, renameJS, mast_upper_go, intToSmallInt, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60) on conflict (sql_primary) do update set inc = excluded.inc, role = excluded.role, key = excluded.key, t = excluded.t, d = excluded.d, ints = excluded.ints, ints8 = excluded.ints8, ints16 = excluded.ints16, ints32 = excluded.ints32, ints64 = excluded.ints64, uints = excluded.uints, uints8 = excluded.uints8, uints16 = excluded.uints16, uints32 = excluded.uints32, uints64 = excluded.uints64, floats32 = excluded.floats32, floats64 = excluded.floats64, bools = excluded.bools, byte1 = excluded.byte1, bytes = excluded.bytes, list_ints = excluded.list_ints, list_string = excluded.list_string, list_float = excluded.list_float, map_string_string = excluded.map_string_string, map_string_bytes = excluded.map_string_bytes, map_string_bool = excluded.map_string_bool, map_string_int = excluded.map_string_int, map_string_float64 = excluded.map_string_float64, map_string_any = excluded.map_string_any, map_int_string = excluded.map_int_string, map_int_int = excluded.map_int_int, map_int_bool = excluded.map_int_bool, renameSQL_OK = excluded.renameSQL_OK, renameGO = excluded.renameGO, renameJS = excluded.renameJS, mast_upper_go = excluded.mast_upper_go, intToSmallInt = excluded.intToSmallInt, sql_unique_u1_1 = excluded.sql_unique_u1_1, sql_unique_u1_2 = excluded.sql_unique_u1_2, sql_index1_1 = excluded.sql_index1_1, sql_index1_2 = excluded.sql_index1_2, sql_index1_3 = excluded.sql_index1_3, sql_keys_1 = excluded.sql_keys_1, sql_keys_2 = excluded.sql_keys_2, sql_keys_3 = excluded.sql_keys_3, sql_search = excluded.sql_search, sql_get = excluded.sql_get, sql_unique_x1 = excluded.sql_unique_x1, sql_unique_x2 = excluded.sql_unique_x2, sql_unique_x1_x2 = excluded.sql_unique_x1_x2, sql_jsonb_index = excluded.sql_jsonb_index, time_duration = excluded.time_duration, go_type_int_to_strings = excluded.go_type_int_to_strings, public_field1 = excluded.public_field1, public_field2 = excluded.public_field2, public_field3 = excluded.public_field3, public_field_me1 = excluded.public_field_me1, public_field_me2 = excluded.public_field_me2, public_field_me3 = excluded.public_field_me3", v.sqlAllArgs()...)
 	return err
 }
@@ -1162,18 +1163,18 @@ func (a *NewsSQL) InsertMany(list []News) (int64, error) {
 	}))
 }
 
-// InsertBatch adds rows in one round trip and sets generated Inc
-func (a *NewsSQL) InsertBatch(list []*News) error {
+// InsertBatch adds rows in one round trip and sets generated Inc of list items
+func (a *NewsSQL) InsertBatch(list []News) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(newsSQLInsert+" returning inc", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(newsSQLInsert+" returning inc", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.Inc); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].Inc); err != nil {
 			res.Close()
 			return err
 		}
@@ -1204,7 +1205,7 @@ func (a *NewsSQL) Updates(id int, v map[NewsIndexTyped]any) error {
 }
 
 // Save updates row from struct by v.Inc: listed fields or all columns
-func (a *NewsSQL) Save(v *News, fields ...NewsIndexTyped) error {
+func (a *NewsSQL) Save(v News, fields ...NewsIndexTyped) error {
 	if len(fields) == 0 {
 		fields = newsSQLFields
 	}

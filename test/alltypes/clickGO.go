@@ -490,24 +490,25 @@ const clickSQLInsert = "insert into clicks (link, tags) values ($1, $2)"
 
 const clickSQLInsertFull = "insert into clicks (id, link, tags) values ($1, $2, $3)"
 
-func (a *ClickSQL) stdInsert(v *Click) error {
-	return a.db.QueryRow(context.Background(), clickSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *ClickSQL) stdInsert(v Click) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), clickSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-func (a *ClickSQL) stdInsertNoConflict(v *Click) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), clickSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *ClickSQL) stdInsertNoConflict(v Click) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), clickSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if stderrors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
-func (a *ClickSQL) stdInsertFull(v *Click) error {
+func (a *ClickSQL) stdInsertFull(v Click) error {
 	_, err := a.db.Exec(context.Background(), clickSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
-func (a *ClickSQL) stdUpsert(v *Click) error {
+func (a *ClickSQL) stdUpsert(v Click) error {
 	_, err := a.db.Exec(context.Background(), "insert into clicks (id, link, tags) values ($1, $2, $3) on conflict (id) do update set link = excluded.link, tags = excluded.tags", v.sqlAllArgs()...)
 	return err
 }
@@ -518,17 +519,17 @@ func (a *ClickSQL) stdInsertMany(list []Click) (int64, error) {
 	}))
 }
 
-func (a *ClickSQL) stdInsertBatch(list []*Click) error {
+func (a *ClickSQL) stdInsertBatch(list []Click) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(clickSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(clickSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -556,7 +557,7 @@ func (a *ClickSQL) stdUpdates(id int, v map[ClickIndexTyped]any) error {
 	return clickSQLAffected(a.db.Exec(context.Background(), "update clicks set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
-func (a *ClickSQL) stdSave(v *Click, fields ...ClickIndexTyped) error {
+func (a *ClickSQL) stdSave(v Click, fields ...ClickIndexTyped) error {
 	if len(fields) == 0 {
 		fields = clickSQLFields
 	}
@@ -853,97 +854,98 @@ func clickSQLErr(err error) errors.E {
 
 // Get returns row by id
 func (a *ClickSQL) Get(id int, fields ...ClickIndexTyped) (Click, errors.E) {
-	res, err := a.stdGet(id, fields...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdGet(id, fields...)
+	return r1, clickSQLErr(err)
 }
 
 // Exists checks row by id
 func (a *ClickSQL) Exists(id int) (bool, errors.E) {
-	res, err := a.stdExists(id)
-	return res, clickSQLErr(err)
+	r1, err := a.stdExists(id)
+	return r1, clickSQLErr(err)
 }
 
 // GetBy returns first row with field = v
 func (a *ClickSQL) GetBy(field ClickIndexTyped, v any, fields ...ClickIndexTyped) (Click, errors.E) {
-	res, err := a.stdGetBy(field, v, fields...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdGetBy(field, v, fields...)
+	return r1, clickSQLErr(err)
 }
 
 // GetWhere returns first row by condition
 //
 //	db.GetWhere(nil, "title = $1 order by created desc", "James")
 func (a *ClickSQL) GetWhere(fields []ClickIndexTyped, where string, args ...any) (Click, errors.E) {
-	res, err := a.stdGetWhere(fields, where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdGetWhere(fields, where, args...)
+	return r1, clickSQLErr(err)
 }
 
 // Has checks row with field = v
 func (a *ClickSQL) Has(field ClickIndexTyped, v any) (bool, errors.E) {
-	res, err := a.stdHas(field, v)
-	return res, clickSQLErr(err)
+	r1, err := a.stdHas(field, v)
+	return r1, clickSQLErr(err)
 }
 
 // All returns all rows
 func (a *ClickSQL) All(fields ...ClickIndexTyped) ([]Click, errors.E) {
-	res, err := a.stdAll(fields...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdAll(fields...)
+	return r1, clickSQLErr(err)
 }
 
 // List returns page of rows
 func (a *ClickSQL) List(limit, offset int, fields ...ClickIndexTyped) ([]Click, errors.E) {
-	res, err := a.stdList(limit, offset, fields...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdList(limit, offset, fields...)
+	return r1, clickSQLErr(err)
 }
 
 // Select returns rows by condition, all rows when where is empty
 //
 //	db.Select(nil, "views > $1 order by views desc limit 10", 100)
 func (a *ClickSQL) Select(fields []ClickIndexTyped, where string, args ...any) ([]Click, errors.E) {
-	res, err := a.stdSelect(fields, where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdSelect(fields, where, args...)
+	return r1, clickSQLErr(err)
 }
 
 // Count returns count of rows
 func (a *ClickSQL) Count() (int, errors.E) {
-	res, err := a.stdCount()
-	return res, clickSQLErr(err)
+	r1, err := a.stdCount()
+	return r1, clickSQLErr(err)
 }
 
 // CountWhere returns count of rows by condition
 func (a *ClickSQL) CountWhere(where string, args ...any) (int, errors.E) {
-	res, err := a.stdCountWhere(where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdCountWhere(where, args...)
+	return r1, clickSQLErr(err)
 }
 
-// Insert adds row and sets generated v.ID
-func (a *ClickSQL) Insert(v *Click) errors.E {
-	return clickSQLErr(a.stdInsert(v))
+// Insert adds row and returns generated id
+func (a *ClickSQL) Insert(v Click) (int, errors.E) {
+	r1, err := a.stdInsert(v)
+	return r1, clickSQLErr(err)
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *ClickSQL) InsertNoConflict(v *Click) (bool, errors.E) {
-	res, err := a.stdInsertNoConflict(v)
-	return res, clickSQLErr(err)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *ClickSQL) InsertNoConflict(v Click) (int, bool, errors.E) {
+	r1, r2, err := a.stdInsertNoConflict(v)
+	return r1, r2, clickSQLErr(err)
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *ClickSQL) InsertFull(v *Click) errors.E {
+func (a *ClickSQL) InsertFull(v Click) errors.E {
 	return clickSQLErr(a.stdInsertFull(v))
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *ClickSQL) Upsert(v *Click) errors.E {
+func (a *ClickSQL) Upsert(v Click) errors.E {
 	return clickSQLErr(a.stdUpsert(v))
 }
 
 // InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
 func (a *ClickSQL) InsertMany(list []Click) (int64, errors.E) {
-	res, err := a.stdInsertMany(list)
-	return res, clickSQLErr(err)
+	r1, err := a.stdInsertMany(list)
+	return r1, clickSQLErr(err)
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *ClickSQL) InsertBatch(list []*Click) errors.E {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *ClickSQL) InsertBatch(list []Click) errors.E {
 	return clickSQLErr(a.stdInsertBatch(list))
 }
 
@@ -958,7 +960,7 @@ func (a *ClickSQL) Updates(id int, v map[ClickIndexTyped]any) errors.E {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *ClickSQL) Save(v *Click, fields ...ClickIndexTyped) errors.E {
+func (a *ClickSQL) Save(v Click, fields ...ClickIndexTyped) errors.E {
 	return clickSQLErr(a.stdSave(v, fields...))
 }
 
@@ -976,20 +978,20 @@ func (a *ClickSQL) Delete(id int) errors.E {
 //
 //	db.UpdateWhere(IndexActive, false, "created < $1", date)
 func (a *ClickSQL) UpdateWhere(field ClickIndexTyped, v any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdateWhere(field, v, where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdUpdateWhere(field, v, where, args...)
+	return r1, clickSQLErr(err)
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
 func (a *ClickSQL) UpdatesWhere(v map[ClickIndexTyped]any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdatesWhere(v, where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdUpdatesWhere(v, where, args...)
+	return r1, clickSQLErr(err)
 }
 
 // DeleteWhere removes rows by condition, returns count of rows
 func (a *ClickSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
-	res, err := a.stdDeleteWhere(where, args...)
-	return res, clickSQLErr(err)
+	r1, err := a.stdDeleteWhere(where, args...)
+	return r1, clickSQLErr(err)
 }
 
 // AppendTags adds values to array tags
@@ -1004,8 +1006,8 @@ func (a *ClickSQL) RemoveTags(id int, v string) errors.E {
 
 // Search returns rows by query
 func (a *ClickSQL) Search(q *ClickQuery) ([]Click, errors.E) {
-	res, err := a.stdSearch(q)
-	return res, clickSQLErr(err)
+	r1, err := a.stdSearch(q)
+	return r1, clickSQLErr(err)
 }
 
 // CreateTable creates table if not exists
@@ -1646,72 +1648,72 @@ func (a *ClickCQL) Insert(v ...Click) errors.E {
 
 // Get returns row by id
 func (a *ClickCQL) Get(id int, fields ...ClickIndexTyped) (Click, errors.E) {
-	res, err := a.stdGet(id, fields...)
-	return res, clickCHErr(err)
+	r1, err := a.stdGet(id, fields...)
+	return r1, clickCHErr(err)
 }
 
 // Exists checks row by id
 func (a *ClickCQL) Exists(id int) (bool, errors.E) {
-	res, err := a.stdExists(id)
-	return res, clickCHErr(err)
+	r1, err := a.stdExists(id)
+	return r1, clickCHErr(err)
 }
 
 // GetBy returns first row with field = v
 func (a *ClickCQL) GetBy(field ClickIndexTyped, v any, fields ...ClickIndexTyped) (Click, errors.E) {
-	res, err := a.stdGetBy(field, v, fields...)
-	return res, clickCHErr(err)
+	r1, err := a.stdGetBy(field, v, fields...)
+	return r1, clickCHErr(err)
 }
 
 // GetWhere returns first row by condition
 //
 //	db.GetWhere(nil, "country = $1 order by created desc", "DE")
 func (a *ClickCQL) GetWhere(fields []ClickIndexTyped, where string, args ...any) (Click, errors.E) {
-	res, err := a.stdGetWhere(fields, where, args...)
-	return res, clickCHErr(err)
+	r1, err := a.stdGetWhere(fields, where, args...)
+	return r1, clickCHErr(err)
 }
 
 // Has checks row with field = v
 func (a *ClickCQL) Has(field ClickIndexTyped, v any) (bool, errors.E) {
-	res, err := a.stdHas(field, v)
-	return res, clickCHErr(err)
+	r1, err := a.stdHas(field, v)
+	return r1, clickCHErr(err)
 }
 
 // All returns all rows
 func (a *ClickCQL) All(fields ...ClickIndexTyped) ([]Click, errors.E) {
-	res, err := a.stdAll(fields...)
-	return res, clickCHErr(err)
+	r1, err := a.stdAll(fields...)
+	return r1, clickCHErr(err)
 }
 
 // List returns page of rows
 func (a *ClickCQL) List(limit, offset int, fields ...ClickIndexTyped) ([]Click, errors.E) {
-	res, err := a.stdList(limit, offset, fields...)
-	return res, clickCHErr(err)
+	r1, err := a.stdList(limit, offset, fields...)
+	return r1, clickCHErr(err)
 }
 
 // Select returns rows by condition, all rows when where is empty
 //
 //	db.Select(nil, "views > $1 order by views desc limit 10", 100)
 func (a *ClickCQL) Select(fields []ClickIndexTyped, where string, args ...any) ([]Click, errors.E) {
-	res, err := a.stdSelect(fields, where, args...)
-	return res, clickCHErr(err)
+	r1, err := a.stdSelect(fields, where, args...)
+	return r1, clickCHErr(err)
 }
 
 // Count returns count of rows
 func (a *ClickCQL) Count() (int, errors.E) {
-	res, err := a.stdCount()
-	return res, clickCHErr(err)
+	r1, err := a.stdCount()
+	return r1, clickCHErr(err)
 }
 
 // CountWhere returns count of rows by condition
 func (a *ClickCQL) CountWhere(where string, args ...any) (int, errors.E) {
-	res, err := a.stdCountWhere(where, args...)
-	return res, clickCHErr(err)
+	r1, err := a.stdCountWhere(where, args...)
+	return r1, clickCHErr(err)
 }
 
 // Stat returns count of rows by values of field: {"DE": 425, "US": 134}
 func (a *ClickCQL) Stat(field ClickIndexTyped) (map[string]int, errors.E) {
-	res, err := a.stdStat(field)
-	return res, clickCHErr(err)
+	r1, err := a.stdStat(field)
+	return r1, clickCHErr(err)
 }
 
 // Delete removes row by id

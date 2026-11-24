@@ -111,7 +111,8 @@ func TestTypes(t *testing.T) {
 	db, ctx := testDB(t)
 
 	v := testItem()
-	if err := db.Insert(&v); err != nil {
+	var err error
+	if v.ID, err = db.Insert(v); err != nil {
 		t.Fatal("insert:", err)
 	}
 	if v.ID == 0 {
@@ -154,7 +155,7 @@ func TestTypes(t *testing.T) {
 
 	// empty struct
 	empty := All{Nn: "e"}
-	if err := db.Insert(&empty); err != nil {
+	if empty.ID, err = db.Insert(empty); err != nil {
 		t.Fatal("insert empty:", err)
 	}
 	if _, err := db.Get(empty.ID); err != nil {
@@ -165,9 +166,9 @@ func TestTypes(t *testing.T) {
 func TestSelect(t *testing.T) {
 	db, _ := testDB(t)
 
-	var list []*All
+	var list []All
 	for i := 1; i <= 5; i++ {
-		list = append(list, &All{S: "name", I: i, Nn: "n", B: i%2 == 0})
+		list = append(list, All{S: "name", I: i, Nn: "n", B: i%2 == 0})
 	}
 	if err := db.InsertBatch(list); err != nil {
 		t.Fatal(err)
@@ -243,10 +244,11 @@ func TestUpdate(t *testing.T) {
 	db, _ := testDB(t)
 
 	v := All{S: "a", I: 1, Nn: "n", Li: []int{1, 2}, Ls: []string{"x"}, Maps: map[string]string{"k": "v"}}
-	if err := db.Insert(&v); err != nil {
+	id, err := db.Insert(v)
+	if err != nil {
 		t.Fatal(err)
 	}
-	id := v.ID
+	v.ID = id
 
 	check := func(err error) {
 		t.Helper()
@@ -295,12 +297,12 @@ func TestUpdate(t *testing.T) {
 
 	// save struct
 	got.S, got.F64, got.Ls = "saved", 9.5, []string{"y", "z"}
-	check(db.Save(&got, AllIndexS, AllIndexF64))
+	check(db.Save(got, AllIndexS, AllIndexF64))
 	got2, _ := db.Get(id)
 	if got2.S != "saved" || got2.F64 != 9.5 || len(got2.Ls) != 1 {
 		t.Error(got2.S, got2.F64, got2.Ls)
 	}
-	check(db.Save(&got))
+	check(db.Save(got))
 	got2, _ = db.Get(id)
 	testEqual(t, got, got2)
 
@@ -312,12 +314,13 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// upsert, full insert, sequence
-	check(db.Upsert(&All{ID: id, S: "upsert", Nn: "n"}))
-	check(db.Upsert(&All{ID: 77, S: "new", Nn: "n"}))
-	check(db.InsertFull(&All{ID: 78, Nn: "n"}))
+	check(db.Upsert(All{ID: id, S: "upsert", Nn: "n"}))
+	check(db.Upsert(All{ID: 77, S: "new", Nn: "n"}))
+	check(db.InsertFull(All{ID: 78, Nn: "n"}))
 	check(db.ResetSequence())
 	next := All{Nn: "n"}
-	check(db.Insert(&next))
+	next.ID, err = db.Insert(next)
+	check(err)
 	if got, _ = db.Get(id); got.S != "upsert" || next.ID != 79 {
 		t.Error(got.S, next.ID)
 	}
@@ -347,11 +350,11 @@ func TestTx(t *testing.T) {
 	// rollback of two models
 	fail := errors.New("fail")
 	err := db.Begin(func(tx pgx.Tx) error {
-		v := All{Nn: "rollback"}
-		if err := db.TX(tx).Insert(&v); err != nil {
+		id, err := db.TX(tx).Insert(All{Nn: "rollback"})
+		if err != nil {
 			return err
 		}
-		if err := tags.TX(tx).Insert(&Tag{Name: "rollback", Owner: v.ID}); err != nil {
+		if _, err := tags.TX(tx).Insert(Tag{Name: "rollback", Owner: id}); err != nil {
 			return err
 		}
 		return fail
@@ -369,17 +372,20 @@ func TestTx(t *testing.T) {
 	// commit of two models
 	var v All
 	err = db.Begin(func(tx pgx.Tx) error {
+		var err error
 		v = All{Nn: "commit"}
-		if err := db.TX(tx).Insert(&v); err != nil {
+		if v.ID, err = db.TX(tx).Insert(v); err != nil {
 			return err
 		}
 		tag := Tag{Name: "commit", Owner: v.ID}
-		if err := tags.TX(tx).Insert(&tag); err != nil {
-			return err
+		id, e := tags.TX(tx).Insert(tag)
+		if e != nil {
+			return e
 		}
+		tag.ID = id
 		// savepoint
 		_ = db.TX(tx).Begin(func(sp pgx.Tx) error {
-			_ = db.TX(sp).Insert(&All{Nn: "nested"})
+			_, _ = db.TX(sp).Insert(All{Nn: "nested"})
 			return fail
 		})
 		// not visible out of transaction
@@ -415,8 +421,8 @@ func TestTx(t *testing.T) {
 		t.Fatal(one, err)
 	}
 
-	if ok, err := db.InsertNoConflict(&All{Nn: "x"}); err != nil || !ok {
-		t.Fatal(ok, err)
+	if id, ok, err := db.InsertNoConflict(All{Nn: "x"}); err != nil || !ok || id == 0 {
+		t.Fatal(id, ok, err)
 	}
 }
 
@@ -429,7 +435,8 @@ func TestParallel(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			v := All{Nn: "p", I: i, Li: []int{i}}
-			if err := db.Insert(&v); err != nil {
+			var err error
+			if v.ID, err = db.Insert(v); err != nil {
 				t.Error(err)
 				return
 			}
@@ -466,7 +473,7 @@ func TestFuncs(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, v := range []Tag{{Name: "a", Owner: 1}, {Name: "b", Owner: 1}, {Name: "c", Owner: 2}} {
-		if err := tags.Insert(&v); err != nil {
+		if _, err := tags.Insert(v); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -490,7 +497,7 @@ func TestFuncs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// unique violation is exist
-	if err := tags.InsertFull(&Tag{ID: 1}); err == nil || err.ID() != "exist" || err.Comment() != "tags_pkey" {
+	if err := tags.InsertFull(Tag{ID: 1}); err == nil || err.ID() != "exist" || err.Comment() != "tags_pkey" {
 		t.Fatal(err)
 	}
 	// other errors of postgres are database errors
@@ -512,8 +519,9 @@ func TestFuncs(t *testing.T) {
 
 	// reserved sql words: go From, json from, column ifrom
 	rw := Tag{Name: "rw", Owner: 9, From: 5, To: 6}
-	if err := tags.Insert(&rw); err != nil {
-		t.Fatal(err)
+	var e merrors.E
+	if rw.ID, e = tags.Insert(rw); e != nil {
+		t.Fatal(e)
 	}
 	if v, err := tags.GetBy(TagIndexFrom, 5); err != nil || v.To != 6 || TagIndexFrom.SQLName() != "ifrom" {
 		t.Fatal(v, err)

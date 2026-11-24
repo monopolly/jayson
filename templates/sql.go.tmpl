@@ -388,40 +388,41 @@ const {{.Priv}}Insert = "{{.InsertSQL}}"
 
 const {{.Priv}}InsertFull = "{{.InsertFullSQL}}"
 {{if .Inc}}
-// Insert adds row and sets generated v.{{.Inc.GoName}}
-func (a *{{.Class}}) Insert(v *{{.Struct}}) error {
-	return a.db.QueryRow(context.Background(), {{.Priv}}Insert+" returning {{.Inc.Name}}", v.sqlInsertArgs()...).Scan(&v.{{.Inc.GoName}})
+// Insert adds row and returns generated {{.Inc.Name}}
+func (a *{{.Class}}) Insert(v {{.Struct}}) (id {{.Inc.GoType}}, err error) {
+	err = a.db.QueryRow(context.Background(), {{.Priv}}Insert+" returning {{.Inc.Name}}", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-// InsertNoConflict adds row and sets v.{{.Inc.GoName}}, false when row exists
-func (a *{{.Class}}) InsertNoConflict(v *{{.Struct}}) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), {{.Priv}}Insert+" on conflict do nothing returning {{.Inc.Name}}", v.sqlInsertArgs()...).Scan(&v.{{.Inc.GoName}})
+// InsertNoConflict adds row and returns generated {{.Inc.Name}}, false when row exists
+func (a *{{.Class}}) InsertNoConflict(v {{.Struct}}) (id {{.Inc.GoType}}, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), {{.Priv}}Insert+" on conflict do nothing returning {{.Inc.Name}}", v.sqlInsertArgs()...).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 {{else}}
 // Insert adds row
-func (a *{{.Class}}) Insert(v *{{.Struct}}) error {
+func (a *{{.Class}}) Insert(v {{.Struct}}) error {
 	_, err := a.db.Exec(context.Background(), {{.Priv}}Insert, v.sqlInsertArgs()...)
 	return err
 }
 
 // InsertNoConflict adds row, false when row exists
-func (a *{{.Class}}) InsertNoConflict(v *{{.Struct}}) (inserted bool, err error) {
+func (a *{{.Class}}) InsertNoConflict(v {{.Struct}}) (inserted bool, err error) {
 	tag, err := a.db.Exec(context.Background(), {{.Priv}}Insert+" on conflict do nothing", v.sqlInsertArgs()...)
 	return tag.RowsAffected() > 0, err
 }
 {{end}}
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *{{.Class}}) InsertFull(v *{{.Struct}}) error {
+func (a *{{.Class}}) InsertFull(v {{.Struct}}) error {
 	_, err := a.db.Exec(context.Background(), {{.Priv}}InsertFull, v.sqlAllArgs()...)
 	return err
 }
 {{if .UpsertSQL}}
 // Upsert adds row with all columns or updates existing row by ({{range $i, $c := .Conflict}}{{if $i}}, {{end}}{{$c.Name}}{{end}})
-func (a *{{.Class}}) Upsert(v *{{.Struct}}) error {
+func (a *{{.Class}}) Upsert(v {{.Struct}}) error {
 	_, err := a.db.Exec(context.Background(), "{{.UpsertSQL}}", v.sqlAllArgs()...)
 	return err
 }
@@ -433,25 +434,25 @@ func (a *{{.Class}}) InsertMany(list []{{.Struct}}) (int64, error) {
 	}))
 }
 
-// InsertBatch adds rows in one round trip{{if .Inc}} and sets generated {{.Inc.GoName}}{{end}}
-func (a *{{.Class}}) InsertBatch(list []*{{.Struct}}) error {
+// InsertBatch adds rows in one round trip{{if .Inc}} and sets generated {{.Inc.GoName}} of list items{{end}}
+func (a *{{.Class}}) InsertBatch(list []{{.Struct}}) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
+	for i := range list {
 		{{- if .Inc}}
-		b.Queue({{.Priv}}Insert+" returning {{.Inc.Name}}", v.sqlInsertArgs()...)
+		b.Queue({{.Priv}}Insert+" returning {{.Inc.Name}}", list[i].sqlInsertArgs()...)
 		{{- else}}
-		b.Queue({{.Priv}}Insert, v.sqlInsertArgs()...)
+		b.Queue({{.Priv}}Insert, list[i].sqlInsertArgs()...)
 		{{- end}}
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
+	for i := range list {
 		{{- if .Inc}}
-		if err := res.QueryRow().Scan(&v.{{.Inc.GoName}}); err != nil {
+		if err := res.QueryRow().Scan(&list[i].{{.Inc.GoName}}); err != nil {
 		{{- else}}
-		_ = v
+		_ = i
 		if _, err := res.Exec(); err != nil {
 		{{- end}}
 			res.Close()
@@ -484,7 +485,7 @@ func (a *{{.Class}}) Updates(id {{.Key.GoType}}, v map[{{.Index}}]any) error {
 }
 
 // Save updates row from struct by v.{{.Key.GoName}}: listed fields or all columns
-func (a *{{.Class}}) Save(v *{{.Struct}}, fields ...{{.Index}}) error {
+func (a *{{.Class}}) Save(v {{.Struct}}, fields ...{{.Index}}) error {
 	if len(fields) == 0 {
 		fields = {{.Priv}}Fields
 	}

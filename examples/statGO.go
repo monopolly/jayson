@@ -83,6 +83,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 

@@ -85,6 +85,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 
@@ -470,28 +471,29 @@ const userSQLInsert = "insert into user (name, password) values ($1, $2)"
 
 const userSQLInsertFull = "insert into user (id, name, password) values ($1, $2, $3)"
 
-// Insert adds row and sets generated v.ID
-func (a *UserSQL) Insert(v *User) error {
-	return a.db.QueryRow(context.Background(), userSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// Insert adds row and returns generated id
+func (a *UserSQL) Insert(v User) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), userSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *UserSQL) InsertNoConflict(v *User) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), userSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *UserSQL) InsertNoConflict(v User) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), userSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *UserSQL) InsertFull(v *User) error {
+func (a *UserSQL) InsertFull(v User) error {
 	_, err := a.db.Exec(context.Background(), userSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *UserSQL) Upsert(v *User) error {
+func (a *UserSQL) Upsert(v User) error {
 	_, err := a.db.Exec(context.Background(), "insert into user (id, name, password) values ($1, $2, $3) on conflict (id) do update set name = excluded.name, password = excluded.password", v.sqlAllArgs()...)
 	return err
 }
@@ -503,18 +505,18 @@ func (a *UserSQL) InsertMany(list []User) (int64, error) {
 	}))
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *UserSQL) InsertBatch(list []*User) error {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *UserSQL) InsertBatch(list []User) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(userSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(userSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -545,7 +547,7 @@ func (a *UserSQL) Updates(id int, v map[UserIndexTyped]any) error {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *UserSQL) Save(v *User, fields ...UserIndexTyped) error {
+func (a *UserSQL) Save(v User, fields ...UserIndexTyped) error {
 	if len(fields) == 0 {
 		fields = userSQLFields
 	}

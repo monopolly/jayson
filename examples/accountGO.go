@@ -85,6 +85,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 
@@ -529,28 +530,29 @@ const accountSQLInsert = "insert into account (email, name, balance, tags, score
 
 const accountSQLInsertFull = "insert into account (id, email, name, balance, tags, scores, meta, settings, items) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 
-// Insert adds row and sets generated v.ID
-func (a *AccountSQL) Insert(v *Account) error {
-	return a.db.QueryRow(context.Background(), accountSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// Insert adds row and returns generated id
+func (a *AccountSQL) Insert(v Account) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), accountSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *AccountSQL) InsertNoConflict(v *Account) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), accountSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *AccountSQL) InsertNoConflict(v Account) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), accountSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *AccountSQL) InsertFull(v *Account) error {
+func (a *AccountSQL) InsertFull(v Account) error {
 	_, err := a.db.Exec(context.Background(), accountSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *AccountSQL) Upsert(v *Account) error {
+func (a *AccountSQL) Upsert(v Account) error {
 	_, err := a.db.Exec(context.Background(), "insert into account (id, email, name, balance, tags, scores, meta, settings, items) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict (id) do update set email = excluded.email, name = excluded.name, balance = excluded.balance, tags = excluded.tags, scores = excluded.scores, meta = excluded.meta, settings = excluded.settings, items = excluded.items", v.sqlAllArgs()...)
 	return err
 }
@@ -562,18 +564,18 @@ func (a *AccountSQL) InsertMany(list []Account) (int64, error) {
 	}))
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *AccountSQL) InsertBatch(list []*Account) error {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *AccountSQL) InsertBatch(list []Account) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(accountSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(accountSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -604,7 +606,7 @@ func (a *AccountSQL) Updates(id int, v map[AccountIndexTyped]any) error {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *AccountSQL) Save(v *Account, fields ...AccountIndexTyped) error {
+func (a *AccountSQL) Save(v Account, fields ...AccountIndexTyped) error {
 	if len(fields) == 0 {
 		fields = accountSQLFields
 	}

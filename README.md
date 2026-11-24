@@ -32,7 +32,7 @@ jayson account.go
 db := NewAccountSQL(pool) // creates the table and indexes if they do not exist
 
 acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
-err := db.Insert(&acc)                       // sets acc.ID
+acc.ID, err = db.Insert(acc)                 // returns the generated id
 err = db.Inc(acc.ID, AccountIndexBalance, 50) // balance = balance + 50
 err = db.AppendTags(acc.ID, "vip")           // tags = tags || '{vip}'
 err = db.UpdateMeta(acc.ID, "lang", "en")    // jsonb_set(meta, '{lang}', '"en"')
@@ -99,10 +99,10 @@ db := NewAccountSQL(pool)
 
 // insert
 acc := Account{Email: "kate@example.com", Name: "Kate"}
-err := db.Insert(&acc)                // acc.ID is set
-ok, err := db.InsertNoConflict(&acc)  // false when the row exists
-err = db.Upsert(&acc)                 // insert or update by primary key
-n, err := db.InsertMany(list)         // COPY protocol, for bulk loads
+acc.ID, err = db.Insert(acc)              // returns the generated id
+id, ok, err := db.InsertNoConflict(acc)   // ok is false when the row exists
+err = db.Upsert(acc)                      // insert or update by primary key
+n, err := db.InsertMany(list)             // COPY protocol, for bulk loads
 
 // read: all columns, or only the listed ones
 acc, err = db.Get(acc.ID)
@@ -121,7 +121,7 @@ err = db.Update(acc.ID, AccountIndexName, "Max")
 err = db.Updates(acc.ID, map[AccountIndexTyped]any{AccountIndexName: "Max", AccountIndexBalance: 0})
 err = db.Inc(acc.ID, AccountIndexBalance, -10)
 acc.Name = "Kate"
-err = db.Save(&acc, AccountIndexName) // write listed fields of the struct
+err = db.Save(acc, AccountIndexName)  // write listed fields of the struct
 count, err := db.UpdateWhere(AccountIndexBalance, 0, "balance < $1", 0)
 
 // delete
@@ -216,7 +216,8 @@ err := accounts.Begin(func(tx pgx.Tx) error {
 	if err := accounts.TX(tx).Inc(to, AccountIndexBalance, 50); err != nil {
 		return err
 	}
-	return orders.TX(tx).Insert(&Order{Sender: from, Receiver: to, Sum: 50})
+	_, err := orders.TX(tx).Insert(Order{Sender: from, Receiver: to, Sum: 50})
+	return err
 })
 ```
 
@@ -484,6 +485,8 @@ A field named as a reserved SQL word keeps its Go name and gets the prefix `i` i
 | Table | `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
 
 `NewAccountSQL` creates the table and indexes and never fails. To see an error of creation call `CreateTable()` or `CreateIndexes()`.
+
+Models are passed and returned by value, never by pointer. With `sql{inc}` `Insert` returns the generated id, `InsertBatch` writes the ids into the items of the list.
 
 Methods by id need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
 `Update`, `Updates`, `Save`, `Inc` and the field methods return `pgx.ErrNoRows` when the row does not exist.

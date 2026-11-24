@@ -16,14 +16,14 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	db := NewAccountSQL(pool)
 	var err error
 	acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
-	err = db.Insert(&acc)
+	acc.ID, err = db.Insert(acc)
 	err = db.Inc(acc.ID, AccountIndexBalance, 50)
 	err = db.AppendTags(acc.ID, "vip")
 	err = db.UpdateMeta(acc.ID, "lang", "en")
 	rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
 
-	ok, err := db.InsertNoConflict(&acc)
-	err = db.Upsert(&acc)
+	id, ok, err := db.InsertNoConflict(acc)
+	err = db.Upsert(acc)
 	n, err := db.InsertMany(list)
 	acc, err = db.Get(acc.ID)
 	acc, err = db.Get(acc.ID, AccountIndexName, AccountIndexBalance)
@@ -35,7 +35,7 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	err = db.Update(acc.ID, AccountIndexName, "Max")
 	err = db.Updates(acc.ID, map[AccountIndexTyped]any{AccountIndexName: "Max", AccountIndexBalance: 0})
 	err = db.Inc(acc.ID, AccountIndexBalance, -10)
-	err = db.Save(&acc, AccountIndexName)
+	err = db.Save(acc, AccountIndexName)
 	count, err := db.UpdateWhere(AccountIndexBalance, 0, "balance < $1", 0)
 	err = db.Delete(acc.ID)
 	count, err = db.DeleteWhere("email like $1", "%@spam.com")
@@ -65,7 +65,8 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 		return accounts.TX(tx).Inc(to, AccountIndexBalance, 50)
 	})
 	var e merrors.E = orders.Begin(func(tx pgx.Tx) merrors.E {
-		return orders.TX(tx).Insert(&Order{Sender: from, Receiver: to, Sum: 50})
+		_, err := orders.TX(tx).Insert(Order{Sender: from, Receiver: to, Sum: 50})
+		return err
 	})
 	var o Order
 	o, e = orders.Get(1)

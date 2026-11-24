@@ -76,16 +76,22 @@ func sqlErrors(class, priv, convert string, code []byte) []byte {
 			docs[fn.Doc] = true
 		}
 
-		switch len(results) {
-		case 1:
+		// results before error: one type for every name
+		var resTypes, resNames []string
+		for _, r := range results[:len(results)-1] {
+			for range max(1, len(r.Names)) {
+				resNames = append(resNames, fmt.Sprintf("r%d", len(resNames)+1))
+				resTypes = append(resTypes, types.ExprString(r.Type))
+			}
+		}
+		if len(resNames) == 0 {
 			wrappers = append(wrappers, fmt.Sprintf("%sfunc (a *%s) %s%s errors.E {\nreturn %sErr(%s)\n}",
 				doc, class, name, text(fn.Type.Params), priv, call))
-		case 2:
-			wrappers = append(wrappers, fmt.Sprintf("%sfunc (a *%s) %s%s (%s, errors.E) {\nres, err := %s\nreturn res, %sErr(err)\n}",
-				doc, class, name, text(fn.Type.Params), types.ExprString(results[0].Type), call, priv))
-		default:
-			panic(fmt.Sprintf("sql errors: %s: too many results", name))
+			continue
 		}
+		names := strings.Join(resNames, ", ")
+		wrappers = append(wrappers, fmt.Sprintf("%sfunc (a *%s) %s%s (%s, errors.E) {\n%s, err := %s\nreturn %s, %sErr(err)\n}",
+			doc, class, name, text(fn.Type.Params), strings.Join(resTypes, ", "), names, call, names, priv))
 	}
 
 	// rename methods and calls of them inside of methods: a.Get > a.stdGet

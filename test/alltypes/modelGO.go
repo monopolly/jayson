@@ -94,6 +94,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 
@@ -1266,28 +1267,29 @@ const allSQLInsert = "insert into alltypes (b, s, i, i8, i16, i32, i64, u, u8, u
 
 const allSQLInsertFull = "insert into alltypes (id, b, s, i, i8, i16, i32, i64, u, u8, u16, u32, u64, f32, f64, r, by, bytes, fixed, uid, puid, raw, mapany, maps, conf, confs, anyv, t, dur, date, pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, dec, rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, st, prov, rl, nn) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79)"
 
-// Insert adds row and sets generated v.ID
-func (a *AllSQL) Insert(v *All) error {
-	return a.db.QueryRow(context.Background(), allSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// Insert adds row and returns generated id
+func (a *AllSQL) Insert(v All) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), allSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *AllSQL) InsertNoConflict(v *All) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), allSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *AllSQL) InsertNoConflict(v All) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), allSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *AllSQL) InsertFull(v *All) error {
+func (a *AllSQL) InsertFull(v All) error {
 	_, err := a.db.Exec(context.Background(), allSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *AllSQL) Upsert(v *All) error {
+func (a *AllSQL) Upsert(v All) error {
 	_, err := a.db.Exec(context.Background(), "insert into alltypes (id, b, s, i, i8, i16, i32, i64, u, u8, u16, u32, u64, f32, f64, r, by, bytes, fixed, uid, puid, raw, mapany, maps, conf, confs, anyv, t, dur, date, pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, dec, rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, st, prov, rl, nn) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79) on conflict (id) do update set b = excluded.b, s = excluded.s, i = excluded.i, i8 = excluded.i8, i16 = excluded.i16, i32 = excluded.i32, i64 = excluded.i64, u = excluded.u, u8 = excluded.u8, u16 = excluded.u16, u32 = excluded.u32, u64 = excluded.u64, f32 = excluded.f32, f64 = excluded.f64, r = excluded.r, by = excluded.by, bytes = excluded.bytes, fixed = excluded.fixed, uid = excluded.uid, puid = excluded.puid, raw = excluded.raw, mapany = excluded.mapany, maps = excluded.maps, conf = excluded.conf, confs = excluded.confs, anyv = excluded.anyv, t = excluded.t, dur = excluded.dur, date = excluded.date, pd = excluded.pd, pts = excluded.pts, piv = excluded.piv, lb = excluded.lb, ls = excluded.ls, li = excluded.li, li8 = excluded.li8, li16 = excluded.li16, li32 = excluded.li32, lu16 = excluded.lu16, lu32 = excluded.lu32, lu64 = excluded.lu64, lf32 = excluded.lf32, lt = excluded.lt, lu = excluded.lu, ls2 = excluded.ls2, li2 = excluded.li2, lbb = excluded.lbb, lm = excluded.lm, lst = excluded.lst, lrl = excluded.lrl, ip = excluded.ip, pfx = excluded.pfx, nip = excluded.nip, nnet = excluded.nnet, num = excluded.num, dec = excluded.dec, rng = excluded.rng, mrng = excluded.mrng, pt = excluded.pt, bits = excluded.bits, ps = excluded.ps, pi = excluded.pi, pb = excluded.pb, pf = excluded.pf, pt2 = excluded.pt2, pip = excluded.pip, ns = excluded.ns, ni = excluded.ni, nb = excluded.nb, nf = excluded.nf, nt = excluded.nt, ptx = excluded.ptx, pi8 = excluded.pi8, pbo = excluded.pbo, st = excluded.st, prov = excluded.prov, rl = excluded.rl, nn = excluded.nn", v.sqlAllArgs()...)
 	return err
 }
@@ -1299,18 +1301,18 @@ func (a *AllSQL) InsertMany(list []All) (int64, error) {
 	}))
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *AllSQL) InsertBatch(list []*All) error {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *AllSQL) InsertBatch(list []All) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(allSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(allSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -1341,7 +1343,7 @@ func (a *AllSQL) Updates(id int, v map[AllIndexTyped]any) error {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *AllSQL) Save(v *All, fields ...AllIndexTyped) error {
+func (a *AllSQL) Save(v All, fields ...AllIndexTyped) error {
 	if len(fields) == 0 {
 		fields = allSQLFields
 	}

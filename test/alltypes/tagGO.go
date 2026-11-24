@@ -91,6 +91,7 @@ import (
 	order                         ch{order} Sorting key: order by (name). No order by without the tag
 	primary                       ch{primary} Primary key, several fields make a composite key
 	skip                          ch{skip} No column for the field
+	ttl=30d                       ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y
 	type=""                       ch{type="UInt8"} Clickhouse type of column
 	unix                          ch{unix} DateTime column for number field with unix time
 
@@ -495,24 +496,25 @@ const tagSQLInsert = "insert into tags (name, owner, meta, ifrom, ito) values ($
 
 const tagSQLInsertFull = "insert into tags (id, name, owner, meta, ifrom, ito) values ($1, $2, $3, $4, $5, $6)"
 
-func (a *TagSQL) stdInsert(v *Tag) error {
-	return a.db.QueryRow(context.Background(), tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *TagSQL) stdInsert(v Tag) (id int, err error) {
+	err = a.db.QueryRow(context.Background(), tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&id)
+	return
 }
 
-func (a *TagSQL) stdInsertNoConflict(v *Tag) (inserted bool, err error) {
-	err = a.db.QueryRow(context.Background(), tagSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+func (a *TagSQL) stdInsertNoConflict(v Tag) (id int, inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), tagSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&id)
 	if stderrors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return id, false, nil
 	}
-	return err == nil, err
+	return id, err == nil, err
 }
 
-func (a *TagSQL) stdInsertFull(v *Tag) error {
+func (a *TagSQL) stdInsertFull(v Tag) error {
 	_, err := a.db.Exec(context.Background(), tagSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
-func (a *TagSQL) stdUpsert(v *Tag) error {
+func (a *TagSQL) stdUpsert(v Tag) error {
 	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta, ifrom, ito) values ($1, $2, $3, $4, $5, $6) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta, ifrom = excluded.ifrom, ito = excluded.ito", v.sqlAllArgs()...)
 	return err
 }
@@ -523,17 +525,17 @@ func (a *TagSQL) stdInsertMany(list []Tag) (int64, error) {
 	}))
 }
 
-func (a *TagSQL) stdInsertBatch(list []*Tag) error {
+func (a *TagSQL) stdInsertBatch(list []Tag) error {
 	if len(list) == 0 {
 		return nil
 	}
 	b := &pgx.Batch{}
-	for _, v := range list {
-		b.Queue(tagSQLInsert+" returning id", v.sqlInsertArgs()...)
+	for i := range list {
+		b.Queue(tagSQLInsert+" returning id", list[i].sqlInsertArgs()...)
 	}
 	res := a.db.SendBatch(context.Background(), b)
-	for _, v := range list {
-		if err := res.QueryRow().Scan(&v.ID); err != nil {
+	for i := range list {
+		if err := res.QueryRow().Scan(&list[i].ID); err != nil {
 			res.Close()
 			return err
 		}
@@ -561,7 +563,7 @@ func (a *TagSQL) stdUpdates(id int, v map[TagIndexTyped]any) error {
 	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
-func (a *TagSQL) stdSave(v *Tag, fields ...TagIndexTyped) error {
+func (a *TagSQL) stdSave(v Tag, fields ...TagIndexTyped) error {
 	if len(fields) == 0 {
 		fields = tagSQLFields
 	}
@@ -944,97 +946,98 @@ func tagSQLErr(err error) errors.E {
 
 // Get returns row by id
 func (a *TagSQL) Get(id int, fields ...TagIndexTyped) (Tag, errors.E) {
-	res, err := a.stdGet(id, fields...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdGet(id, fields...)
+	return r1, tagSQLErr(err)
 }
 
 // Exists checks row by id
 func (a *TagSQL) Exists(id int) (bool, errors.E) {
-	res, err := a.stdExists(id)
-	return res, tagSQLErr(err)
+	r1, err := a.stdExists(id)
+	return r1, tagSQLErr(err)
 }
 
 // GetBy returns first row with field = v
 func (a *TagSQL) GetBy(field TagIndexTyped, v any, fields ...TagIndexTyped) (Tag, errors.E) {
-	res, err := a.stdGetBy(field, v, fields...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdGetBy(field, v, fields...)
+	return r1, tagSQLErr(err)
 }
 
 // GetWhere returns first row by condition
 //
 //	db.GetWhere(nil, "title = $1 order by created desc", "James")
 func (a *TagSQL) GetWhere(fields []TagIndexTyped, where string, args ...any) (Tag, errors.E) {
-	res, err := a.stdGetWhere(fields, where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdGetWhere(fields, where, args...)
+	return r1, tagSQLErr(err)
 }
 
 // Has checks row with field = v
 func (a *TagSQL) Has(field TagIndexTyped, v any) (bool, errors.E) {
-	res, err := a.stdHas(field, v)
-	return res, tagSQLErr(err)
+	r1, err := a.stdHas(field, v)
+	return r1, tagSQLErr(err)
 }
 
 // All returns all rows
 func (a *TagSQL) All(fields ...TagIndexTyped) ([]Tag, errors.E) {
-	res, err := a.stdAll(fields...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdAll(fields...)
+	return r1, tagSQLErr(err)
 }
 
 // List returns page of rows
 func (a *TagSQL) List(limit, offset int, fields ...TagIndexTyped) ([]Tag, errors.E) {
-	res, err := a.stdList(limit, offset, fields...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdList(limit, offset, fields...)
+	return r1, tagSQLErr(err)
 }
 
 // Select returns rows by condition, all rows when where is empty
 //
 //	db.Select(nil, "views > $1 order by views desc limit 10", 100)
 func (a *TagSQL) Select(fields []TagIndexTyped, where string, args ...any) ([]Tag, errors.E) {
-	res, err := a.stdSelect(fields, where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdSelect(fields, where, args...)
+	return r1, tagSQLErr(err)
 }
 
 // Count returns count of rows
 func (a *TagSQL) Count() (int, errors.E) {
-	res, err := a.stdCount()
-	return res, tagSQLErr(err)
+	r1, err := a.stdCount()
+	return r1, tagSQLErr(err)
 }
 
 // CountWhere returns count of rows by condition
 func (a *TagSQL) CountWhere(where string, args ...any) (int, errors.E) {
-	res, err := a.stdCountWhere(where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdCountWhere(where, args...)
+	return r1, tagSQLErr(err)
 }
 
-// Insert adds row and sets generated v.ID
-func (a *TagSQL) Insert(v *Tag) errors.E {
-	return tagSQLErr(a.stdInsert(v))
+// Insert adds row and returns generated id
+func (a *TagSQL) Insert(v Tag) (int, errors.E) {
+	r1, err := a.stdInsert(v)
+	return r1, tagSQLErr(err)
 }
 
-// InsertNoConflict adds row and sets v.ID, false when row exists
-func (a *TagSQL) InsertNoConflict(v *Tag) (bool, errors.E) {
-	res, err := a.stdInsertNoConflict(v)
-	return res, tagSQLErr(err)
+// InsertNoConflict adds row and returns generated id, false when row exists
+func (a *TagSQL) InsertNoConflict(v Tag) (int, bool, errors.E) {
+	r1, r2, err := a.stdInsertNoConflict(v)
+	return r1, r2, tagSQLErr(err)
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *TagSQL) InsertFull(v *Tag) errors.E {
+func (a *TagSQL) InsertFull(v Tag) errors.E {
 	return tagSQLErr(a.stdInsertFull(v))
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
-func (a *TagSQL) Upsert(v *Tag) errors.E {
+func (a *TagSQL) Upsert(v Tag) errors.E {
 	return tagSQLErr(a.stdUpsert(v))
 }
 
 // InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
 func (a *TagSQL) InsertMany(list []Tag) (int64, errors.E) {
-	res, err := a.stdInsertMany(list)
-	return res, tagSQLErr(err)
+	r1, err := a.stdInsertMany(list)
+	return r1, tagSQLErr(err)
 }
 
-// InsertBatch adds rows in one round trip and sets generated ID
-func (a *TagSQL) InsertBatch(list []*Tag) errors.E {
+// InsertBatch adds rows in one round trip and sets generated ID of list items
+func (a *TagSQL) InsertBatch(list []Tag) errors.E {
 	return tagSQLErr(a.stdInsertBatch(list))
 }
 
@@ -1049,7 +1052,7 @@ func (a *TagSQL) Updates(id int, v map[TagIndexTyped]any) errors.E {
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
-func (a *TagSQL) Save(v *Tag, fields ...TagIndexTyped) errors.E {
+func (a *TagSQL) Save(v Tag, fields ...TagIndexTyped) errors.E {
 	return tagSQLErr(a.stdSave(v, fields...))
 }
 
@@ -1067,20 +1070,20 @@ func (a *TagSQL) Delete(id int) errors.E {
 //
 //	db.UpdateWhere(IndexActive, false, "created < $1", date)
 func (a *TagSQL) UpdateWhere(field TagIndexTyped, v any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdateWhere(field, v, where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdUpdateWhere(field, v, where, args...)
+	return r1, tagSQLErr(err)
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
 func (a *TagSQL) UpdatesWhere(v map[TagIndexTyped]any, where string, args ...any) (int64, errors.E) {
-	res, err := a.stdUpdatesWhere(v, where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdUpdatesWhere(v, where, args...)
+	return r1, tagSQLErr(err)
 }
 
 // DeleteWhere removes rows by condition, returns count of rows
 func (a *TagSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
-	res, err := a.stdDeleteWhere(where, args...)
-	return res, tagSQLErr(err)
+	r1, err := a.stdDeleteWhere(where, args...)
+	return r1, tagSQLErr(err)
 }
 
 // UpdateMeta sets key of jsonb meta
@@ -1105,38 +1108,38 @@ func (a *TagSQL) RenameMeta(id int, k, newK string) errors.E {
 
 // ByOwner: where owner = @owner order by id
 func (a *TagSQL) ByOwner(owner int) ([]Tag, errors.E) {
-	res, err := a.stdByOwner(owner)
-	return res, tagSQLErr(err)
+	r1, err := a.stdByOwner(owner)
+	return r1, tagSQLErr(err)
 }
 
 // ByName: where name = @name
 func (a *TagSQL) ByName(name string) (Tag, errors.E) {
-	res, err := a.stdByName(name)
-	return res, tagSQLErr(err)
+	r1, err := a.stdByName(name)
+	return r1, tagSQLErr(err)
 }
 
 // Name: select name from tags where id = @id
 func (a *TagSQL) Name(id int) (string, errors.E) {
-	res, err := a.stdName(id)
-	return res, tagSQLErr(err)
+	r1, err := a.stdName(id)
+	return r1, tagSQLErr(err)
 }
 
 // Owner: select owner from tags where id = @id
 func (a *TagSQL) Owner(id int) (int, errors.E) {
-	res, err := a.stdOwner(id)
-	return res, tagSQLErr(err)
+	r1, err := a.stdOwner(id)
+	return r1, tagSQLErr(err)
 }
 
 // IDs: select id from tags where owner = any(@owners) order by id
 func (a *TagSQL) IDs(owners []int) ([]int, errors.E) {
-	res, err := a.stdIDs(owners)
-	return res, tagSQLErr(err)
+	r1, err := a.stdIDs(owners)
+	return r1, tagSQLErr(err)
 }
 
 // Rename: update tags set name = @name where owner = @owner
 func (a *TagSQL) Rename(owner int, name string) (int64, errors.E) {
-	res, err := a.stdRename(owner, name)
-	return res, tagSQLErr(err)
+	r1, err := a.stdRename(owner, name)
+	return r1, tagSQLErr(err)
 }
 
 // Drop: delete from tags where id = $1
@@ -1146,8 +1149,8 @@ func (a *TagSQL) Drop(id int) errors.E {
 
 // Search returns rows by query
 func (a *TagSQL) Search(q *TagQuery) ([]Tag, errors.E) {
-	res, err := a.stdSearch(q)
-	return res, tagSQLErr(err)
+	r1, err := a.stdSearch(q)
+	return r1, tagSQLErr(err)
 }
 
 // CreateTable creates table if not exists
