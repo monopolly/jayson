@@ -489,7 +489,11 @@ func TestFuncs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// unique violation is exist
-	if err := tags.InsertFull(&Tag{ID: 1}); err == nil || err.ID() != "exist" {
+	if err := tags.InsertFull(&Tag{ID: 1}); err == nil || err.ID() != "exist" || err.Comment() != "tags_pkey" {
+		t.Fatal(err)
+	}
+	// other errors of postgres are database errors
+	if _, err := tags.Select(nil, "nocolumn = 1"); err == nil || err.Code() != 500 {
 		t.Fatal(err)
 	}
 	if err := tags.Update(100, TagIndexName, "x"); err == nil || err.Code() != 404 {
