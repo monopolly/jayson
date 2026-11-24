@@ -14,6 +14,8 @@ create table if not exists hits (
 	counts      Map(String, Int64),
 	ifrom       String
 )
-engine = MergeTree()
+engine = ReplacingMergeTree(views)
 order by (id)
-primary key (id);
+primary key (id)
+partition by toYYYYMM(created)
+ttl created + interval 10 year;

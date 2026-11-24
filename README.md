@@ -312,6 +312,15 @@ top, err := ch.Top("DE")                 // own query
 err = ch.Delete(1)
 ```
 
+The engine is set in the struct options. The key is built from `ch{primary}` fields for engines of the
+`MergeTree` family; `Log`, `Memory` and `Null` get no key.
+
+```go
+// go ch=events engine=ReplacingMergeTree(updated) partition=toYYYYMM(created) ttl="created + interval 90 day"
+```
+
+The header of every generated file with the `ch` option lists the engines with a short description.
+
 ClickHouse is an insert and select database: there are no update methods. `Delete` is a mutation and waits
 until the data is removed. A missing row is `sql.ErrNoRows`. Own queries live in the interface `<struct>CQL`
 and follow the rules of example 3.
@@ -386,7 +395,9 @@ type news struct {
 | `go` / `go=News` | Name of the generated struct. |
 | `sql` / `sql=news` | PostgreSQL class `NewsSQL` and the `.sql` file. |
 | `ch` / `ch=news` | ClickHouse class `NewsCQL` and the `.cql` file. |
-| `chengine=MergeTree` | ClickHouse engine. |
+| `engine=ReplacingMergeTree(updated)` | ClickHouse engine, `MergeTree` by default. |
+| `partition=toYYYYMM(created)` | ClickHouse `partition by`. |
+| `ttl="created + interval 30 day"` | ClickHouse `ttl`. A value with spaces is written in quotes. |
 | `proto` / `proto=NewsProto` | `.proto` file and protobuf Go code. |
 | `ee` | PostgreSQL and ClickHouse methods return `errors.E` instead of `error`. |
 | `gotiny`, `msgp` | gotiny and MessagePack encoding. |

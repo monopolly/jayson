@@ -21,71 +21,94 @@ import (
 	Help to auto-generated correct models for golang structures.
 	Sergey Keplin (c) 2026
 	a@senthy.com, lava.mobi@gmail.com, https://t.me/martinprestone
-	github.com/monopolly/jsons
-	Ex: //! [] go=News js=NewsJson sql=news noinit up...
+	github.com/monopolly/jayson
+	Ex: // go=News sql=news ch=news proto test
 
 	STRUCT:
-	!omit                         No omit tag for json
-	ch=views                      Set clickhouse sql table name. Ex: ch=views
-	chengine=MergeTree            Optional, mergeTree by default
-	debug                         Debug mode
-	ee                            Errors of sql methods are errors.E of github.com/monopolly/errors: errors.PGX(err)
-	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
-	gotiny                        Create gotiny marshal/unmarshal
-	lock                          Lock model for generation. Can't change model.
-	msgp                          Create message pack marshal/unmarshal
-	noinit                        No New() init function for struct
-	optimize                      Try to create golang padding optimized struct
-	proto=NewsProto               Generate proto file and compile to current package
-	sql=news                      Set sql table name. Ex: sql=accounts
-	test                          Generate go tests for generated model
+	!omit                         No omit tag for json
+	ch=views                      Set clickhouse sql table name. Ex: ch=views
+	debug                         Debug mode
+	ee                            Errors of sql methods are errors.E of github.com/monopolly/errors: errors.PGX(err)
+	engine=MergeTree              Clickhouse engine, MergeTree by default. Ex: engine=ReplacingMergeTree(updated)
+	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
+	gotiny                        Create gotiny marshal/unmarshal
+	lock                          Lock model for generation. Can't change model.
+	msgp                          Create message pack marshal/unmarshal
+	noinit                        No New() init function for struct
+	optimize                      Try to create golang padding optimized struct
+	partition=toYYYYMM(created)   Clickhouse partition by
+	proto=NewsProto               Generate proto file and compile to current package
+	sql=news                      Set sql table name. Ex: sql=accounts
+	test                          Generate go tests for generated model
+	ttl="created + interval 30 day" Clickhouse ttl: rows are removed after the time
 
 	Field:
-	desc{}                        Add custom desc for index. desc{This field for success}
-	js{name=""}                   Replace json field name. Ex: js{name="sid"}
-	title{}                       Add custom title for index. title{Nice & Sweet}
+	desc{}                        Add custom desc for index. desc{This field for success}
+	js{name=""}                   Replace json field name. Ex: js{name="sid"}
+	title{}                       Add custom title for index. title{Nice & Sweet}
 
 	GO:
-	#                             Add lists for fields. Ex: id int //#readonly #must...
-	@                             Add custom structs for fields. Ex: id int //@public @team...
-	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
-	desc=""                       Add custom desc for index
-	desc{}                        Add field user title desc{Use it nice}
-	must                          Create one validation function for all must fields
-	name=""                       Replace golang struct name. Ex: name="NewsList"
-	title=""                      Add custom title for index
-	title{}                       Add field user title title{Nice}
-	type=""                       Replace golang type. Ex: type="[]*News"
-	up                            Make uppercase for functions
+	#                             Add lists for fields. Ex: id int //#readonly #must...
+	@                             Add custom structs for fields. Ex: id int //@public @team...
+	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
+	desc=""                       Add custom desc for index
+	desc{}                        Add field user title desc{Use it nice}
+	must                          Create one validation function for all must fields
+	name=""                       Replace golang struct name. Ex: name="NewsList"
+	title=""                      Add custom title for index
+	title{}                       Add field user title title{Nice}
+	type=""                       Replace golang type. Ex: type="[]*News"
+	up                            Make uppercase for functions
 
 	SQL:
-	add="primary key"             Append sql for field. Ex: replace="primary key"
-	altertable                    Add field line Alter table to SQL file with current time comment
-	defaults                      Add default value based on field type
-	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
-	index                         Create simple default index or gin for jsonb and arrays
-	noinsert                      Do use field for insert function
-	notnull                       Add not null to column
-	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
-	renames="oldname"             Create an alter table record in SQL file. Rename table column.
-	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
-	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
-	skip                          Skip field for sql queries
-	type="date"                   Explicit postgres type: date, timestamp, time, interval, varchar(64), numeric(18,2), json, vector(3)...
-	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
-	unique="groupname"            Add unique fields constrains by group (you need set group name, then generator join fields). Ex: unique="group1" unique="group2"
-	unix                          Add default value: extract(epoch from now())
-	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
+	add="primary key"             Append sql for field. Ex: replace="primary key"
+	altertable                    Add field line Alter table to SQL file with current time comment
+	defaults                      Add default value based on field type
+	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
+	index                         Create simple default index or gin for jsonb and arrays
+	noinsert                      Do use field for insert function
+	notnull                       Add not null to column
+	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
+	renames="oldname"             Create an alter table record in SQL file. Rename table column.
+	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
+	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
+	skip                          Skip field for sql queries
+	type="date"                   Explicit postgres type: date, timestamp, time, interval, varchar(64), numeric(18,2), json, vector(3)...
+	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
+	unique="groupname"            Add unique fields constrains by group (you need set group name, then generator join fields). Ex: unique="group1" unique="group2"
+	unix                          Add default value: extract(epoch from now())
+	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
 
 	Clickhouse:
-	low                           ch{low} Wrap field type in LowCardinality(...)
-	primary"                      ch{primary} Make primary key
-	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
+	low                           ch{low} Wrap field type in LowCardinality(...)
+	primary"                      ch{primary} Make primary key
+	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
 
 	PROTO:
-	name="field"                  Rewrite proto field name
-	skip                          Skip field for proto
-	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
+	name="field"                  Rewrite proto field name
+	skip                          Skip field for proto
+	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
+
+	SQL FUNCTIONS: methods of interface become methods of OrderSQL
+	type orderSQL interface {
+		// where role = @role and key = @key limit 1
+		Creds(role role.Role, key uuid.UUID) (Order, error)
+
+		// select role from order where id = @id
+		Role(id int) (role.Role, error) // !404: empty value instead of not found
+
+		// select music from order where id = @id
+		Music(id int) ([]int, error)
+
+		// select id from order where role = @role
+		IDs(role role.Role) ([]int, error)
+
+		// update order set created = now() where id = @id
+		Touch(id int) error
+
+		// delete from order where created < @before
+		Clean(before time.Time) (int64, error) // count of rows
+	}
 */
 
 // 32 bytes (go padding)

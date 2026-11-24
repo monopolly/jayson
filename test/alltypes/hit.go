@@ -2,7 +2,7 @@ package alltypes
 
 import "time"
 
-// go=Hit ch=hits
+// go=Hit ch=hits engine=ReplacingMergeTree(views) partition=toYYYYMM(created) ttl="created + interval 10 year"
 type hit struct {
 	id      int // ch{primary}
 	user    int

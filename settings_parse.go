@@ -81,9 +81,16 @@ func (a *Settings) Parse(in string) {
 
 	// clickhouse
 	a.Clickhouse.Table = optionName(res.Options, "ch", a.Origin)
-	a.Clickhouse.Engine, _ = res.Options["chengine"].(string)
+	a.Clickhouse.Engine, _ = res.Options["engine"].(string)
+	if a.Clickhouse.Engine == "" {
+		a.Clickhouse.Engine, _ = res.Options["chengine"].(string) // old name
+	}
+	a.Clickhouse.Partition, _ = res.Options["partition"].(string)
+	a.Clickhouse.TTL, _ = res.Options["ttl"].(string)
 	helps.Struct["ch=views"] = "Set clickhouse sql table name. Ex: ch=views"
-	helps.Struct["chengine=MergeTree"] = "Optional, mergeTree by default"
+	helps.Struct["engine=MergeTree"] = "Clickhouse engine, MergeTree by default. Ex: engine=ReplacingMergeTree(updated)"
+	helps.Struct["partition=toYYYYMM(created)"] = "Clickhouse partition by"
+	helps.Struct[`ttl="created + interval 30 day"`] = "Clickhouse ttl: rows are removed after the time"
 
 	if a.Go.StructName == "" {
 		a.Go.StructName = tools.Title(a.Origin)

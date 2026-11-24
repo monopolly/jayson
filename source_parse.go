@@ -47,7 +47,7 @@ type sourceField struct {
 // struct options: // go=News sql=news ch proto
 var sourceOptionKeys = map[string]bool{
 	"go": true, "sql": true, "ch": true, "proto": true, "test": true, "lock": true, "debug": true, "noinit": true,
-	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "chengine": true, "ee": true,
+	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "chengine": true, "engine": true, "partition": true, "ttl": true, "ee": true,
 }
 
 // parse model file: only the model struct, other types of file are ignored
@@ -148,19 +148,44 @@ func parseSource(filename string) (res sourceStruct, err error) {
 	return
 }
 
-// go=News sql ch > {go: News, sql: true, ch: true}
+// go=News sql ch ttl="created + interval 30 day" > {go: News, sql: true, ch: true, ttl: created + interval 30 day}
 func parseSourceOptions(v string) map[string]any {
 	res := map[string]any{}
-	for _, x := range strings.Fields(v) {
+	for _, x := range sourceOptionFields(v) {
 		k, value, ok := strings.Cut(x, "=")
 		switch ok {
 		case true:
-			res[k] = value
+			res[k] = strings.Trim(value, `"`)
 		case false:
 			res[k] = true
 		}
 	}
 	return res
+}
+
+// words of options, value in quotes may have spaces
+func sourceOptionFields(v string) (res []string) {
+	var b strings.Builder
+	var quoted bool
+	flush := func() {
+		if b.Len() > 0 {
+			res = append(res, b.String())
+			b.Reset()
+		}
+	}
+	for _, r := range v {
+		switch {
+		case r == '"':
+			quoted = !quoted
+			b.WriteRune(r)
+		case !quoted && (r == ' ' || r == '\t' || r == '\n' || r == '\r'):
+			flush()
+		default:
+			b.WriteRune(r)
+		}
+	}
+	flush()
+	return
 }
 
 // options comment starts with option: "go=News sql=news", not "Config for go"

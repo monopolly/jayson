@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,17 @@ func TestClickhouse(t *testing.T) {
 	if err := db.CreateTable(); err != nil {
 		t.Fatal("table:", err)
 	}
+	// options engine, partition, ttl
+	var ddl string
+	if err := conn.QueryRow(context.Background(), "show create table hits").Scan(&ddl); err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range []string{"ReplacingMergeTree(views)", "PARTITION BY toYYYYMM(created)", "TTL created + toIntervalYear(10)", "ORDER BY (id)"} {
+		if !strings.Contains(ddl, x) {
+			t.Errorf("no %q in table:\n%s", x, ddl)
+		}
+	}
+
 	check := func(err error) {
 		t.Helper()
 		if err != nil {
@@ -50,7 +62,7 @@ func TestClickhouse(t *testing.T) {
 	}
 
 	// buffer
-	db.Add(want, Hit{ID: 2, User: 8, Country: "US", IP: "10.0.0.2", Path: "/b"})
+	db.Add(want, Hit{ID: 2, User: 8, Country: "US", IP: "10.0.0.2", Path: "/b", Created: now})
 	if db.Len() != 2 {
 		t.Fatal(db.Len())
 	}
@@ -59,7 +71,7 @@ func TestClickhouse(t *testing.T) {
 		t.Fatal(db.Len())
 	}
 	// direct insert
-	check(db.Insert(Hit{ID: 3, User: 9, Country: "DE", IP: "10.0.0.3", Path: "/c", Views: 5}))
+	check(db.Insert(Hit{ID: 3, User: 9, Country: "DE", IP: "10.0.0.3", Path: "/c", Views: 5, Created: now}))
 
 	// read
 	got, err := db.Get(1)
