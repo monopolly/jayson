@@ -17,8 +17,8 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
 	err = db.Insert(&acc)
 	err = db.Inc(acc.ID, AccountIndexBalance, 50)
-	err = db.TagsAppend(acc.ID, "vip")
-	err = db.MetaUpdate(acc.ID, "lang", "en")
+	err = db.AppendTags(acc.ID, "vip")
+	err = db.UpdateMeta(acc.ID, "lang", "en")
 	rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
 
 	ok, err := db.InsertNoConflict(&acc)
@@ -39,14 +39,14 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	err = db.Delete(acc.ID)
 	count, err = db.DeleteWhere("email like $1", "%@spam.com")
 
-	err = db.TagsAppend(id, "a", "b")
-	err = db.TagsRemove(id, "a")
-	err = db.ScoresAppend(id, 10, 20)
-	err = db.SettingsUpdate(id, "volume", 7)
-	err = db.SettingsMerge(id, map[string]int{"a": 1, "b": 2})
-	err = db.SettingsRename(id, "a", "c")
-	err = db.SettingsDelete(id, "b")
-	err = db.ItemsAppend(id, Item{Name: "book"})
+	err = db.AppendTags(id, "a", "b")
+	err = db.RemoveTags(id, "a")
+	err = db.AppendScores(id, 10, 20)
+	err = db.UpdateSettings(id, "volume", 7)
+	err = db.MergeSettings(id, map[string]int{"a": 1, "b": 2})
+	err = db.RenameSettings(id, "a", "c")
+	err = db.DeleteSettings(id, "b")
+	err = db.AppendItems(id, Item{Name: "book"})
 
 	rich, err = db.Rich(1000)
 	acc, err = db.ByEmail("nobody@example.com")

@@ -543,58 +543,58 @@ func (a *{{.Class}}) DeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 {{if .Key}}{{range .Columns}}{{if .Elem}}
-// {{.GoName}}Append adds values to array {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Append(id {{$.Key.GoType}}, v ...{{.ElemGo}}) error {
+// Append{{.GoName}} adds values to array {{.Name}}
+func (a *{{$.Class}}) Append{{.GoName}}(id {{$.Key.GoType}}, v ...{{.ElemGo}}) error {
 	return {{$.Priv}}Affected(a.db.Exec(context.Background(), "update {{$.Table}} set {{.Name}} = coalesce({{.Name}}, '{}') || $1::{{.Type}} where {{$.Key.Name}} = $2", v, id))
 }
 
-// {{.GoName}}Remove removes all entries of v from array {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Remove(id {{$.Key.GoType}}, v {{.ElemGo}}) error {
+// Remove{{.GoName}} removes all entries of v from array {{.Name}}
+func (a *{{$.Class}}) Remove{{.GoName}}(id {{$.Key.GoType}}, v {{.ElemGo}}) error {
 	return {{$.Priv}}Affected(a.db.Exec(context.Background(), "update {{$.Table}} set {{.Name}} = array_remove({{.Name}}, $1::{{.Elem}}) where {{$.Key.Name}} = $2", v, id))
 }
 {{end}}{{if eq .JSON "map"}}
-// {{.GoName}}Update sets key of jsonb {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Update(id {{$.Key.GoType}}, k {{.MapKey}}, v {{.MapValue}}) error {
+// Update{{.GoName}} sets key of jsonb {{.Name}}
+func (a *{{$.Class}}) Update{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}, v {{.MapValue}}) error {
 	return a.jsonSet(id, "{{.Name}}", fmt.Sprint(k), v)
 }
 
-// {{.GoName}}Merge adds keys to jsonb {{.Name}}: existing keys are replaced
-func (a *{{$.Class}}) {{.GoName}}Merge(id {{$.Key.GoType}}, v {{.Field.BaseType}}) error {
+// Merge{{.GoName}} adds keys to jsonb {{.Name}}: existing keys are replaced
+func (a *{{$.Class}}) Merge{{.GoName}}(id {{$.Key.GoType}}, v {{.Field.BaseType}}) error {
 	return a.jsonMerge(id, "{{.Name}}", "{}", v)
 }
 
-// {{.GoName}}Delete removes key of jsonb {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Delete(id {{$.Key.GoType}}, k {{.MapKey}}) error {
+// Delete{{.GoName}} removes key of jsonb {{.Name}}
+func (a *{{$.Class}}) Delete{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}) error {
 	return a.jsonDelete(id, "{{.Name}}", fmt.Sprint(k))
 }
 
-// {{.GoName}}Rename renames key of jsonb {{.Name}}, pgx.ErrNoRows when key not found
-func (a *{{$.Class}}) {{.GoName}}Rename(id {{$.Key.GoType}}, k, newK {{.MapKey}}) error {
+// Rename{{.GoName}} renames key of jsonb {{.Name}}, pgx.ErrNoRows when key not found
+func (a *{{$.Class}}) Rename{{.GoName}}(id {{$.Key.GoType}}, k, newK {{.MapKey}}) error {
 	return a.jsonRename(id, "{{.Name}}", fmt.Sprint(k), fmt.Sprint(newK))
 }
 {{end}}{{if eq .JSON "object"}}
-// {{.GoName}}Update sets key of jsonb {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Update(id {{$.Key.GoType}}, k string, v any) error {
+// Update{{.GoName}} sets key of jsonb {{.Name}}
+func (a *{{$.Class}}) Update{{.GoName}}(id {{$.Key.GoType}}, k string, v any) error {
 	return a.jsonSet(id, "{{.Name}}", k, v)
 }
 
-// {{.GoName}}Merge adds keys of object v to jsonb {{.Name}}: existing keys are replaced
-func (a *{{$.Class}}) {{.GoName}}Merge(id {{$.Key.GoType}}, v any) error {
+// Merge{{.GoName}} adds keys of object v to jsonb {{.Name}}: existing keys are replaced
+func (a *{{$.Class}}) Merge{{.GoName}}(id {{$.Key.GoType}}, v any) error {
 	return a.jsonMerge(id, "{{.Name}}", "{}", v)
 }
 
-// {{.GoName}}Delete removes key of jsonb {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Delete(id {{$.Key.GoType}}, k string) error {
+// Delete{{.GoName}} removes key of jsonb {{.Name}}
+func (a *{{$.Class}}) Delete{{.GoName}}(id {{$.Key.GoType}}, k string) error {
 	return a.jsonDelete(id, "{{.Name}}", k)
 }
 
-// {{.GoName}}Rename renames key of jsonb {{.Name}}, pgx.ErrNoRows when key not found
-func (a *{{$.Class}}) {{.GoName}}Rename(id {{$.Key.GoType}}, k, newK string) error {
+// Rename{{.GoName}} renames key of jsonb {{.Name}}, pgx.ErrNoRows when key not found
+func (a *{{$.Class}}) Rename{{.GoName}}(id {{$.Key.GoType}}, k, newK string) error {
 	return a.jsonRename(id, "{{.Name}}", k, newK)
 }
 {{end}}{{if eq .JSON "array"}}
-// {{.GoName}}Append adds values to jsonb array {{.Name}}
-func (a *{{$.Class}}) {{.GoName}}Append(id {{$.Key.GoType}}, v ...{{.JSONElem}}) error {
+// Append{{.GoName}} adds values to jsonb array {{.Name}}
+func (a *{{$.Class}}) Append{{.GoName}}(id {{$.Key.GoType}}, v ...{{.JSONElem}}) error {
 	return a.jsonMerge(id, "{{.Name}}", "[]", v)
 }
 {{end}}{{end}}{{if .HasJSON}}

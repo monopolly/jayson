@@ -102,6 +102,8 @@ const (
 	TagIndexName
 	TagIndexOwner
 	TagIndexMeta
+	TagIndexFrom
+	TagIndexTo
 )
 
 // string index
@@ -110,15 +112,17 @@ const (
 	TagFieldName  = "name"  // string
 	TagFieldOwner = "owner" // int
 	TagFieldMeta  = "meta"  // map[string]int
+	TagFieldFrom  = "from"  // int reserved sql word: column froms
+	TagFieldTo    = "to"    // int reserved sql word: column tos
 )
 
 // index func
 func TagIndexes() []TagIndexTyped {
-	return []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta}
+	return []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta, TagIndexFrom, TagIndexTo}
 
 }
 
-// 40 bytes (go padding)
+// 56 bytes (go padding)
 //
 //easyjson:json
 type Tag struct {
@@ -126,6 +130,8 @@ type Tag struct {
 	Name  string         `json:"name,omitempty"`  //
 	Owner int            `json:"owner,omitempty"` //
 	Meta  map[string]int `json:"meta,omitempty"`  //
+	From  int            `json:"from,omitempty"`  // reserved sql word: column froms
+	To    int            `json:"to,omitempty"`    // reserved sql word: column tos
 }
 
 // init struct
@@ -137,12 +143,12 @@ func NewTag() (a *Tag) {
 
 // Tuple create an array from struct
 func (a *Tag) Tuple() (r []any) {
-	return []any{a.ID, a.Name, a.Owner, a.Meta}
+	return []any{a.ID, a.Name, a.Owner, a.Meta, a.From, a.To}
 }
 
 // Tuple create an array from struct for clickhouse
 func (a *Tag) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Name, a.Owner, a.Meta}
+	return []any{a.ID, a.Name, a.Owner, a.Meta, a.From, a.To}
 }
 
 // get struct value with function
@@ -156,6 +162,10 @@ func (a *Tag) Get(k string) (v any) {
 		return a.Owner //int
 	case "meta":
 		return a.Meta //map[string]int
+	case "from":
+		return a.From //int
+	case "to":
+		return a.To //int
 	}
 	return
 }
@@ -171,6 +181,10 @@ func (a *Tag) String(k string) (v string) {
 		return fmt.Sprint(a.Owner) //int
 	case "meta":
 		return fmt.Sprint(a.Meta) //map[string]int
+	case "from":
+		return fmt.Sprint(a.From) //int
+	case "to":
+		return fmt.Sprint(a.To) //int
 	}
 	return
 }
@@ -186,6 +200,10 @@ func (a TagIndexTyped) String() string {
 		return "owner"
 	case TagIndexMeta:
 		return "meta"
+	case TagIndexFrom:
+		return "from"
+	case TagIndexTo:
+		return "to"
 	default:
 		return ""
 	}
@@ -202,6 +220,10 @@ func (a TagIndexTyped) SQLName() string {
 		return "owner"
 	case TagIndexMeta:
 		return "meta"
+	case TagIndexFrom:
+		return "froms"
+	case TagIndexTo:
+		return "tos"
 	default:
 		return ""
 	}
@@ -218,6 +240,10 @@ func (a TagIndexTyped) ClickhouseName() string {
 		return "owner"
 	case TagIndexMeta:
 		return "meta"
+	case TagIndexFrom:
+		return "from"
+	case TagIndexTo:
+		return "to"
 	default:
 		return ""
 	}
@@ -234,6 +260,10 @@ func (a TagIndexTyped) Type() string {
 		return "int"
 	case TagIndexMeta:
 		return "map[string]int"
+	case TagIndexFrom:
+		return "int"
+	case TagIndexTo:
+		return "int"
 	default:
 		return ""
 	}
@@ -250,6 +280,10 @@ func (a TagIndexTyped) Title() string {
 		return "Owner"
 	case TagIndexMeta:
 		return "Meta"
+	case TagIndexFrom:
+		return "From"
+	case TagIndexTo:
+		return "To"
 	default:
 		return ""
 	}
@@ -274,6 +308,10 @@ func TagKeyIndex(key string) TagIndexTyped {
 		return TagIndexOwner
 	case "meta":
 		return TagIndexMeta
+	case "from":
+		return TagIndexFrom
+	case "to":
+		return TagIndexTo
 	default:
 		return 0
 	}
@@ -282,7 +320,7 @@ func TagKeyIndex(key string) TagIndexTyped {
 // valid struct key check
 func TagValidKey(key string) bool {
 	switch key {
-	case "id", "name", "owner", "meta":
+	case "id", "name", "owner", "meta", "from", "to":
 		return true
 	default:
 		return false
@@ -296,6 +334,8 @@ func (a *Tag) Map() map[string]any {
 		"name":  a.Name,
 		"owner": a.Owner,
 		"meta":  a.Meta,
+		"from":  a.From,
+		"to":    a.To,
 	}
 }
 
@@ -411,10 +451,10 @@ func (a *TagSQL) Fields() []TagIndexTyped {
 // ---------------------------------------------------------------------------
 
 // all sql columns
-var tagSQLFields = []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta}
+var tagSQLFields = []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta, TagIndexFrom, TagIndexTo}
 
 // columns of insert
-var tagSQLInsertColumns = []string{"name", "owner", "meta"}
+var tagSQLInsertColumns = []string{"name", "owner", "meta", "froms", "tos"}
 
 // sql column names
 var tagSQLColumns = [...]string{
@@ -422,6 +462,8 @@ var tagSQLColumns = [...]string{
 	TagIndexName:  "name",
 	TagIndexOwner: "owner",
 	TagIndexMeta:  "meta",
+	TagIndexFrom:  "froms",
+	TagIndexTo:    "tos",
 }
 
 // select expressions: null of scalar column is zero value
@@ -430,6 +472,8 @@ var tagSQLSelects = [...]string{
 	TagIndexName:  "coalesce(name, '')",
 	TagIndexOwner: "coalesce(owner, 0)",
 	TagIndexMeta:  "meta",
+	TagIndexFrom:  "coalesce(froms, 0)",
+	TagIndexTo:    "coalesce(tos, 0)",
 }
 
 // sql column types
@@ -438,9 +482,11 @@ var tagSQLTypes = [...]string{
 	TagIndexName:  "text",
 	TagIndexOwner: "bigint",
 	TagIndexMeta:  "jsonb",
+	TagIndexFrom:  "bigint",
+	TagIndexTo:    "bigint",
 }
 
-const tagSQLSelectAll = "coalesce(id, 0), coalesce(name, ''), coalesce(owner, 0), meta"
+const tagSQLSelectAll = "coalesce(id, 0), coalesce(name, ''), coalesce(owner, 0), meta, coalesce(froms, 0), coalesce(tos, 0)"
 
 // tagSQLColumn returns sql column name of field
 func tagSQLColumn(f TagIndexTyped) (string, error) {
@@ -524,6 +570,10 @@ func (a *Tag) sqlDest(fields []TagIndexTyped) []any {
 			dest[i] = &a.Owner
 		case TagIndexMeta:
 			dest[i] = &a.Meta
+		case TagIndexFrom:
+			dest[i] = &a.From
+		case TagIndexTo:
+			dest[i] = &a.To
 		}
 	}
 	return dest
@@ -540,6 +590,10 @@ func (a *Tag) sqlValue(f TagIndexTyped) any {
 		return a.Owner
 	case TagIndexMeta:
 		return a.Meta
+	case TagIndexFrom:
+		return a.From
+	case TagIndexTo:
+		return a.To
 	}
 	return nil
 }
@@ -550,6 +604,8 @@ func (a *Tag) sqlInsertArgs() []any {
 		a.Name,
 		a.Owner,
 		a.Meta,
+		a.From,
+		a.To,
 	}
 }
 
@@ -560,6 +616,8 @@ func (a *Tag) sqlAllArgs() []any {
 		a.Name,
 		a.Owner,
 		a.Meta,
+		a.From,
+		a.To,
 	}
 }
 
@@ -652,9 +710,9 @@ func (a *TagSQL) stdCountWhere(where string, args ...any) (count int, err error)
 // insert
 // ---------------------------------------------------------------------------
 
-const tagSQLInsert = "insert into tags (name, owner, meta) values ($1, $2, $3)"
+const tagSQLInsert = "insert into tags (name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5)"
 
-const tagSQLInsertFull = "insert into tags (id, name, owner, meta) values ($1, $2, $3, $4)"
+const tagSQLInsertFull = "insert into tags (id, name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5, $6)"
 
 func (a *TagSQL) stdInsert(v *Tag) error {
 	return a.db.QueryRow(context.Background(), tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
@@ -674,7 +732,7 @@ func (a *TagSQL) stdInsertFull(v *Tag) error {
 }
 
 func (a *TagSQL) stdUpsert(v *Tag) error {
-	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta) values ($1, $2, $3, $4) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta", v.sqlAllArgs()...)
+	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5, $6) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta, froms = excluded.froms, tos = excluded.tos", v.sqlAllArgs()...)
 	return err
 }
 
@@ -775,19 +833,19 @@ func (a *TagSQL) stdDeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-func (a *TagSQL) stdMetaUpdate(id int, k string, v int) error {
+func (a *TagSQL) stdUpdateMeta(id int, k string, v int) error {
 	return a.jsonSet(id, "meta", fmt.Sprint(k), v)
 }
 
-func (a *TagSQL) stdMetaMerge(id int, v map[string]int) error {
+func (a *TagSQL) stdMergeMeta(id int, v map[string]int) error {
 	return a.jsonMerge(id, "meta", "{}", v)
 }
 
-func (a *TagSQL) stdMetaDelete(id int, k string) error {
+func (a *TagSQL) stdDeleteMeta(id int, k string) error {
 	return a.jsonDelete(id, "meta", fmt.Sprint(k))
 }
 
-func (a *TagSQL) stdMetaRename(id int, k, newK string) error {
+func (a *TagSQL) stdRenameMeta(id int, k, newK string) error {
 	return a.jsonRename(id, "meta", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
@@ -1052,7 +1110,9 @@ const tagSQLCreateTable = `create table if not exists tags (
 	id        bigint generated by default as identity primary key,
 	name      text,
 	owner     bigint,
-	meta      jsonb default '{}'::jsonb
+	meta      jsonb default '{}'::jsonb,
+	froms     bigint,
+	tos       bigint
 )`
 
 // indexes from tags: sql{index}, sql{idx="group"}, sql{search="group"}
@@ -1242,24 +1302,24 @@ func (a *TagSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
 	return res, tagSQLErr(err)
 }
 
-// MetaUpdate sets key of jsonb meta
-func (a *TagSQL) MetaUpdate(id int, k string, v int) errors.E {
-	return tagSQLErr(a.stdMetaUpdate(id, k, v))
+// UpdateMeta sets key of jsonb meta
+func (a *TagSQL) UpdateMeta(id int, k string, v int) errors.E {
+	return tagSQLErr(a.stdUpdateMeta(id, k, v))
 }
 
-// MetaMerge adds keys to jsonb meta: existing keys are replaced
-func (a *TagSQL) MetaMerge(id int, v map[string]int) errors.E {
-	return tagSQLErr(a.stdMetaMerge(id, v))
+// MergeMeta adds keys to jsonb meta: existing keys are replaced
+func (a *TagSQL) MergeMeta(id int, v map[string]int) errors.E {
+	return tagSQLErr(a.stdMergeMeta(id, v))
 }
 
-// MetaDelete removes key of jsonb meta
-func (a *TagSQL) MetaDelete(id int, k string) errors.E {
-	return tagSQLErr(a.stdMetaDelete(id, k))
+// DeleteMeta removes key of jsonb meta
+func (a *TagSQL) DeleteMeta(id int, k string) errors.E {
+	return tagSQLErr(a.stdDeleteMeta(id, k))
 }
 
-// MetaRename renames key of jsonb meta, pgx.ErrNoRows when key not found
-func (a *TagSQL) MetaRename(id int, k, newK string) errors.E {
-	return tagSQLErr(a.stdMetaRename(id, k, newK))
+// RenameMeta renames key of jsonb meta, pgx.ErrNoRows when key not found
+func (a *TagSQL) RenameMeta(id int, k, newK string) errors.E {
+	return tagSQLErr(a.stdRenameMeta(id, k, newK))
 }
 
 // ByOwner: where owner = @owner order by id
@@ -1343,6 +1403,8 @@ type TagProto struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Owner         int64                  `protobuf:"varint,3,opt,name=owner,proto3" json:"owner,omitempty"`
 	Meta          map[string]int64       `protobuf:"bytes,4,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	From          int64                  `protobuf:"varint,5,opt,name=from,proto3" json:"from,omitempty"`
+	To            int64                  `protobuf:"varint,6,opt,name=to,proto3" json:"to,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1405,16 +1467,32 @@ func (x *TagProto) GetMeta() map[string]int64 {
 	return nil
 }
 
+func (x *TagProto) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *TagProto) GetTo() int64 {
+	if x != nil {
+		return x.To
+	}
+	return 0
+}
+
 var File_tag_proto protoreflect.FileDescriptor
 
 const file_tag_proto_rawDesc = "" +
 	"\n" +
-	"\ttag.proto\x12\balltypes\"\xaf\x01\n" +
+	"\ttag.proto\x12\balltypes\"\xd3\x01\n" +
 	"\bTagProto\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\x03R\x05owner\x120\n" +
-	"\x04meta\x18\x04 \x03(\v2\x1c.alltypes.TagProto.MetaEntryR\x04meta\x1a7\n" +
+	"\x04meta\x18\x04 \x03(\v2\x1c.alltypes.TagProto.MetaEntryR\x04meta\x12\x12\n" +
+	"\x04from\x18\x05 \x01(\x03R\x04from\x12\x0e\n" +
+	"\x02to\x18\x06 \x01(\x03R\x02to\x1a7\n" +
 	"\tMetaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01B\rZ\v./;alltypesb\x06proto3"

@@ -34,8 +34,8 @@ db, err := NewAccountSQL(pool) // creates the table and indexes if they do not e
 acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
 err = db.Insert(&acc)                        // sets acc.ID
 err = db.Inc(acc.ID, AccountIndexBalance, 50) // balance = balance + 50
-err = db.TagsAppend(acc.ID, "vip")           // tags = tags || '{vip}'
-err = db.MetaUpdate(acc.ID, "lang", "en")    // jsonb_set(meta, '{lang}', '"en"')
+err = db.AppendTags(acc.ID, "vip")           // tags = tags || '{vip}'
+err = db.UpdateMeta(acc.ID, "lang", "en")    // jsonb_set(meta, '{lang}', '"en"')
 
 rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
 ```
@@ -53,7 +53,7 @@ rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
   and become typed methods.
 - **Safe by construction.** Values are always query parameters. Column names come from generated constants,
   never from strings.
-- **Typed helpers for every array and jsonb field**: `TagsAppend`, `TagsRemove`, `MetaUpdate`, `MetaMerge`...
+- **Typed helpers for every array and jsonb field**: `AppendTags`, `RemoveTags`, `UpdateMeta`, `MergeMeta`...
 - **Transactions across models** in one function.
 - **Fast JSON.** `Pack` and `Parse` use [goccy/go-json](https://github.com/goccy/go-json).
 - **Tested against real databases.** The SQL layer is covered by tests on PostgreSQL, including every supported
@@ -147,16 +147,16 @@ type account struct {
 ```
 
 ```go
-err = db.TagsAppend(id, "a", "b")       // tags = tags || '{a,b}'
-err = db.TagsRemove(id, "a")            // array_remove(tags, 'a')
-err = db.ScoresAppend(id, 10, 20)
+err = db.AppendTags(id, "a", "b")       // tags = tags || '{a,b}'
+err = db.RemoveTags(id, "a")            // array_remove(tags, 'a')
+err = db.AppendScores(id, 10, 20)
 
-err = db.SettingsUpdate(id, "volume", 7)                // set one key
-err = db.SettingsMerge(id, map[string]int{"a": 1, "b": 2})
-err = db.SettingsRename(id, "a", "c")
-err = db.SettingsDelete(id, "b")
+err = db.UpdateSettings(id, "volume", 7)                // set one key
+err = db.MergeSettings(id, map[string]int{"a": 1, "b": 2})
+err = db.RenameSettings(id, "a", "c")
+err = db.DeleteSettings(id, "b")
 
-err = db.ItemsAppend(id, Item{Name: "book"})
+err = db.AppendItems(id, Item{Name: "book"})
 ```
 
 ### 3. Your own queries
@@ -408,6 +408,9 @@ title string // sql{index} js{name="headline"} #readonly @public
 | `@name` | Struct `NewsName` with the marked fields. |
 
 Go names have no underscores: the field `user_id` becomes `UserID`, the column stays `user_id`.
+
+A field named as a reserved SQL word keeps its Go name and gets `s` in the column name:
+`from int` is `From` in Go and `froms` in the table. The generator prints every such rename.
 
 ### Go to PostgreSQL types
 

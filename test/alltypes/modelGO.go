@@ -117,7 +117,7 @@ const (
 	AllIndexF32
 	AllIndexF64
 	AllIndexR
-	AllIndexBY
+	AllIndexBy
 	AllIndexBytes
 	AllIndexFixed
 	AllIndexUID
@@ -131,12 +131,12 @@ const (
 	AllIndexT
 	AllIndexDur
 	AllIndexDate
-	AllIndexPD
+	AllIndexPd
 	AllIndexPts
 	AllIndexPiv
-	AllIndexLB
-	AllIndexLS
-	AllIndexLI
+	AllIndexLb
+	AllIndexLs
+	AllIndexLi
 	AllIndexLi8
 	AllIndexLi16
 	AllIndexLi32
@@ -144,12 +144,12 @@ const (
 	AllIndexLu32
 	AllIndexLu64
 	AllIndexLf32
-	AllIndexLT
-	AllIndexLU
+	AllIndexLt
+	AllIndexLu
 	AllIndexLs2
 	AllIndexLi2
 	AllIndexLbb
-	AllIndexLM
+	AllIndexLm
 	AllIndexLst
 	AllIndexLrl
 	AllIndexIP
@@ -160,26 +160,26 @@ const (
 	AllIndexDec
 	AllIndexRng
 	AllIndexMrng
-	AllIndexPT
+	AllIndexPt
 	AllIndexBits
-	AllIndexPS
-	AllIndexPI
-	AllIndexPB
-	AllIndexPF
+	AllIndexPs
+	AllIndexPi
+	AllIndexPb
+	AllIndexPf
 	AllIndexPt2
 	AllIndexPip
-	AllIndexNS
-	AllIndexNI
-	AllIndexNB
-	AllIndexNF
-	AllIndexNT
+	AllIndexNs
+	AllIndexNi
+	AllIndexNb
+	AllIndexNf
+	AllIndexNt
 	AllIndexPtx
 	AllIndexPi8
 	AllIndexPbo
-	AllIndexST
+	AllIndexSt
 	AllIndexProv
-	AllIndexRL
-	AllIndexNN
+	AllIndexRl
+	AllIndexNn
 )
 
 // string index
@@ -200,7 +200,7 @@ const (
 	AllFieldF32    = "f32"    // float32
 	AllFieldF64    = "f64"    // float64
 	AllFieldR      = "r"      // rune
-	AllFieldBY     = "by"     // byte
+	AllFieldBy     = "by"     // byte
 	AllFieldBytes  = "bytes"  // []byte
 	AllFieldFixed  = "fixed"  // [16]byte
 	AllFieldUID    = "uid"    // uuid.UUID
@@ -214,12 +214,12 @@ const (
 	AllFieldT      = "t"      // time.Time
 	AllFieldDur    = "dur"    // time.Duration
 	AllFieldDate   = "date"   // time.Time sql{type="date"}
-	AllFieldPD     = "pd"     // pgtype.Date
+	AllFieldPd     = "pd"     // pgtype.Date
 	AllFieldPts    = "pts"    // pgtype.Timestamp
 	AllFieldPiv    = "piv"    // pgtype.Interval
-	AllFieldLB     = "lb"     // []bool
-	AllFieldLS     = "ls"     // []string
-	AllFieldLI     = "li"     // []int
+	AllFieldLb     = "lb"     // []bool
+	AllFieldLs     = "ls"     // []string
+	AllFieldLi     = "li"     // []int
 	AllFieldLi8    = "li8"    // []int8
 	AllFieldLi16   = "li16"   // []int16
 	AllFieldLi32   = "li32"   // []int32
@@ -227,12 +227,12 @@ const (
 	AllFieldLu32   = "lu32"   // []uint32
 	AllFieldLu64   = "lu64"   // []uint64
 	AllFieldLf32   = "lf32"   // []float32
-	AllFieldLT     = "lt"     // []time.Time
-	AllFieldLU     = "lu"     // []uuid.UUID
+	AllFieldLt     = "lt"     // []time.Time
+	AllFieldLu     = "lu"     // []uuid.UUID
 	AllFieldLs2    = "ls2"    // [][]string
 	AllFieldLi2    = "li2"    // [][]int64
 	AllFieldLbb    = "lbb"    // [][]byte
-	AllFieldLM     = "lm"     // []map[string]any
+	AllFieldLm     = "lm"     // []map[string]any
 	AllFieldLst    = "lst"    // []Status
 	AllFieldLrl    = "lrl"    // []role.Role
 	AllFieldIP     = "ip"     // netip.Addr
@@ -243,31 +243,31 @@ const (
 	AllFieldDec    = "dec"    // decimal.Decimal
 	AllFieldRng    = "rng"    // pgtype.Range[pgtype.Int4]
 	AllFieldMrng   = "mrng"   // pgtype.Multirange[pgtype.Range[pgtype.Int8]]
-	AllFieldPT     = "pt"     // pgtype.Point
+	AllFieldPt     = "pt"     // pgtype.Point
 	AllFieldBits   = "bits"   // pgtype.Bits
-	AllFieldPS     = "ps"     // *string
-	AllFieldPI     = "pi"     // *int
-	AllFieldPB     = "pb"     // *bool
-	AllFieldPF     = "pf"     // *float64
+	AllFieldPs     = "ps"     // *string
+	AllFieldPi     = "pi"     // *int
+	AllFieldPb     = "pb"     // *bool
+	AllFieldPf     = "pf"     // *float64
 	AllFieldPt2    = "pt2"    // *time.Time
 	AllFieldPip    = "pip"    // *netip.Addr
-	AllFieldNS     = "ns"     // sql.NullString
-	AllFieldNI     = "ni"     // sql.NullInt64
-	AllFieldNB     = "nb"     // sql.NullBool
-	AllFieldNF     = "nf"     // sql.NullFloat64
-	AllFieldNT     = "nt"     // sql.NullTime
+	AllFieldNs     = "ns"     // sql.NullString
+	AllFieldNi     = "ni"     // sql.NullInt64
+	AllFieldNb     = "nb"     // sql.NullBool
+	AllFieldNf     = "nf"     // sql.NullFloat64
+	AllFieldNt     = "nt"     // sql.NullTime
 	AllFieldPtx    = "ptx"    // pgtype.Text
 	AllFieldPi8    = "pi8"    // pgtype.Int8
 	AllFieldPbo    = "pbo"    // pgtype.Bool
-	AllFieldST     = "st"     // Status
+	AllFieldSt     = "st"     // Status
 	AllFieldProv   = "prov"   // Provider
-	AllFieldRL     = "rl"     // role.Role
-	AllFieldNN     = "nn"     // string sql{notnull}
+	AllFieldRl     = "rl"     // role.Role
+	AllFieldNn     = "nn"     // string sql{notnull}
 )
 
 // index func
 func AllIndexes() []AllIndexTyped {
-	return []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBY, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPD, AllIndexPts, AllIndexPiv, AllIndexLB, AllIndexLS, AllIndexLI, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLT, AllIndexLU, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLM, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPT, AllIndexBits, AllIndexPS, AllIndexPI, AllIndexPB, AllIndexPF, AllIndexPt2, AllIndexPip, AllIndexNS, AllIndexNI, AllIndexNB, AllIndexNF, AllIndexNT, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexST, AllIndexProv, AllIndexRL, AllIndexNN}
+	return []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBy, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPd, AllIndexPts, AllIndexPiv, AllIndexLb, AllIndexLs, AllIndexLi, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLt, AllIndexLu, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLm, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPt, AllIndexBits, AllIndexPs, AllIndexPi, AllIndexPb, AllIndexPf, AllIndexPt2, AllIndexPip, AllIndexNs, AllIndexNi, AllIndexNb, AllIndexNf, AllIndexNt, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexSt, AllIndexProv, AllIndexRl, AllIndexNn}
 
 }
 
@@ -291,7 +291,7 @@ type All struct {
 	F32    float32                                      `json:"f32,omitempty"`    //
 	F64    float64                                      `json:"f64,omitempty"`    //
 	R      rune                                         `json:"r,omitempty"`      //
-	BY     byte                                         `json:"by,omitempty"`     //
+	By     byte                                         `json:"by,omitempty"`     //
 	Bytes  []byte                                       `json:"bytes,omitempty"`  //
 	Fixed  [16]byte                                     `json:"fixed,omitempty"`  //
 	UID    uuid.UUID                                    `json:"uid,omitempty"`    //
@@ -305,12 +305,12 @@ type All struct {
 	T      time.Time                                    `json:"t,omitempty"`      //
 	Dur    time.Duration                                `json:"dur,omitempty"`    //
 	Date   time.Time                                    `json:"date,omitempty"`   // sql{type="date"}
-	PD     pgtype.Date                                  `json:"pd,omitempty"`     //
+	Pd     pgtype.Date                                  `json:"pd,omitempty"`     //
 	Pts    pgtype.Timestamp                             `json:"pts,omitempty"`    //
 	Piv    pgtype.Interval                              `json:"piv,omitempty"`    //
-	LB     []bool                                       `json:"lb,omitempty"`     //
-	LS     []string                                     `json:"ls,omitempty"`     //
-	LI     []int                                        `json:"li,omitempty"`     //
+	Lb     []bool                                       `json:"lb,omitempty"`     //
+	Ls     []string                                     `json:"ls,omitempty"`     //
+	Li     []int                                        `json:"li,omitempty"`     //
 	Li8    []int8                                       `json:"li8,omitempty"`    //
 	Li16   []int16                                      `json:"li16,omitempty"`   //
 	Li32   []int32                                      `json:"li32,omitempty"`   //
@@ -318,12 +318,12 @@ type All struct {
 	Lu32   []uint32                                     `json:"lu32,omitempty"`   //
 	Lu64   []uint64                                     `json:"lu64,omitempty"`   //
 	Lf32   []float32                                    `json:"lf32,omitempty"`   //
-	LT     []time.Time                                  `json:"lt,omitempty"`     //
-	LU     []uuid.UUID                                  `json:"lu,omitempty"`     //
+	Lt     []time.Time                                  `json:"lt,omitempty"`     //
+	Lu     []uuid.UUID                                  `json:"lu,omitempty"`     //
 	Ls2    [][]string                                   `json:"ls2,omitempty"`    //
 	Li2    [][]int64                                    `json:"li2,omitempty"`    //
 	Lbb    [][]byte                                     `json:"lbb,omitempty"`    //
-	LM     []map[string]any                             `json:"lm,omitempty"`     //
+	Lm     []map[string]any                             `json:"lm,omitempty"`     //
 	Lst    []Status                                     `json:"lst,omitempty"`    //
 	Lrl    []role.Role                                  `json:"lrl,omitempty"`    //
 	IP     netip.Addr                                   `json:"ip,omitempty"`     //
@@ -334,26 +334,26 @@ type All struct {
 	Dec    decimal.Decimal                              `json:"dec,omitempty"`    //
 	Rng    pgtype.Range[pgtype.Int4]                    `json:"rng,omitempty"`    //
 	Mrng   pgtype.Multirange[pgtype.Range[pgtype.Int8]] `json:"mrng,omitempty"`   //
-	PT     pgtype.Point                                 `json:"pt,omitempty"`     //
+	Pt     pgtype.Point                                 `json:"pt,omitempty"`     //
 	Bits   pgtype.Bits                                  `json:"bits,omitempty"`   //
-	PS     *string                                      `json:"ps,omitempty"`     //
-	PI     *int                                         `json:"pi,omitempty"`     //
-	PB     *bool                                        `json:"pb,omitempty"`     //
-	PF     *float64                                     `json:"pf,omitempty"`     //
+	Ps     *string                                      `json:"ps,omitempty"`     //
+	Pi     *int                                         `json:"pi,omitempty"`     //
+	Pb     *bool                                        `json:"pb,omitempty"`     //
+	Pf     *float64                                     `json:"pf,omitempty"`     //
 	Pt2    *time.Time                                   `json:"pt2,omitempty"`    //
 	Pip    *netip.Addr                                  `json:"pip,omitempty"`    //
-	NS     sql.NullString                               `json:"ns,omitempty"`     //
-	NI     sql.NullInt64                                `json:"ni,omitempty"`     //
-	NB     sql.NullBool                                 `json:"nb,omitempty"`     //
-	NF     sql.NullFloat64                              `json:"nf,omitempty"`     //
-	NT     sql.NullTime                                 `json:"nt,omitempty"`     //
+	Ns     sql.NullString                               `json:"ns,omitempty"`     //
+	Ni     sql.NullInt64                                `json:"ni,omitempty"`     //
+	Nb     sql.NullBool                                 `json:"nb,omitempty"`     //
+	Nf     sql.NullFloat64                              `json:"nf,omitempty"`     //
+	Nt     sql.NullTime                                 `json:"nt,omitempty"`     //
 	Ptx    pgtype.Text                                  `json:"ptx,omitempty"`    //
 	Pi8    pgtype.Int8                                  `json:"pi8,omitempty"`    //
 	Pbo    pgtype.Bool                                  `json:"pbo,omitempty"`    //
-	ST     Status                                       `json:"st,omitempty"`     //
+	St     Status                                       `json:"st,omitempty"`     //
 	Prov   Provider                                     `json:"prov,omitempty"`   //
-	RL     role.Role                                    `json:"rl,omitempty"`     //
-	NN     string                                       `json:"nn,omitempty"`     // sql{notnull}
+	Rl     role.Role                                    `json:"rl,omitempty"`     //
+	Nn     string                                       `json:"nn,omitempty"`     // sql{notnull}
 }
 
 // init struct
@@ -366,12 +366,12 @@ func NewAll() (a *All) {
 
 // Tuple create an array from struct
 func (a *All) Tuple() (r []any) {
-	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.BY, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.PD, a.Pts, a.Piv, a.LB, a.LS, a.LI, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.LT, a.LU, a.Ls2, a.Li2, a.Lbb, a.LM, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.PT, a.Bits, a.PS, a.PI, a.PB, a.PF, a.Pt2, a.Pip, a.NS, a.NI, a.NB, a.NF, a.NT, a.Ptx, a.Pi8, a.Pbo, a.ST, a.Prov, a.RL, a.NN}
+	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.By, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.Pd, a.Pts, a.Piv, a.Lb, a.Ls, a.Li, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.Lt, a.Lu, a.Ls2, a.Li2, a.Lbb, a.Lm, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.Pt, a.Bits, a.Ps, a.Pi, a.Pb, a.Pf, a.Pt2, a.Pip, a.Ns, a.Ni, a.Nb, a.Nf, a.Nt, a.Ptx, a.Pi8, a.Pbo, a.St, a.Prov, a.Rl, a.Nn}
 }
 
 // Tuple create an array from struct for clickhouse
 func (a *All) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.BY, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.PD, a.Pts, a.Piv, a.LB, a.LS, a.LI, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.LT, a.LU, a.Ls2, a.Li2, a.Lbb, a.LM, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.PT, a.Bits, a.PS, a.PI, a.PB, a.PF, a.Pt2, a.Pip, a.NS, a.NI, a.NB, a.NF, a.NT, a.Ptx, a.Pi8, a.Pbo, int16(a.ST), string(a.Prov), int(a.RL), a.NN}
+	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.By, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.Pd, a.Pts, a.Piv, a.Lb, a.Ls, a.Li, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.Lt, a.Lu, a.Ls2, a.Li2, a.Lbb, a.Lm, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.Pt, a.Bits, a.Ps, a.Pi, a.Pb, a.Pf, a.Pt2, a.Pip, a.Ns, a.Ni, a.Nb, a.Nf, a.Nt, a.Ptx, a.Pi8, a.Pbo, int16(a.St), string(a.Prov), int(a.Rl), a.Nn}
 }
 
 // get struct value with function
@@ -410,7 +410,7 @@ func (a *All) Get(k string) (v any) {
 	case "r":
 		return a.R //rune
 	case "by":
-		return a.BY //byte
+		return a.By //byte
 	case "bytes":
 		return a.Bytes //[]byte
 	case "fixed":
@@ -438,17 +438,17 @@ func (a *All) Get(k string) (v any) {
 	case "date":
 		return a.Date //time.Time
 	case "pd":
-		return a.PD //pgtype.Date
+		return a.Pd //pgtype.Date
 	case "pts":
 		return a.Pts //pgtype.Timestamp
 	case "piv":
 		return a.Piv //pgtype.Interval
 	case "lb":
-		return a.LB //[]bool
+		return a.Lb //[]bool
 	case "ls":
-		return a.LS //[]string
+		return a.Ls //[]string
 	case "li":
-		return a.LI //[]int
+		return a.Li //[]int
 	case "li8":
 		return a.Li8 //[]int8
 	case "li16":
@@ -464,9 +464,9 @@ func (a *All) Get(k string) (v any) {
 	case "lf32":
 		return a.Lf32 //[]float32
 	case "lt":
-		return a.LT //[]time.Time
+		return a.Lt //[]time.Time
 	case "lu":
-		return a.LU //[]uuid.UUID
+		return a.Lu //[]uuid.UUID
 	case "ls2":
 		return a.Ls2 //[][]string
 	case "li2":
@@ -474,7 +474,7 @@ func (a *All) Get(k string) (v any) {
 	case "lbb":
 		return a.Lbb //[][]byte
 	case "lm":
-		return a.LM //[]map[string]any
+		return a.Lm //[]map[string]any
 	case "lst":
 		return a.Lst //[]Status
 	case "lrl":
@@ -496,31 +496,31 @@ func (a *All) Get(k string) (v any) {
 	case "mrng":
 		return a.Mrng //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
 	case "pt":
-		return a.PT //pgtype.Point
+		return a.Pt //pgtype.Point
 	case "bits":
 		return a.Bits //pgtype.Bits
 	case "ps":
-		return a.PS //*string
+		return a.Ps //*string
 	case "pi":
-		return a.PI //*int
+		return a.Pi //*int
 	case "pb":
-		return a.PB //*bool
+		return a.Pb //*bool
 	case "pf":
-		return a.PF //*float64
+		return a.Pf //*float64
 	case "pt2":
 		return a.Pt2 //*time.Time
 	case "pip":
 		return a.Pip //*netip.Addr
 	case "ns":
-		return a.NS //sql.NullString
+		return a.Ns //sql.NullString
 	case "ni":
-		return a.NI //sql.NullInt64
+		return a.Ni //sql.NullInt64
 	case "nb":
-		return a.NB //sql.NullBool
+		return a.Nb //sql.NullBool
 	case "nf":
-		return a.NF //sql.NullFloat64
+		return a.Nf //sql.NullFloat64
 	case "nt":
-		return a.NT //sql.NullTime
+		return a.Nt //sql.NullTime
 	case "ptx":
 		return a.Ptx //pgtype.Text
 	case "pi8":
@@ -528,13 +528,13 @@ func (a *All) Get(k string) (v any) {
 	case "pbo":
 		return a.Pbo //pgtype.Bool
 	case "st":
-		return a.ST //Status
+		return a.St //Status
 	case "prov":
 		return a.Prov //Provider
 	case "rl":
-		return a.RL //role.Role
+		return a.Rl //role.Role
 	case "nn":
-		return a.NN //string
+		return a.Nn //string
 	}
 	return
 }
@@ -575,7 +575,7 @@ func (a *All) String(k string) (v string) {
 	case "r":
 		return fmt.Sprint(a.R) //rune
 	case "by":
-		return fmt.Sprint(a.BY) //byte
+		return fmt.Sprint(a.By) //byte
 	case "bytes":
 		return fmt.Sprint(a.Bytes) //[]byte
 	case "fixed":
@@ -603,17 +603,17 @@ func (a *All) String(k string) (v string) {
 	case "date":
 		return fmt.Sprint(a.Date) //time.Time
 	case "pd":
-		return fmt.Sprint(a.PD) //pgtype.Date
+		return fmt.Sprint(a.Pd) //pgtype.Date
 	case "pts":
 		return fmt.Sprint(a.Pts) //pgtype.Timestamp
 	case "piv":
 		return fmt.Sprint(a.Piv) //pgtype.Interval
 	case "lb":
-		return fmt.Sprint(a.LB) //[]bool
+		return fmt.Sprint(a.Lb) //[]bool
 	case "ls":
-		return fmt.Sprint(a.LS) //[]string
+		return fmt.Sprint(a.Ls) //[]string
 	case "li":
-		return fmt.Sprint(a.LI) //[]int
+		return fmt.Sprint(a.Li) //[]int
 	case "li8":
 		return fmt.Sprint(a.Li8) //[]int8
 	case "li16":
@@ -629,9 +629,9 @@ func (a *All) String(k string) (v string) {
 	case "lf32":
 		return fmt.Sprint(a.Lf32) //[]float32
 	case "lt":
-		return fmt.Sprint(a.LT) //[]time.Time
+		return fmt.Sprint(a.Lt) //[]time.Time
 	case "lu":
-		return fmt.Sprint(a.LU) //[]uuid.UUID
+		return fmt.Sprint(a.Lu) //[]uuid.UUID
 	case "ls2":
 		return fmt.Sprint(a.Ls2) //[][]string
 	case "li2":
@@ -639,7 +639,7 @@ func (a *All) String(k string) (v string) {
 	case "lbb":
 		return fmt.Sprint(a.Lbb) //[][]byte
 	case "lm":
-		return fmt.Sprint(a.LM) //[]map[string]any
+		return fmt.Sprint(a.Lm) //[]map[string]any
 	case "lst":
 		return fmt.Sprint(a.Lst) //[]Status
 	case "lrl":
@@ -661,31 +661,31 @@ func (a *All) String(k string) (v string) {
 	case "mrng":
 		return fmt.Sprint(a.Mrng) //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
 	case "pt":
-		return fmt.Sprint(a.PT) //pgtype.Point
+		return fmt.Sprint(a.Pt) //pgtype.Point
 	case "bits":
 		return fmt.Sprint(a.Bits) //pgtype.Bits
 	case "ps":
-		return fmt.Sprint(a.PS) //*string
+		return fmt.Sprint(a.Ps) //*string
 	case "pi":
-		return fmt.Sprint(a.PI) //*int
+		return fmt.Sprint(a.Pi) //*int
 	case "pb":
-		return fmt.Sprint(a.PB) //*bool
+		return fmt.Sprint(a.Pb) //*bool
 	case "pf":
-		return fmt.Sprint(a.PF) //*float64
+		return fmt.Sprint(a.Pf) //*float64
 	case "pt2":
 		return fmt.Sprint(a.Pt2) //*time.Time
 	case "pip":
 		return fmt.Sprint(a.Pip) //*netip.Addr
 	case "ns":
-		return fmt.Sprint(a.NS) //sql.NullString
+		return fmt.Sprint(a.Ns) //sql.NullString
 	case "ni":
-		return fmt.Sprint(a.NI) //sql.NullInt64
+		return fmt.Sprint(a.Ni) //sql.NullInt64
 	case "nb":
-		return fmt.Sprint(a.NB) //sql.NullBool
+		return fmt.Sprint(a.Nb) //sql.NullBool
 	case "nf":
-		return fmt.Sprint(a.NF) //sql.NullFloat64
+		return fmt.Sprint(a.Nf) //sql.NullFloat64
 	case "nt":
-		return fmt.Sprint(a.NT) //sql.NullTime
+		return fmt.Sprint(a.Nt) //sql.NullTime
 	case "ptx":
 		return fmt.Sprint(a.Ptx) //pgtype.Text
 	case "pi8":
@@ -693,13 +693,13 @@ func (a *All) String(k string) (v string) {
 	case "pbo":
 		return fmt.Sprint(a.Pbo) //pgtype.Bool
 	case "st":
-		return fmt.Sprint(a.ST) //Status
+		return fmt.Sprint(a.St) //Status
 	case "prov":
 		return fmt.Sprint(a.Prov) //Provider
 	case "rl":
-		return fmt.Sprint(a.RL) //role.Role
+		return fmt.Sprint(a.Rl) //role.Role
 	case "nn":
-		return fmt.Sprint(a.NN) //string
+		return fmt.Sprint(a.Nn) //string
 	}
 	return
 }
@@ -739,7 +739,7 @@ func (a AllIndexTyped) String() string {
 		return "f64"
 	case AllIndexR:
 		return "r"
-	case AllIndexBY:
+	case AllIndexBy:
 		return "by"
 	case AllIndexBytes:
 		return "bytes"
@@ -767,17 +767,17 @@ func (a AllIndexTyped) String() string {
 		return "dur"
 	case AllIndexDate:
 		return "date"
-	case AllIndexPD:
+	case AllIndexPd:
 		return "pd"
 	case AllIndexPts:
 		return "pts"
 	case AllIndexPiv:
 		return "piv"
-	case AllIndexLB:
+	case AllIndexLb:
 		return "lb"
-	case AllIndexLS:
+	case AllIndexLs:
 		return "ls"
-	case AllIndexLI:
+	case AllIndexLi:
 		return "li"
 	case AllIndexLi8:
 		return "li8"
@@ -793,9 +793,9 @@ func (a AllIndexTyped) String() string {
 		return "lu64"
 	case AllIndexLf32:
 		return "lf32"
-	case AllIndexLT:
+	case AllIndexLt:
 		return "lt"
-	case AllIndexLU:
+	case AllIndexLu:
 		return "lu"
 	case AllIndexLs2:
 		return "ls2"
@@ -803,7 +803,7 @@ func (a AllIndexTyped) String() string {
 		return "li2"
 	case AllIndexLbb:
 		return "lbb"
-	case AllIndexLM:
+	case AllIndexLm:
 		return "lm"
 	case AllIndexLst:
 		return "lst"
@@ -825,31 +825,31 @@ func (a AllIndexTyped) String() string {
 		return "rng"
 	case AllIndexMrng:
 		return "mrng"
-	case AllIndexPT:
+	case AllIndexPt:
 		return "pt"
 	case AllIndexBits:
 		return "bits"
-	case AllIndexPS:
+	case AllIndexPs:
 		return "ps"
-	case AllIndexPI:
+	case AllIndexPi:
 		return "pi"
-	case AllIndexPB:
+	case AllIndexPb:
 		return "pb"
-	case AllIndexPF:
+	case AllIndexPf:
 		return "pf"
 	case AllIndexPt2:
 		return "pt2"
 	case AllIndexPip:
 		return "pip"
-	case AllIndexNS:
+	case AllIndexNs:
 		return "ns"
-	case AllIndexNI:
+	case AllIndexNi:
 		return "ni"
-	case AllIndexNB:
+	case AllIndexNb:
 		return "nb"
-	case AllIndexNF:
+	case AllIndexNf:
 		return "nf"
-	case AllIndexNT:
+	case AllIndexNt:
 		return "nt"
 	case AllIndexPtx:
 		return "ptx"
@@ -857,13 +857,13 @@ func (a AllIndexTyped) String() string {
 		return "pi8"
 	case AllIndexPbo:
 		return "pbo"
-	case AllIndexST:
+	case AllIndexSt:
 		return "st"
 	case AllIndexProv:
 		return "prov"
-	case AllIndexRL:
+	case AllIndexRl:
 		return "rl"
-	case AllIndexNN:
+	case AllIndexNn:
 		return "nn"
 	default:
 		return ""
@@ -905,7 +905,7 @@ func (a AllIndexTyped) SQLName() string {
 		return "f64"
 	case AllIndexR:
 		return "r"
-	case AllIndexBY:
+	case AllIndexBy:
 		return "by"
 	case AllIndexBytes:
 		return "bytes"
@@ -933,17 +933,17 @@ func (a AllIndexTyped) SQLName() string {
 		return "dur"
 	case AllIndexDate:
 		return "date"
-	case AllIndexPD:
+	case AllIndexPd:
 		return "pd"
 	case AllIndexPts:
 		return "pts"
 	case AllIndexPiv:
 		return "piv"
-	case AllIndexLB:
+	case AllIndexLb:
 		return "lb"
-	case AllIndexLS:
+	case AllIndexLs:
 		return "ls"
-	case AllIndexLI:
+	case AllIndexLi:
 		return "li"
 	case AllIndexLi8:
 		return "li8"
@@ -959,9 +959,9 @@ func (a AllIndexTyped) SQLName() string {
 		return "lu64"
 	case AllIndexLf32:
 		return "lf32"
-	case AllIndexLT:
+	case AllIndexLt:
 		return "lt"
-	case AllIndexLU:
+	case AllIndexLu:
 		return "lu"
 	case AllIndexLs2:
 		return "ls2"
@@ -969,7 +969,7 @@ func (a AllIndexTyped) SQLName() string {
 		return "li2"
 	case AllIndexLbb:
 		return "lbb"
-	case AllIndexLM:
+	case AllIndexLm:
 		return "lm"
 	case AllIndexLst:
 		return "lst"
@@ -991,31 +991,31 @@ func (a AllIndexTyped) SQLName() string {
 		return "rng"
 	case AllIndexMrng:
 		return "mrng"
-	case AllIndexPT:
+	case AllIndexPt:
 		return "pt"
 	case AllIndexBits:
 		return "bits"
-	case AllIndexPS:
+	case AllIndexPs:
 		return "ps"
-	case AllIndexPI:
+	case AllIndexPi:
 		return "pi"
-	case AllIndexPB:
+	case AllIndexPb:
 		return "pb"
-	case AllIndexPF:
+	case AllIndexPf:
 		return "pf"
 	case AllIndexPt2:
 		return "pt2"
 	case AllIndexPip:
 		return "pip"
-	case AllIndexNS:
+	case AllIndexNs:
 		return "ns"
-	case AllIndexNI:
+	case AllIndexNi:
 		return "ni"
-	case AllIndexNB:
+	case AllIndexNb:
 		return "nb"
-	case AllIndexNF:
+	case AllIndexNf:
 		return "nf"
-	case AllIndexNT:
+	case AllIndexNt:
 		return "nt"
 	case AllIndexPtx:
 		return "ptx"
@@ -1023,13 +1023,13 @@ func (a AllIndexTyped) SQLName() string {
 		return "pi8"
 	case AllIndexPbo:
 		return "pbo"
-	case AllIndexST:
+	case AllIndexSt:
 		return "st"
 	case AllIndexProv:
 		return "prov"
-	case AllIndexRL:
+	case AllIndexRl:
 		return "rl"
-	case AllIndexNN:
+	case AllIndexNn:
 		return "nn"
 	default:
 		return ""
@@ -1071,7 +1071,7 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "f64"
 	case AllIndexR:
 		return "r"
-	case AllIndexBY:
+	case AllIndexBy:
 		return "by"
 	case AllIndexBytes:
 		return "bytes"
@@ -1099,17 +1099,17 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "dur"
 	case AllIndexDate:
 		return "date"
-	case AllIndexPD:
+	case AllIndexPd:
 		return "pd"
 	case AllIndexPts:
 		return "pts"
 	case AllIndexPiv:
 		return "piv"
-	case AllIndexLB:
+	case AllIndexLb:
 		return "lb"
-	case AllIndexLS:
+	case AllIndexLs:
 		return "ls"
-	case AllIndexLI:
+	case AllIndexLi:
 		return "li"
 	case AllIndexLi8:
 		return "li8"
@@ -1125,9 +1125,9 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "lu64"
 	case AllIndexLf32:
 		return "lf32"
-	case AllIndexLT:
+	case AllIndexLt:
 		return "lt"
-	case AllIndexLU:
+	case AllIndexLu:
 		return "lu"
 	case AllIndexLs2:
 		return "ls2"
@@ -1135,7 +1135,7 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "li2"
 	case AllIndexLbb:
 		return "lbb"
-	case AllIndexLM:
+	case AllIndexLm:
 		return "lm"
 	case AllIndexLst:
 		return "lst"
@@ -1157,31 +1157,31 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "rng"
 	case AllIndexMrng:
 		return "mrng"
-	case AllIndexPT:
+	case AllIndexPt:
 		return "pt"
 	case AllIndexBits:
 		return "bits"
-	case AllIndexPS:
+	case AllIndexPs:
 		return "ps"
-	case AllIndexPI:
+	case AllIndexPi:
 		return "pi"
-	case AllIndexPB:
+	case AllIndexPb:
 		return "pb"
-	case AllIndexPF:
+	case AllIndexPf:
 		return "pf"
 	case AllIndexPt2:
 		return "pt2"
 	case AllIndexPip:
 		return "pip"
-	case AllIndexNS:
+	case AllIndexNs:
 		return "ns"
-	case AllIndexNI:
+	case AllIndexNi:
 		return "ni"
-	case AllIndexNB:
+	case AllIndexNb:
 		return "nb"
-	case AllIndexNF:
+	case AllIndexNf:
 		return "nf"
-	case AllIndexNT:
+	case AllIndexNt:
 		return "nt"
 	case AllIndexPtx:
 		return "ptx"
@@ -1189,13 +1189,13 @@ func (a AllIndexTyped) ClickhouseName() string {
 		return "pi8"
 	case AllIndexPbo:
 		return "pbo"
-	case AllIndexST:
+	case AllIndexSt:
 		return "st"
 	case AllIndexProv:
 		return "prov"
-	case AllIndexRL:
+	case AllIndexRl:
 		return "rl"
-	case AllIndexNN:
+	case AllIndexNn:
 		return "nn"
 	default:
 		return ""
@@ -1237,7 +1237,7 @@ func (a AllIndexTyped) Type() string {
 		return "float64"
 	case AllIndexR:
 		return "rune"
-	case AllIndexBY:
+	case AllIndexBy:
 		return "byte"
 	case AllIndexBytes:
 		return "[]byte"
@@ -1265,17 +1265,17 @@ func (a AllIndexTyped) Type() string {
 		return "time.Duration"
 	case AllIndexDate:
 		return "time.Time"
-	case AllIndexPD:
+	case AllIndexPd:
 		return "pgtype.Date"
 	case AllIndexPts:
 		return "pgtype.Timestamp"
 	case AllIndexPiv:
 		return "pgtype.Interval"
-	case AllIndexLB:
+	case AllIndexLb:
 		return "[]bool"
-	case AllIndexLS:
+	case AllIndexLs:
 		return "[]string"
-	case AllIndexLI:
+	case AllIndexLi:
 		return "[]int"
 	case AllIndexLi8:
 		return "[]int8"
@@ -1291,9 +1291,9 @@ func (a AllIndexTyped) Type() string {
 		return "[]uint64"
 	case AllIndexLf32:
 		return "[]float32"
-	case AllIndexLT:
+	case AllIndexLt:
 		return "[]time.Time"
-	case AllIndexLU:
+	case AllIndexLu:
 		return "[]uuid.UUID"
 	case AllIndexLs2:
 		return "[][]string"
@@ -1301,7 +1301,7 @@ func (a AllIndexTyped) Type() string {
 		return "[][]int64"
 	case AllIndexLbb:
 		return "[][]byte"
-	case AllIndexLM:
+	case AllIndexLm:
 		return "[]map[string]any"
 	case AllIndexLst:
 		return "[]Status"
@@ -1323,31 +1323,31 @@ func (a AllIndexTyped) Type() string {
 		return "pgtype.Range[pgtype.Int4]"
 	case AllIndexMrng:
 		return "pgtype.Multirange[pgtype.Range[pgtype.Int8]]"
-	case AllIndexPT:
+	case AllIndexPt:
 		return "pgtype.Point"
 	case AllIndexBits:
 		return "pgtype.Bits"
-	case AllIndexPS:
+	case AllIndexPs:
 		return "*string"
-	case AllIndexPI:
+	case AllIndexPi:
 		return "*int"
-	case AllIndexPB:
+	case AllIndexPb:
 		return "*bool"
-	case AllIndexPF:
+	case AllIndexPf:
 		return "*float64"
 	case AllIndexPt2:
 		return "*time.Time"
 	case AllIndexPip:
 		return "*netip.Addr"
-	case AllIndexNS:
+	case AllIndexNs:
 		return "sql.NullString"
-	case AllIndexNI:
+	case AllIndexNi:
 		return "sql.NullInt64"
-	case AllIndexNB:
+	case AllIndexNb:
 		return "sql.NullBool"
-	case AllIndexNF:
+	case AllIndexNf:
 		return "sql.NullFloat64"
-	case AllIndexNT:
+	case AllIndexNt:
 		return "sql.NullTime"
 	case AllIndexPtx:
 		return "pgtype.Text"
@@ -1355,13 +1355,13 @@ func (a AllIndexTyped) Type() string {
 		return "pgtype.Int8"
 	case AllIndexPbo:
 		return "pgtype.Bool"
-	case AllIndexST:
+	case AllIndexSt:
 		return "Status"
 	case AllIndexProv:
 		return "Provider"
-	case AllIndexRL:
+	case AllIndexRl:
 		return "role.Role"
-	case AllIndexNN:
+	case AllIndexNn:
 		return "string"
 	default:
 		return ""
@@ -1403,8 +1403,8 @@ func (a AllIndexTyped) Title() string {
 		return "F64"
 	case AllIndexR:
 		return "R"
-	case AllIndexBY:
-		return "BY"
+	case AllIndexBy:
+		return "By"
 	case AllIndexBytes:
 		return "Bytes"
 	case AllIndexFixed:
@@ -1431,18 +1431,18 @@ func (a AllIndexTyped) Title() string {
 		return "Dur"
 	case AllIndexDate:
 		return "Date"
-	case AllIndexPD:
-		return "PD"
+	case AllIndexPd:
+		return "Pd"
 	case AllIndexPts:
 		return "Pts"
 	case AllIndexPiv:
 		return "Piv"
-	case AllIndexLB:
-		return "LB"
-	case AllIndexLS:
-		return "LS"
-	case AllIndexLI:
-		return "LI"
+	case AllIndexLb:
+		return "Lb"
+	case AllIndexLs:
+		return "Ls"
+	case AllIndexLi:
+		return "Li"
 	case AllIndexLi8:
 		return "Li8"
 	case AllIndexLi16:
@@ -1457,18 +1457,18 @@ func (a AllIndexTyped) Title() string {
 		return "Lu64"
 	case AllIndexLf32:
 		return "Lf32"
-	case AllIndexLT:
-		return "LT"
-	case AllIndexLU:
-		return "LU"
+	case AllIndexLt:
+		return "Lt"
+	case AllIndexLu:
+		return "Lu"
 	case AllIndexLs2:
 		return "Ls2"
 	case AllIndexLi2:
 		return "Li2"
 	case AllIndexLbb:
 		return "Lbb"
-	case AllIndexLM:
-		return "LM"
+	case AllIndexLm:
+		return "Lm"
 	case AllIndexLst:
 		return "Lst"
 	case AllIndexLrl:
@@ -1489,46 +1489,46 @@ func (a AllIndexTyped) Title() string {
 		return "Rng"
 	case AllIndexMrng:
 		return "Mrng"
-	case AllIndexPT:
-		return "PT"
+	case AllIndexPt:
+		return "Pt"
 	case AllIndexBits:
 		return "Bits"
-	case AllIndexPS:
-		return "PS"
-	case AllIndexPI:
-		return "PI"
-	case AllIndexPB:
-		return "PB"
-	case AllIndexPF:
-		return "PF"
+	case AllIndexPs:
+		return "Ps"
+	case AllIndexPi:
+		return "Pi"
+	case AllIndexPb:
+		return "Pb"
+	case AllIndexPf:
+		return "Pf"
 	case AllIndexPt2:
 		return "Pt2"
 	case AllIndexPip:
 		return "Pip"
-	case AllIndexNS:
-		return "NS"
-	case AllIndexNI:
-		return "NI"
-	case AllIndexNB:
-		return "NB"
-	case AllIndexNF:
-		return "NF"
-	case AllIndexNT:
-		return "NT"
+	case AllIndexNs:
+		return "Ns"
+	case AllIndexNi:
+		return "Ni"
+	case AllIndexNb:
+		return "Nb"
+	case AllIndexNf:
+		return "Nf"
+	case AllIndexNt:
+		return "Nt"
 	case AllIndexPtx:
 		return "Ptx"
 	case AllIndexPi8:
 		return "Pi8"
 	case AllIndexPbo:
 		return "Pbo"
-	case AllIndexST:
-		return "ST"
+	case AllIndexSt:
+		return "St"
 	case AllIndexProv:
 		return "Prov"
-	case AllIndexRL:
-		return "RL"
-	case AllIndexNN:
-		return "NN"
+	case AllIndexRl:
+		return "Rl"
+	case AllIndexNn:
+		return "Nn"
 	default:
 		return ""
 	}
@@ -1578,7 +1578,7 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "r":
 		return AllIndexR
 	case "by":
-		return AllIndexBY
+		return AllIndexBy
 	case "bytes":
 		return AllIndexBytes
 	case "fixed":
@@ -1606,17 +1606,17 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "date":
 		return AllIndexDate
 	case "pd":
-		return AllIndexPD
+		return AllIndexPd
 	case "pts":
 		return AllIndexPts
 	case "piv":
 		return AllIndexPiv
 	case "lb":
-		return AllIndexLB
+		return AllIndexLb
 	case "ls":
-		return AllIndexLS
+		return AllIndexLs
 	case "li":
-		return AllIndexLI
+		return AllIndexLi
 	case "li8":
 		return AllIndexLi8
 	case "li16":
@@ -1632,9 +1632,9 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "lf32":
 		return AllIndexLf32
 	case "lt":
-		return AllIndexLT
+		return AllIndexLt
 	case "lu":
-		return AllIndexLU
+		return AllIndexLu
 	case "ls2":
 		return AllIndexLs2
 	case "li2":
@@ -1642,7 +1642,7 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "lbb":
 		return AllIndexLbb
 	case "lm":
-		return AllIndexLM
+		return AllIndexLm
 	case "lst":
 		return AllIndexLst
 	case "lrl":
@@ -1664,31 +1664,31 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "mrng":
 		return AllIndexMrng
 	case "pt":
-		return AllIndexPT
+		return AllIndexPt
 	case "bits":
 		return AllIndexBits
 	case "ps":
-		return AllIndexPS
+		return AllIndexPs
 	case "pi":
-		return AllIndexPI
+		return AllIndexPi
 	case "pb":
-		return AllIndexPB
+		return AllIndexPb
 	case "pf":
-		return AllIndexPF
+		return AllIndexPf
 	case "pt2":
 		return AllIndexPt2
 	case "pip":
 		return AllIndexPip
 	case "ns":
-		return AllIndexNS
+		return AllIndexNs
 	case "ni":
-		return AllIndexNI
+		return AllIndexNi
 	case "nb":
-		return AllIndexNB
+		return AllIndexNb
 	case "nf":
-		return AllIndexNF
+		return AllIndexNf
 	case "nt":
-		return AllIndexNT
+		return AllIndexNt
 	case "ptx":
 		return AllIndexPtx
 	case "pi8":
@@ -1696,13 +1696,13 @@ func AllKeyIndex(key string) AllIndexTyped {
 	case "pbo":
 		return AllIndexPbo
 	case "st":
-		return AllIndexST
+		return AllIndexSt
 	case "prov":
 		return AllIndexProv
 	case "rl":
-		return AllIndexRL
+		return AllIndexRl
 	case "nn":
-		return AllIndexNN
+		return AllIndexNn
 	default:
 		return 0
 	}
@@ -1737,7 +1737,7 @@ func (a *All) Map() map[string]any {
 		"f32":    a.F32,
 		"f64":    a.F64,
 		"r":      a.R,
-		"by":     a.BY,
+		"by":     a.By,
 		"bytes":  a.Bytes,
 		"fixed":  a.Fixed,
 		"uid":    a.UID,
@@ -1751,12 +1751,12 @@ func (a *All) Map() map[string]any {
 		"t":      a.T,
 		"dur":    a.Dur,
 		"date":   a.Date,
-		"pd":     a.PD,
+		"pd":     a.Pd,
 		"pts":    a.Pts,
 		"piv":    a.Piv,
-		"lb":     a.LB,
-		"ls":     a.LS,
-		"li":     a.LI,
+		"lb":     a.Lb,
+		"ls":     a.Ls,
+		"li":     a.Li,
 		"li8":    a.Li8,
 		"li16":   a.Li16,
 		"li32":   a.Li32,
@@ -1764,12 +1764,12 @@ func (a *All) Map() map[string]any {
 		"lu32":   a.Lu32,
 		"lu64":   a.Lu64,
 		"lf32":   a.Lf32,
-		"lt":     a.LT,
-		"lu":     a.LU,
+		"lt":     a.Lt,
+		"lu":     a.Lu,
 		"ls2":    a.Ls2,
 		"li2":    a.Li2,
 		"lbb":    a.Lbb,
-		"lm":     a.LM,
+		"lm":     a.Lm,
 		"lst":    a.Lst,
 		"lrl":    a.Lrl,
 		"ip":     a.IP,
@@ -1780,26 +1780,26 @@ func (a *All) Map() map[string]any {
 		"dec":    a.Dec,
 		"rng":    a.Rng,
 		"mrng":   a.Mrng,
-		"pt":     a.PT,
+		"pt":     a.Pt,
 		"bits":   a.Bits,
-		"ps":     a.PS,
-		"pi":     a.PI,
-		"pb":     a.PB,
-		"pf":     a.PF,
+		"ps":     a.Ps,
+		"pi":     a.Pi,
+		"pb":     a.Pb,
+		"pf":     a.Pf,
 		"pt2":    a.Pt2,
 		"pip":    a.Pip,
-		"ns":     a.NS,
-		"ni":     a.NI,
-		"nb":     a.NB,
-		"nf":     a.NF,
-		"nt":     a.NT,
+		"ns":     a.Ns,
+		"ni":     a.Ni,
+		"nb":     a.Nb,
+		"nf":     a.Nf,
+		"nt":     a.Nt,
 		"ptx":    a.Ptx,
 		"pi8":    a.Pi8,
 		"pbo":    a.Pbo,
-		"st":     a.ST,
+		"st":     a.St,
 		"prov":   a.Prov,
-		"rl":     a.RL,
-		"nn":     a.NN,
+		"rl":     a.Rl,
+		"nn":     a.Nn,
 	}
 }
 
@@ -1910,7 +1910,7 @@ func (a *AllSQL) Fields() []AllIndexTyped {
 // ---------------------------------------------------------------------------
 
 // all sql columns
-var allSQLFields = []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBY, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPD, AllIndexPts, AllIndexPiv, AllIndexLB, AllIndexLS, AllIndexLI, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLT, AllIndexLU, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLM, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPT, AllIndexBits, AllIndexPS, AllIndexPI, AllIndexPB, AllIndexPF, AllIndexPt2, AllIndexPip, AllIndexNS, AllIndexNI, AllIndexNB, AllIndexNF, AllIndexNT, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexST, AllIndexProv, AllIndexRL, AllIndexNN}
+var allSQLFields = []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBy, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPd, AllIndexPts, AllIndexPiv, AllIndexLb, AllIndexLs, AllIndexLi, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLt, AllIndexLu, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLm, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPt, AllIndexBits, AllIndexPs, AllIndexPi, AllIndexPb, AllIndexPf, AllIndexPt2, AllIndexPip, AllIndexNs, AllIndexNi, AllIndexNb, AllIndexNf, AllIndexNt, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexSt, AllIndexProv, AllIndexRl, AllIndexNn}
 
 // columns of insert
 var allSQLInsertColumns = []string{"b", "s", "i", "i8", "i16", "i32", "i64", "u", "u8", "u16", "u32", "u64", "f32", "f64", "r", "by", "bytes", "fixed", "uid", "puid", "raw", "mapany", "maps", "conf", "confs", "anyv", "t", "dur", "date", "pd", "pts", "piv", "lb", "ls", "li", "li8", "li16", "li32", "lu16", "lu32", "lu64", "lf32", "lt", "lu", "ls2", "li2", "lbb", "lm", "lst", "lrl", "ip", "pfx", "nip", "nnet", "num", "dec", "rng", "mrng", "pt", "bits", "ps", "pi", "pb", "pf", "pt2", "pip", "ns", "ni", "nb", "nf", "nt", "ptx", "pi8", "pbo", "st", "prov", "rl", "nn"}
@@ -1933,7 +1933,7 @@ var allSQLColumns = [...]string{
 	AllIndexF32:    "f32",
 	AllIndexF64:    "f64",
 	AllIndexR:      "r",
-	AllIndexBY:     "by",
+	AllIndexBy:     "by",
 	AllIndexBytes:  "bytes",
 	AllIndexFixed:  "fixed",
 	AllIndexUID:    "uid",
@@ -1947,12 +1947,12 @@ var allSQLColumns = [...]string{
 	AllIndexT:      "t",
 	AllIndexDur:    "dur",
 	AllIndexDate:   "date",
-	AllIndexPD:     "pd",
+	AllIndexPd:     "pd",
 	AllIndexPts:    "pts",
 	AllIndexPiv:    "piv",
-	AllIndexLB:     "lb",
-	AllIndexLS:     "ls",
-	AllIndexLI:     "li",
+	AllIndexLb:     "lb",
+	AllIndexLs:     "ls",
+	AllIndexLi:     "li",
 	AllIndexLi8:    "li8",
 	AllIndexLi16:   "li16",
 	AllIndexLi32:   "li32",
@@ -1960,12 +1960,12 @@ var allSQLColumns = [...]string{
 	AllIndexLu32:   "lu32",
 	AllIndexLu64:   "lu64",
 	AllIndexLf32:   "lf32",
-	AllIndexLT:     "lt",
-	AllIndexLU:     "lu",
+	AllIndexLt:     "lt",
+	AllIndexLu:     "lu",
 	AllIndexLs2:    "ls2",
 	AllIndexLi2:    "li2",
 	AllIndexLbb:    "lbb",
-	AllIndexLM:     "lm",
+	AllIndexLm:     "lm",
 	AllIndexLst:    "lst",
 	AllIndexLrl:    "lrl",
 	AllIndexIP:     "ip",
@@ -1976,26 +1976,26 @@ var allSQLColumns = [...]string{
 	AllIndexDec:    "dec",
 	AllIndexRng:    "rng",
 	AllIndexMrng:   "mrng",
-	AllIndexPT:     "pt",
+	AllIndexPt:     "pt",
 	AllIndexBits:   "bits",
-	AllIndexPS:     "ps",
-	AllIndexPI:     "pi",
-	AllIndexPB:     "pb",
-	AllIndexPF:     "pf",
+	AllIndexPs:     "ps",
+	AllIndexPi:     "pi",
+	AllIndexPb:     "pb",
+	AllIndexPf:     "pf",
 	AllIndexPt2:    "pt2",
 	AllIndexPip:    "pip",
-	AllIndexNS:     "ns",
-	AllIndexNI:     "ni",
-	AllIndexNB:     "nb",
-	AllIndexNF:     "nf",
-	AllIndexNT:     "nt",
+	AllIndexNs:     "ns",
+	AllIndexNi:     "ni",
+	AllIndexNb:     "nb",
+	AllIndexNf:     "nf",
+	AllIndexNt:     "nt",
 	AllIndexPtx:    "ptx",
 	AllIndexPi8:    "pi8",
 	AllIndexPbo:    "pbo",
-	AllIndexST:     "st",
+	AllIndexSt:     "st",
 	AllIndexProv:   "prov",
-	AllIndexRL:     "rl",
-	AllIndexNN:     "nn",
+	AllIndexRl:     "rl",
+	AllIndexNn:     "nn",
 }
 
 // select expressions: null of scalar column is zero value
@@ -2016,7 +2016,7 @@ var allSQLSelects = [...]string{
 	AllIndexF32:    "coalesce(f32, 0)",
 	AllIndexF64:    "coalesce(f64, 0)",
 	AllIndexR:      "coalesce(r, 0)",
-	AllIndexBY:     "coalesce(by, 0)",
+	AllIndexBy:     "coalesce(by, 0)",
 	AllIndexBytes:  "bytes",
 	AllIndexFixed:  "fixed",
 	AllIndexUID:    "uid",
@@ -2030,12 +2030,12 @@ var allSQLSelects = [...]string{
 	AllIndexT:      "coalesce(t, '0001-01-01 00:00:00+00')",
 	AllIndexDur:    "coalesce(dur, 0)",
 	AllIndexDate:   "coalesce(date, '0001-01-01 00:00:00+00')",
-	AllIndexPD:     "pd",
+	AllIndexPd:     "pd",
 	AllIndexPts:    "pts",
 	AllIndexPiv:    "piv",
-	AllIndexLB:     "lb",
-	AllIndexLS:     "ls",
-	AllIndexLI:     "li",
+	AllIndexLb:     "lb",
+	AllIndexLs:     "ls",
+	AllIndexLi:     "li",
 	AllIndexLi8:    "li8",
 	AllIndexLi16:   "li16",
 	AllIndexLi32:   "li32",
@@ -2043,12 +2043,12 @@ var allSQLSelects = [...]string{
 	AllIndexLu32:   "lu32",
 	AllIndexLu64:   "lu64",
 	AllIndexLf32:   "lf32",
-	AllIndexLT:     "lt",
-	AllIndexLU:     "lu",
+	AllIndexLt:     "lt",
+	AllIndexLu:     "lu",
 	AllIndexLs2:    "ls2",
 	AllIndexLi2:    "li2",
 	AllIndexLbb:    "lbb",
-	AllIndexLM:     "lm",
+	AllIndexLm:     "lm",
 	AllIndexLst:    "lst",
 	AllIndexLrl:    "lrl",
 	AllIndexIP:     "ip",
@@ -2059,26 +2059,26 @@ var allSQLSelects = [...]string{
 	AllIndexDec:    "coalesce(dec, 0)",
 	AllIndexRng:    "rng",
 	AllIndexMrng:   "mrng",
-	AllIndexPT:     "pt",
+	AllIndexPt:     "pt",
 	AllIndexBits:   "bits",
-	AllIndexPS:     "ps",
-	AllIndexPI:     "pi",
-	AllIndexPB:     "pb",
-	AllIndexPF:     "pf",
+	AllIndexPs:     "ps",
+	AllIndexPi:     "pi",
+	AllIndexPb:     "pb",
+	AllIndexPf:     "pf",
 	AllIndexPt2:    "pt2",
 	AllIndexPip:    "pip",
-	AllIndexNS:     "ns",
-	AllIndexNI:     "ni",
-	AllIndexNB:     "nb",
-	AllIndexNF:     "nf",
-	AllIndexNT:     "nt",
+	AllIndexNs:     "ns",
+	AllIndexNi:     "ni",
+	AllIndexNb:     "nb",
+	AllIndexNf:     "nf",
+	AllIndexNt:     "nt",
 	AllIndexPtx:    "ptx",
 	AllIndexPi8:    "pi8",
 	AllIndexPbo:    "pbo",
-	AllIndexST:     "coalesce(st, 0)",
+	AllIndexSt:     "coalesce(st, 0)",
 	AllIndexProv:   "coalesce(prov, '')",
-	AllIndexRL:     "coalesce(rl, 0)",
-	AllIndexNN:     "coalesce(nn, '')",
+	AllIndexRl:     "coalesce(rl, 0)",
+	AllIndexNn:     "coalesce(nn, '')",
 }
 
 // sql column types
@@ -2099,7 +2099,7 @@ var allSQLTypes = [...]string{
 	AllIndexF32:    "real",
 	AllIndexF64:    "double precision",
 	AllIndexR:      "integer",
-	AllIndexBY:     "smallint",
+	AllIndexBy:     "smallint",
 	AllIndexBytes:  "bytea",
 	AllIndexFixed:  "bytea",
 	AllIndexUID:    "uuid",
@@ -2113,12 +2113,12 @@ var allSQLTypes = [...]string{
 	AllIndexT:      "timestamptz",
 	AllIndexDur:    "bigint",
 	AllIndexDate:   "date",
-	AllIndexPD:     "date",
+	AllIndexPd:     "date",
 	AllIndexPts:    "timestamp",
 	AllIndexPiv:    "interval",
-	AllIndexLB:     "boolean[]",
-	AllIndexLS:     "text[]",
-	AllIndexLI:     "bigint[]",
+	AllIndexLb:     "boolean[]",
+	AllIndexLs:     "text[]",
+	AllIndexLi:     "bigint[]",
 	AllIndexLi8:    "smallint[]",
 	AllIndexLi16:   "smallint[]",
 	AllIndexLi32:   "integer[]",
@@ -2126,12 +2126,12 @@ var allSQLTypes = [...]string{
 	AllIndexLu32:   "bigint[]",
 	AllIndexLu64:   "numeric(20,0)[]",
 	AllIndexLf32:   "real[]",
-	AllIndexLT:     "timestamptz[]",
-	AllIndexLU:     "uuid[]",
+	AllIndexLt:     "timestamptz[]",
+	AllIndexLu:     "uuid[]",
 	AllIndexLs2:    "jsonb",
 	AllIndexLi2:    "jsonb",
 	AllIndexLbb:    "bytea[]",
-	AllIndexLM:     "jsonb",
+	AllIndexLm:     "jsonb",
 	AllIndexLst:    "smallint[]",
 	AllIndexLrl:    "bigint[]",
 	AllIndexIP:     "inet",
@@ -2142,26 +2142,26 @@ var allSQLTypes = [...]string{
 	AllIndexDec:    "numeric",
 	AllIndexRng:    "int4range",
 	AllIndexMrng:   "int8multirange",
-	AllIndexPT:     "point",
+	AllIndexPt:     "point",
 	AllIndexBits:   "varbit",
-	AllIndexPS:     "text",
-	AllIndexPI:     "bigint",
-	AllIndexPB:     "boolean",
-	AllIndexPF:     "double precision",
+	AllIndexPs:     "text",
+	AllIndexPi:     "bigint",
+	AllIndexPb:     "boolean",
+	AllIndexPf:     "double precision",
 	AllIndexPt2:    "timestamptz",
 	AllIndexPip:    "inet",
-	AllIndexNS:     "text",
-	AllIndexNI:     "bigint",
-	AllIndexNB:     "boolean",
-	AllIndexNF:     "double precision",
-	AllIndexNT:     "timestamptz",
+	AllIndexNs:     "text",
+	AllIndexNi:     "bigint",
+	AllIndexNb:     "boolean",
+	AllIndexNf:     "double precision",
+	AllIndexNt:     "timestamptz",
 	AllIndexPtx:    "text",
 	AllIndexPi8:    "bigint",
 	AllIndexPbo:    "boolean",
-	AllIndexST:     "smallint",
+	AllIndexSt:     "smallint",
 	AllIndexProv:   "text",
-	AllIndexRL:     "bigint",
-	AllIndexNN:     "text",
+	AllIndexRl:     "bigint",
+	AllIndexNn:     "text",
 }
 
 const allSQLSelectAll = "coalesce(id, 0), coalesce(b, false), coalesce(s, ''), coalesce(i, 0), coalesce(i8, 0), coalesce(i16, 0), coalesce(i32, 0), coalesce(i64, 0), coalesce(u, 0), coalesce(u8, 0), coalesce(u16, 0), coalesce(u32, 0), coalesce(u64, 0), coalesce(f32, 0), coalesce(f64, 0), coalesce(r, 0), coalesce(by, 0), bytes, fixed, uid, puid, raw, mapany, maps, coalesce(conf, 'null'::jsonb), confs, anyv, coalesce(t, '0001-01-01 00:00:00+00'), coalesce(dur, 0), coalesce(date, '0001-01-01 00:00:00+00'), pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, coalesce(dec, 0), rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, coalesce(st, 0), coalesce(prov, ''), coalesce(rl, 0), coalesce(nn, '')"
@@ -2280,8 +2280,8 @@ func (a *All) sqlDest(fields []AllIndexTyped) []any {
 			dest[i] = &a.F64
 		case AllIndexR:
 			dest[i] = &a.R
-		case AllIndexBY:
-			dest[i] = &a.BY
+		case AllIndexBy:
+			dest[i] = &a.By
 		case AllIndexBytes:
 			dest[i] = &a.Bytes
 		case AllIndexFixed:
@@ -2308,18 +2308,18 @@ func (a *All) sqlDest(fields []AllIndexTyped) []any {
 			dest[i] = &a.Dur
 		case AllIndexDate:
 			dest[i] = &a.Date
-		case AllIndexPD:
-			dest[i] = &a.PD
+		case AllIndexPd:
+			dest[i] = &a.Pd
 		case AllIndexPts:
 			dest[i] = &a.Pts
 		case AllIndexPiv:
 			dest[i] = &a.Piv
-		case AllIndexLB:
-			dest[i] = &a.LB
-		case AllIndexLS:
-			dest[i] = &a.LS
-		case AllIndexLI:
-			dest[i] = &a.LI
+		case AllIndexLb:
+			dest[i] = &a.Lb
+		case AllIndexLs:
+			dest[i] = &a.Ls
+		case AllIndexLi:
+			dest[i] = &a.Li
 		case AllIndexLi8:
 			dest[i] = &a.Li8
 		case AllIndexLi16:
@@ -2334,18 +2334,18 @@ func (a *All) sqlDest(fields []AllIndexTyped) []any {
 			dest[i] = &a.Lu64
 		case AllIndexLf32:
 			dest[i] = &a.Lf32
-		case AllIndexLT:
-			dest[i] = &a.LT
-		case AllIndexLU:
-			dest[i] = &a.LU
+		case AllIndexLt:
+			dest[i] = &a.Lt
+		case AllIndexLu:
+			dest[i] = &a.Lu
 		case AllIndexLs2:
 			dest[i] = &a.Ls2
 		case AllIndexLi2:
 			dest[i] = &a.Li2
 		case AllIndexLbb:
 			dest[i] = &a.Lbb
-		case AllIndexLM:
-			dest[i] = &a.LM
+		case AllIndexLm:
+			dest[i] = &a.Lm
 		case AllIndexLst:
 			dest[i] = &a.Lst
 		case AllIndexLrl:
@@ -2371,46 +2371,46 @@ func (a *All) sqlDest(fields []AllIndexTyped) []any {
 			dest[i] = &a.Rng
 		case AllIndexMrng:
 			dest[i] = &a.Mrng
-		case AllIndexPT:
-			dest[i] = &a.PT
+		case AllIndexPt:
+			dest[i] = &a.Pt
 		case AllIndexBits:
 			dest[i] = &a.Bits
-		case AllIndexPS:
-			dest[i] = &a.PS
-		case AllIndexPI:
-			dest[i] = &a.PI
-		case AllIndexPB:
-			dest[i] = &a.PB
-		case AllIndexPF:
-			dest[i] = &a.PF
+		case AllIndexPs:
+			dest[i] = &a.Ps
+		case AllIndexPi:
+			dest[i] = &a.Pi
+		case AllIndexPb:
+			dest[i] = &a.Pb
+		case AllIndexPf:
+			dest[i] = &a.Pf
 		case AllIndexPt2:
 			dest[i] = &a.Pt2
 		case AllIndexPip:
 			dest[i] = &a.Pip
-		case AllIndexNS:
-			dest[i] = &a.NS
-		case AllIndexNI:
-			dest[i] = &a.NI
-		case AllIndexNB:
-			dest[i] = &a.NB
-		case AllIndexNF:
-			dest[i] = &a.NF
-		case AllIndexNT:
-			dest[i] = &a.NT
+		case AllIndexNs:
+			dest[i] = &a.Ns
+		case AllIndexNi:
+			dest[i] = &a.Ni
+		case AllIndexNb:
+			dest[i] = &a.Nb
+		case AllIndexNf:
+			dest[i] = &a.Nf
+		case AllIndexNt:
+			dest[i] = &a.Nt
 		case AllIndexPtx:
 			dest[i] = &a.Ptx
 		case AllIndexPi8:
 			dest[i] = &a.Pi8
 		case AllIndexPbo:
 			dest[i] = &a.Pbo
-		case AllIndexST:
-			dest[i] = &a.ST
+		case AllIndexSt:
+			dest[i] = &a.St
 		case AllIndexProv:
 			dest[i] = &a.Prov
-		case AllIndexRL:
-			dest[i] = &a.RL
-		case AllIndexNN:
-			dest[i] = &a.NN
+		case AllIndexRl:
+			dest[i] = &a.Rl
+		case AllIndexNn:
+			dest[i] = &a.Nn
 		}
 	}
 	return dest
@@ -2451,8 +2451,8 @@ func (a *All) sqlValue(f AllIndexTyped) any {
 		return a.F64
 	case AllIndexR:
 		return a.R
-	case AllIndexBY:
-		return a.BY
+	case AllIndexBy:
+		return a.By
 	case AllIndexBytes:
 		return a.Bytes
 	case AllIndexFixed:
@@ -2479,18 +2479,18 @@ func (a *All) sqlValue(f AllIndexTyped) any {
 		return a.Dur
 	case AllIndexDate:
 		return a.Date
-	case AllIndexPD:
-		return a.PD
+	case AllIndexPd:
+		return a.Pd
 	case AllIndexPts:
 		return a.Pts
 	case AllIndexPiv:
 		return a.Piv
-	case AllIndexLB:
-		return a.LB
-	case AllIndexLS:
-		return a.LS
-	case AllIndexLI:
-		return a.LI
+	case AllIndexLb:
+		return a.Lb
+	case AllIndexLs:
+		return a.Ls
+	case AllIndexLi:
+		return a.Li
 	case AllIndexLi8:
 		return a.Li8
 	case AllIndexLi16:
@@ -2505,18 +2505,18 @@ func (a *All) sqlValue(f AllIndexTyped) any {
 		return a.Lu64
 	case AllIndexLf32:
 		return a.Lf32
-	case AllIndexLT:
-		return a.LT
-	case AllIndexLU:
-		return a.LU
+	case AllIndexLt:
+		return a.Lt
+	case AllIndexLu:
+		return a.Lu
 	case AllIndexLs2:
 		return a.Ls2
 	case AllIndexLi2:
 		return a.Li2
 	case AllIndexLbb:
 		return a.Lbb
-	case AllIndexLM:
-		return a.LM
+	case AllIndexLm:
+		return a.Lm
 	case AllIndexLst:
 		return a.Lst
 	case AllIndexLrl:
@@ -2542,46 +2542,46 @@ func (a *All) sqlValue(f AllIndexTyped) any {
 		return a.Rng
 	case AllIndexMrng:
 		return a.Mrng
-	case AllIndexPT:
-		return a.PT
+	case AllIndexPt:
+		return a.Pt
 	case AllIndexBits:
 		return a.Bits
-	case AllIndexPS:
-		return a.PS
-	case AllIndexPI:
-		return a.PI
-	case AllIndexPB:
-		return a.PB
-	case AllIndexPF:
-		return a.PF
+	case AllIndexPs:
+		return a.Ps
+	case AllIndexPi:
+		return a.Pi
+	case AllIndexPb:
+		return a.Pb
+	case AllIndexPf:
+		return a.Pf
 	case AllIndexPt2:
 		return a.Pt2
 	case AllIndexPip:
 		return a.Pip
-	case AllIndexNS:
-		return a.NS
-	case AllIndexNI:
-		return a.NI
-	case AllIndexNB:
-		return a.NB
-	case AllIndexNF:
-		return a.NF
-	case AllIndexNT:
-		return a.NT
+	case AllIndexNs:
+		return a.Ns
+	case AllIndexNi:
+		return a.Ni
+	case AllIndexNb:
+		return a.Nb
+	case AllIndexNf:
+		return a.Nf
+	case AllIndexNt:
+		return a.Nt
 	case AllIndexPtx:
 		return a.Ptx
 	case AllIndexPi8:
 		return a.Pi8
 	case AllIndexPbo:
 		return a.Pbo
-	case AllIndexST:
-		return int16(a.ST)
+	case AllIndexSt:
+		return int16(a.St)
 	case AllIndexProv:
 		return string(a.Prov)
-	case AllIndexRL:
-		return int(a.RL)
-	case AllIndexNN:
-		return a.NN
+	case AllIndexRl:
+		return int(a.Rl)
+	case AllIndexNn:
+		return a.Nn
 	}
 	return nil
 }
@@ -2604,7 +2604,7 @@ func (a *All) sqlInsertArgs() []any {
 		a.F32,
 		a.F64,
 		a.R,
-		a.BY,
+		a.By,
 		a.Bytes,
 		a.Fixed[:],
 		a.UID,
@@ -2618,12 +2618,12 @@ func (a *All) sqlInsertArgs() []any {
 		a.T,
 		a.Dur,
 		a.Date,
-		a.PD,
+		a.Pd,
 		a.Pts,
 		a.Piv,
-		a.LB,
-		a.LS,
-		a.LI,
+		a.Lb,
+		a.Ls,
+		a.Li,
 		a.Li8,
 		a.Li16,
 		a.Li32,
@@ -2631,12 +2631,12 @@ func (a *All) sqlInsertArgs() []any {
 		a.Lu32,
 		a.Lu64,
 		a.Lf32,
-		a.LT,
-		a.LU,
+		a.Lt,
+		a.Lu,
 		a.Ls2,
 		a.Li2,
 		a.Lbb,
-		a.LM,
+		a.Lm,
 		a.Lst,
 		a.Lrl,
 		a.IP,
@@ -2652,26 +2652,26 @@ func (a *All) sqlInsertArgs() []any {
 		a.Dec,
 		a.Rng,
 		a.Mrng,
-		a.PT,
+		a.Pt,
 		a.Bits,
-		a.PS,
-		a.PI,
-		a.PB,
-		a.PF,
+		a.Ps,
+		a.Pi,
+		a.Pb,
+		a.Pf,
 		a.Pt2,
 		a.Pip,
-		a.NS,
-		a.NI,
-		a.NB,
-		a.NF,
-		a.NT,
+		a.Ns,
+		a.Ni,
+		a.Nb,
+		a.Nf,
+		a.Nt,
 		a.Ptx,
 		a.Pi8,
 		a.Pbo,
-		int16(a.ST),
+		int16(a.St),
 		string(a.Prov),
-		int(a.RL),
-		a.NN,
+		int(a.Rl),
+		a.Nn,
 	}
 }
 
@@ -2694,7 +2694,7 @@ func (a *All) sqlAllArgs() []any {
 		a.F32,
 		a.F64,
 		a.R,
-		a.BY,
+		a.By,
 		a.Bytes,
 		a.Fixed[:],
 		a.UID,
@@ -2708,12 +2708,12 @@ func (a *All) sqlAllArgs() []any {
 		a.T,
 		a.Dur,
 		a.Date,
-		a.PD,
+		a.Pd,
 		a.Pts,
 		a.Piv,
-		a.LB,
-		a.LS,
-		a.LI,
+		a.Lb,
+		a.Ls,
+		a.Li,
 		a.Li8,
 		a.Li16,
 		a.Li32,
@@ -2721,12 +2721,12 @@ func (a *All) sqlAllArgs() []any {
 		a.Lu32,
 		a.Lu64,
 		a.Lf32,
-		a.LT,
-		a.LU,
+		a.Lt,
+		a.Lu,
 		a.Ls2,
 		a.Li2,
 		a.Lbb,
-		a.LM,
+		a.Lm,
 		a.Lst,
 		a.Lrl,
 		a.IP,
@@ -2742,26 +2742,26 @@ func (a *All) sqlAllArgs() []any {
 		a.Dec,
 		a.Rng,
 		a.Mrng,
-		a.PT,
+		a.Pt,
 		a.Bits,
-		a.PS,
-		a.PI,
-		a.PB,
-		a.PF,
+		a.Ps,
+		a.Pi,
+		a.Pb,
+		a.Pf,
 		a.Pt2,
 		a.Pip,
-		a.NS,
-		a.NI,
-		a.NB,
-		a.NF,
-		a.NT,
+		a.Ns,
+		a.Ni,
+		a.Nb,
+		a.Nf,
+		a.Nt,
 		a.Ptx,
 		a.Pi8,
 		a.Pbo,
-		int16(a.ST),
+		int16(a.St),
 		string(a.Prov),
-		int(a.RL),
-		a.NN,
+		int(a.Rl),
+		a.Nn,
 	}
 }
 
@@ -3007,273 +3007,273 @@ func (a *AllSQL) DeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-// RawUpdate sets key of jsonb raw
-func (a *AllSQL) RawUpdate(id int, k string, v any) error {
+// UpdateRaw sets key of jsonb raw
+func (a *AllSQL) UpdateRaw(id int, k string, v any) error {
 	return a.jsonSet(id, "raw", k, v)
 }
 
-// RawMerge adds keys of object v to jsonb raw: existing keys are replaced
-func (a *AllSQL) RawMerge(id int, v any) error {
+// MergeRaw adds keys of object v to jsonb raw: existing keys are replaced
+func (a *AllSQL) MergeRaw(id int, v any) error {
 	return a.jsonMerge(id, "raw", "{}", v)
 }
 
-// RawDelete removes key of jsonb raw
-func (a *AllSQL) RawDelete(id int, k string) error {
+// DeleteRaw removes key of jsonb raw
+func (a *AllSQL) DeleteRaw(id int, k string) error {
 	return a.jsonDelete(id, "raw", k)
 }
 
-// RawRename renames key of jsonb raw, pgx.ErrNoRows when key not found
-func (a *AllSQL) RawRename(id int, k, newK string) error {
+// RenameRaw renames key of jsonb raw, pgx.ErrNoRows when key not found
+func (a *AllSQL) RenameRaw(id int, k, newK string) error {
 	return a.jsonRename(id, "raw", k, newK)
 }
 
-// MapanyUpdate sets key of jsonb mapany
-func (a *AllSQL) MapanyUpdate(id int, k string, v any) error {
+// UpdateMapany sets key of jsonb mapany
+func (a *AllSQL) UpdateMapany(id int, k string, v any) error {
 	return a.jsonSet(id, "mapany", fmt.Sprint(k), v)
 }
 
-// MapanyMerge adds keys to jsonb mapany: existing keys are replaced
-func (a *AllSQL) MapanyMerge(id int, v map[string]any) error {
+// MergeMapany adds keys to jsonb mapany: existing keys are replaced
+func (a *AllSQL) MergeMapany(id int, v map[string]any) error {
 	return a.jsonMerge(id, "mapany", "{}", v)
 }
 
-// MapanyDelete removes key of jsonb mapany
-func (a *AllSQL) MapanyDelete(id int, k string) error {
+// DeleteMapany removes key of jsonb mapany
+func (a *AllSQL) DeleteMapany(id int, k string) error {
 	return a.jsonDelete(id, "mapany", fmt.Sprint(k))
 }
 
-// MapanyRename renames key of jsonb mapany, pgx.ErrNoRows when key not found
-func (a *AllSQL) MapanyRename(id int, k, newK string) error {
+// RenameMapany renames key of jsonb mapany, pgx.ErrNoRows when key not found
+func (a *AllSQL) RenameMapany(id int, k, newK string) error {
 	return a.jsonRename(id, "mapany", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapsUpdate sets key of jsonb maps
-func (a *AllSQL) MapsUpdate(id int, k string, v string) error {
+// UpdateMaps sets key of jsonb maps
+func (a *AllSQL) UpdateMaps(id int, k string, v string) error {
 	return a.jsonSet(id, "maps", fmt.Sprint(k), v)
 }
 
-// MapsMerge adds keys to jsonb maps: existing keys are replaced
-func (a *AllSQL) MapsMerge(id int, v map[string]string) error {
+// MergeMaps adds keys to jsonb maps: existing keys are replaced
+func (a *AllSQL) MergeMaps(id int, v map[string]string) error {
 	return a.jsonMerge(id, "maps", "{}", v)
 }
 
-// MapsDelete removes key of jsonb maps
-func (a *AllSQL) MapsDelete(id int, k string) error {
+// DeleteMaps removes key of jsonb maps
+func (a *AllSQL) DeleteMaps(id int, k string) error {
 	return a.jsonDelete(id, "maps", fmt.Sprint(k))
 }
 
-// MapsRename renames key of jsonb maps, pgx.ErrNoRows when key not found
-func (a *AllSQL) MapsRename(id int, k, newK string) error {
+// RenameMaps renames key of jsonb maps, pgx.ErrNoRows when key not found
+func (a *AllSQL) RenameMaps(id int, k, newK string) error {
 	return a.jsonRename(id, "maps", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// ConfUpdate sets key of jsonb conf
-func (a *AllSQL) ConfUpdate(id int, k string, v any) error {
+// UpdateConf sets key of jsonb conf
+func (a *AllSQL) UpdateConf(id int, k string, v any) error {
 	return a.jsonSet(id, "conf", k, v)
 }
 
-// ConfMerge adds keys of object v to jsonb conf: existing keys are replaced
-func (a *AllSQL) ConfMerge(id int, v any) error {
+// MergeConf adds keys of object v to jsonb conf: existing keys are replaced
+func (a *AllSQL) MergeConf(id int, v any) error {
 	return a.jsonMerge(id, "conf", "{}", v)
 }
 
-// ConfDelete removes key of jsonb conf
-func (a *AllSQL) ConfDelete(id int, k string) error {
+// DeleteConf removes key of jsonb conf
+func (a *AllSQL) DeleteConf(id int, k string) error {
 	return a.jsonDelete(id, "conf", k)
 }
 
-// ConfRename renames key of jsonb conf, pgx.ErrNoRows when key not found
-func (a *AllSQL) ConfRename(id int, k, newK string) error {
+// RenameConf renames key of jsonb conf, pgx.ErrNoRows when key not found
+func (a *AllSQL) RenameConf(id int, k, newK string) error {
 	return a.jsonRename(id, "conf", k, newK)
 }
 
-// ConfsAppend adds values to jsonb array confs
-func (a *AllSQL) ConfsAppend(id int, v ...Config) error {
+// AppendConfs adds values to jsonb array confs
+func (a *AllSQL) AppendConfs(id int, v ...Config) error {
 	return a.jsonMerge(id, "confs", "[]", v)
 }
 
-// AnyvUpdate sets key of jsonb anyv
-func (a *AllSQL) AnyvUpdate(id int, k string, v any) error {
+// UpdateAnyv sets key of jsonb anyv
+func (a *AllSQL) UpdateAnyv(id int, k string, v any) error {
 	return a.jsonSet(id, "anyv", k, v)
 }
 
-// AnyvMerge adds keys of object v to jsonb anyv: existing keys are replaced
-func (a *AllSQL) AnyvMerge(id int, v any) error {
+// MergeAnyv adds keys of object v to jsonb anyv: existing keys are replaced
+func (a *AllSQL) MergeAnyv(id int, v any) error {
 	return a.jsonMerge(id, "anyv", "{}", v)
 }
 
-// AnyvDelete removes key of jsonb anyv
-func (a *AllSQL) AnyvDelete(id int, k string) error {
+// DeleteAnyv removes key of jsonb anyv
+func (a *AllSQL) DeleteAnyv(id int, k string) error {
 	return a.jsonDelete(id, "anyv", k)
 }
 
-// AnyvRename renames key of jsonb anyv, pgx.ErrNoRows when key not found
-func (a *AllSQL) AnyvRename(id int, k, newK string) error {
+// RenameAnyv renames key of jsonb anyv, pgx.ErrNoRows when key not found
+func (a *AllSQL) RenameAnyv(id int, k, newK string) error {
 	return a.jsonRename(id, "anyv", k, newK)
 }
 
-// LBAppend adds values to array lb
-func (a *AllSQL) LBAppend(id int, v ...bool) error {
+// AppendLb adds values to array lb
+func (a *AllSQL) AppendLb(id int, v ...bool) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lb = coalesce(lb, '{}') || $1::boolean[] where id = $2", v, id))
 }
 
-// LBRemove removes all entries of v from array lb
-func (a *AllSQL) LBRemove(id int, v bool) error {
+// RemoveLb removes all entries of v from array lb
+func (a *AllSQL) RemoveLb(id int, v bool) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lb = array_remove(lb, $1::boolean) where id = $2", v, id))
 }
 
-// LSAppend adds values to array ls
-func (a *AllSQL) LSAppend(id int, v ...string) error {
+// AppendLs adds values to array ls
+func (a *AllSQL) AppendLs(id int, v ...string) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set ls = coalesce(ls, '{}') || $1::text[] where id = $2", v, id))
 }
 
-// LSRemove removes all entries of v from array ls
-func (a *AllSQL) LSRemove(id int, v string) error {
+// RemoveLs removes all entries of v from array ls
+func (a *AllSQL) RemoveLs(id int, v string) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set ls = array_remove(ls, $1::text) where id = $2", v, id))
 }
 
-// LIAppend adds values to array li
-func (a *AllSQL) LIAppend(id int, v ...int) error {
+// AppendLi adds values to array li
+func (a *AllSQL) AppendLi(id int, v ...int) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li = coalesce(li, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-// LIRemove removes all entries of v from array li
-func (a *AllSQL) LIRemove(id int, v int) error {
+// RemoveLi removes all entries of v from array li
+func (a *AllSQL) RemoveLi(id int, v int) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li = array_remove(li, $1::bigint) where id = $2", v, id))
 }
 
-// Li8Append adds values to array li8
-func (a *AllSQL) Li8Append(id int, v ...int8) error {
+// AppendLi8 adds values to array li8
+func (a *AllSQL) AppendLi8(id int, v ...int8) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li8 = coalesce(li8, '{}') || $1::smallint[] where id = $2", v, id))
 }
 
-// Li8Remove removes all entries of v from array li8
-func (a *AllSQL) Li8Remove(id int, v int8) error {
+// RemoveLi8 removes all entries of v from array li8
+func (a *AllSQL) RemoveLi8(id int, v int8) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li8 = array_remove(li8, $1::smallint) where id = $2", v, id))
 }
 
-// Li16Append adds values to array li16
-func (a *AllSQL) Li16Append(id int, v ...int16) error {
+// AppendLi16 adds values to array li16
+func (a *AllSQL) AppendLi16(id int, v ...int16) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li16 = coalesce(li16, '{}') || $1::smallint[] where id = $2", v, id))
 }
 
-// Li16Remove removes all entries of v from array li16
-func (a *AllSQL) Li16Remove(id int, v int16) error {
+// RemoveLi16 removes all entries of v from array li16
+func (a *AllSQL) RemoveLi16(id int, v int16) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li16 = array_remove(li16, $1::smallint) where id = $2", v, id))
 }
 
-// Li32Append adds values to array li32
-func (a *AllSQL) Li32Append(id int, v ...int32) error {
+// AppendLi32 adds values to array li32
+func (a *AllSQL) AppendLi32(id int, v ...int32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li32 = coalesce(li32, '{}') || $1::integer[] where id = $2", v, id))
 }
 
-// Li32Remove removes all entries of v from array li32
-func (a *AllSQL) Li32Remove(id int, v int32) error {
+// RemoveLi32 removes all entries of v from array li32
+func (a *AllSQL) RemoveLi32(id int, v int32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li32 = array_remove(li32, $1::integer) where id = $2", v, id))
 }
 
-// Lu16Append adds values to array lu16
-func (a *AllSQL) Lu16Append(id int, v ...uint16) error {
+// AppendLu16 adds values to array lu16
+func (a *AllSQL) AppendLu16(id int, v ...uint16) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu16 = coalesce(lu16, '{}') || $1::integer[] where id = $2", v, id))
 }
 
-// Lu16Remove removes all entries of v from array lu16
-func (a *AllSQL) Lu16Remove(id int, v uint16) error {
+// RemoveLu16 removes all entries of v from array lu16
+func (a *AllSQL) RemoveLu16(id int, v uint16) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu16 = array_remove(lu16, $1::integer) where id = $2", v, id))
 }
 
-// Lu32Append adds values to array lu32
-func (a *AllSQL) Lu32Append(id int, v ...uint32) error {
+// AppendLu32 adds values to array lu32
+func (a *AllSQL) AppendLu32(id int, v ...uint32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu32 = coalesce(lu32, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-// Lu32Remove removes all entries of v from array lu32
-func (a *AllSQL) Lu32Remove(id int, v uint32) error {
+// RemoveLu32 removes all entries of v from array lu32
+func (a *AllSQL) RemoveLu32(id int, v uint32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu32 = array_remove(lu32, $1::bigint) where id = $2", v, id))
 }
 
-// Lu64Append adds values to array lu64
-func (a *AllSQL) Lu64Append(id int, v ...uint64) error {
+// AppendLu64 adds values to array lu64
+func (a *AllSQL) AppendLu64(id int, v ...uint64) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu64 = coalesce(lu64, '{}') || $1::numeric(20,0)[] where id = $2", v, id))
 }
 
-// Lu64Remove removes all entries of v from array lu64
-func (a *AllSQL) Lu64Remove(id int, v uint64) error {
+// RemoveLu64 removes all entries of v from array lu64
+func (a *AllSQL) RemoveLu64(id int, v uint64) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu64 = array_remove(lu64, $1::numeric(20,0)) where id = $2", v, id))
 }
 
-// Lf32Append adds values to array lf32
-func (a *AllSQL) Lf32Append(id int, v ...float32) error {
+// AppendLf32 adds values to array lf32
+func (a *AllSQL) AppendLf32(id int, v ...float32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lf32 = coalesce(lf32, '{}') || $1::real[] where id = $2", v, id))
 }
 
-// Lf32Remove removes all entries of v from array lf32
-func (a *AllSQL) Lf32Remove(id int, v float32) error {
+// RemoveLf32 removes all entries of v from array lf32
+func (a *AllSQL) RemoveLf32(id int, v float32) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lf32 = array_remove(lf32, $1::real) where id = $2", v, id))
 }
 
-// LTAppend adds values to array lt
-func (a *AllSQL) LTAppend(id int, v ...time.Time) error {
+// AppendLt adds values to array lt
+func (a *AllSQL) AppendLt(id int, v ...time.Time) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lt = coalesce(lt, '{}') || $1::timestamptz[] where id = $2", v, id))
 }
 
-// LTRemove removes all entries of v from array lt
-func (a *AllSQL) LTRemove(id int, v time.Time) error {
+// RemoveLt removes all entries of v from array lt
+func (a *AllSQL) RemoveLt(id int, v time.Time) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lt = array_remove(lt, $1::timestamptz) where id = $2", v, id))
 }
 
-// LUAppend adds values to array lu
-func (a *AllSQL) LUAppend(id int, v ...uuid.UUID) error {
+// AppendLu adds values to array lu
+func (a *AllSQL) AppendLu(id int, v ...uuid.UUID) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu = coalesce(lu, '{}') || $1::uuid[] where id = $2", v, id))
 }
 
-// LURemove removes all entries of v from array lu
-func (a *AllSQL) LURemove(id int, v uuid.UUID) error {
+// RemoveLu removes all entries of v from array lu
+func (a *AllSQL) RemoveLu(id int, v uuid.UUID) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu = array_remove(lu, $1::uuid) where id = $2", v, id))
 }
 
-// Ls2Append adds values to jsonb array ls2
-func (a *AllSQL) Ls2Append(id int, v ...[]string) error {
+// AppendLs2 adds values to jsonb array ls2
+func (a *AllSQL) AppendLs2(id int, v ...[]string) error {
 	return a.jsonMerge(id, "ls2", "[]", v)
 }
 
-// Li2Append adds values to jsonb array li2
-func (a *AllSQL) Li2Append(id int, v ...[]int64) error {
+// AppendLi2 adds values to jsonb array li2
+func (a *AllSQL) AppendLi2(id int, v ...[]int64) error {
 	return a.jsonMerge(id, "li2", "[]", v)
 }
 
-// LbbAppend adds values to array lbb
-func (a *AllSQL) LbbAppend(id int, v ...[]byte) error {
+// AppendLbb adds values to array lbb
+func (a *AllSQL) AppendLbb(id int, v ...[]byte) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lbb = coalesce(lbb, '{}') || $1::bytea[] where id = $2", v, id))
 }
 
-// LbbRemove removes all entries of v from array lbb
-func (a *AllSQL) LbbRemove(id int, v []byte) error {
+// RemoveLbb removes all entries of v from array lbb
+func (a *AllSQL) RemoveLbb(id int, v []byte) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lbb = array_remove(lbb, $1::bytea) where id = $2", v, id))
 }
 
-// LMAppend adds values to jsonb array lm
-func (a *AllSQL) LMAppend(id int, v ...map[string]any) error {
+// AppendLm adds values to jsonb array lm
+func (a *AllSQL) AppendLm(id int, v ...map[string]any) error {
 	return a.jsonMerge(id, "lm", "[]", v)
 }
 
-// LstAppend adds values to array lst
-func (a *AllSQL) LstAppend(id int, v ...Status) error {
+// AppendLst adds values to array lst
+func (a *AllSQL) AppendLst(id int, v ...Status) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lst = coalesce(lst, '{}') || $1::smallint[] where id = $2", v, id))
 }
 
-// LstRemove removes all entries of v from array lst
-func (a *AllSQL) LstRemove(id int, v Status) error {
+// RemoveLst removes all entries of v from array lst
+func (a *AllSQL) RemoveLst(id int, v Status) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lst = array_remove(lst, $1::smallint) where id = $2", v, id))
 }
 
-// LrlAppend adds values to array lrl
-func (a *AllSQL) LrlAppend(id int, v ...role.Role) error {
+// AppendLrl adds values to array lrl
+func (a *AllSQL) AppendLrl(id int, v ...role.Role) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lrl = coalesce(lrl, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-// LrlRemove removes all entries of v from array lrl
-func (a *AllSQL) LrlRemove(id int, v role.Role) error {
+// RemoveLrl removes all entries of v from array lrl
+func (a *AllSQL) RemoveLrl(id int, v role.Role) error {
 	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lrl = array_remove(lrl, $1::bigint) where id = $2", v, id))
 }
 

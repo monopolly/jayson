@@ -58,35 +58,35 @@ func testItem() All {
 	return All{
 		B: true, S: "s", I: -1, I8: -8, I16: -16, I32: -32, I64: math.MinInt64,
 		U: math.MaxUint64, U8: 255, U16: 65535, U32: math.MaxUint32, U64: math.MaxUint64,
-		F32: 1.25, F64: 2.5, R: 'ж', BY: 9,
+		F32: 1.25, F64: 2.5, R: 'ж', By: 9,
 		Bytes: []byte{1, 2, 3}, Fixed: [16]byte{1, 2}, UID: uuid.New(),
 		Puid:   pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		Raw:    json.RawMessage(`{"a": 1}`),
 		Mapany: map[string]any{"x": "y"}, Maps: map[string]string{"k": "v"},
 		Conf: Config{A: 3}, Confs: []Config{{A: 1}, {A: 2}}, Anyv: "any",
 		T: now, Dur: 3 * time.Second, Date: day,
-		PD:  pgtype.Date{Time: day, Valid: true},
+		Pd:  pgtype.Date{Time: day, Valid: true},
 		Pts: pgtype.Timestamp{Time: now, Valid: true},
 		Piv: pgtype.Interval{Days: 2, Microseconds: 5, Valid: true},
-		LB:  []bool{true, false}, LS: []string{"a", "b"}, LI: []int{1, -2},
+		Lb:  []bool{true, false}, Ls: []string{"a", "b"}, Li: []int{1, -2},
 		Li8: []int8{-1, 2}, Li16: []int16{3}, Li32: []int32{4}, Lu16: []uint16{65535},
 		Lu32: []uint32{math.MaxUint32}, Lu64: []uint64{math.MaxUint64, 1}, Lf32: []float32{1.5},
-		LT: []time.Time{now}, LU: []uuid.UUID{uuid.New(), uuid.New()},
+		Lt: []time.Time{now}, Lu: []uuid.UUID{uuid.New(), uuid.New()},
 		Ls2: [][]string{{"a", "b"}, {"c"}}, Li2: [][]int64{{1, 2}, {3, 4}},
-		Lbb: [][]byte{{1}, {2, 3}}, LM: []map[string]any{{"a": "b"}},
+		Lbb: [][]byte{{1}, {2, 3}}, Lm: []map[string]any{{"a": "b"}},
 		Lst: []Status{1, 2}, Lrl: []role.Role{3, 4},
 		IP: ip, Pfx: netip.MustParsePrefix("10.0.0.0/8"), Nip: net.ParseIP("192.168.1.1").To4(), Nnet: *ipnet,
 		Num: num, Dec: decimal.RequireFromString("99.125"),
 		Rng:  pgtype.Range[pgtype.Int4]{Lower: pgtype.Int4{Int32: 1, Valid: true}, Upper: pgtype.Int4{Int32: 5, Valid: true}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true},
 		Mrng: pgtype.Multirange[pgtype.Range[pgtype.Int8]]{{Lower: pgtype.Int8{Int64: 1, Valid: true}, Upper: pgtype.Int8{Int64: 3, Valid: true}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Valid: true}},
-		PT:   pgtype.Point{P: pgtype.Vec2{X: 1, Y: 2}, Valid: true},
+		Pt:   pgtype.Point{P: pgtype.Vec2{X: 1, Y: 2}, Valid: true},
 		Bits: pgtype.Bits{Bytes: []byte{0xF0}, Len: 4, Valid: true},
-		PS:   &s, PI: &n, PB: &bt, PF: &f, Pt2: &now, Pip: &ip,
-		NS: sql.NullString{String: "ns", Valid: true}, NI: sql.NullInt64{Int64: 5, Valid: true},
-		NB: sql.NullBool{Bool: true, Valid: true}, NF: sql.NullFloat64{Float64: 1.5, Valid: true},
-		NT:  sql.NullTime{Time: now, Valid: true},
+		Ps:   &s, Pi: &n, Pb: &bt, Pf: &f, Pt2: &now, Pip: &ip,
+		Ns: sql.NullString{String: "ns", Valid: true}, Ni: sql.NullInt64{Int64: 5, Valid: true},
+		Nb: sql.NullBool{Bool: true, Valid: true}, Nf: sql.NullFloat64{Float64: 1.5, Valid: true},
+		Nt:  sql.NullTime{Time: now, Valid: true},
 		Ptx: pgtype.Text{String: "pt", Valid: true}, Pi8: pgtype.Int8{Int64: 8, Valid: true}, Pbo: pgtype.Bool{Bool: true, Valid: true},
-		ST: 200, Prov: "google", RL: 5, NN: "notnull",
+		St: 200, Prov: "google", Rl: 5, Nn: "notnull",
 	}
 }
 
@@ -132,14 +132,14 @@ func TestTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal("get nulls:", err)
 	}
-	testEqual(t, All{ID: id, NN: "x", Raw: json.RawMessage("{}"), Mapany: map[string]any{}, Maps: map[string]string{},
-		LB: []bool{}, LS: []string{}, LI: []int{}, Li8: []int8{}, Li16: []int16{}, Li32: []int32{}, Lu16: []uint16{}, Lu32: []uint32{}, Lu64: []uint64{},
-		Lf32: []float32{}, LT: []time.Time{}, LU: []uuid.UUID{}, Lbb: [][]byte{}, Lst: []Status{}, Lrl: []role.Role{},
-		Confs: []Config{}, Ls2: [][]string{}, Li2: [][]int64{}, LM: []map[string]any{}, Anyv: map[string]any{}}, got)
+	testEqual(t, All{ID: id, Nn: "x", Raw: json.RawMessage("{}"), Mapany: map[string]any{}, Maps: map[string]string{},
+		Lb: []bool{}, Ls: []string{}, Li: []int{}, Li8: []int8{}, Li16: []int16{}, Li32: []int32{}, Lu16: []uint16{}, Lu32: []uint32{}, Lu64: []uint64{},
+		Lf32: []float32{}, Lt: []time.Time{}, Lu: []uuid.UUID{}, Lbb: [][]byte{}, Lst: []Status{}, Lrl: []role.Role{},
+		Confs: []Config{}, Ls2: [][]string{}, Li2: [][]int64{}, Lm: []map[string]any{}, Anyv: map[string]any{}}, got)
 
 	// every column is null
 	for _, f := range db.Fields() {
-		if f == AllIndexID || f == AllIndexNN {
+		if f == AllIndexID || f == AllIndexNn {
 			continue
 		}
 		if _, err := db.Pool().Exec(ctx, "update alltypes set "+f.SQLName()+" = null where id = $1", id); err != nil {
@@ -150,10 +150,10 @@ func TestTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal("get all nulls:", err)
 	}
-	testEqual(t, All{ID: id, NN: "x"}, got)
+	testEqual(t, All{ID: id, Nn: "x"}, got)
 
 	// empty struct
-	empty := All{NN: "e"}
+	empty := All{Nn: "e"}
 	if err := db.Insert(&empty); err != nil {
 		t.Fatal("insert empty:", err)
 	}
@@ -167,7 +167,7 @@ func TestSelect(t *testing.T) {
 
 	var list []*All
 	for i := 1; i <= 5; i++ {
-		list = append(list, &All{S: "name", I: i, NN: "n", B: i%2 == 0})
+		list = append(list, &All{S: "name", I: i, Nn: "n", B: i%2 == 0})
 	}
 	if err := db.InsertBatch(list); err != nil {
 		t.Fatal(err)
@@ -182,8 +182,8 @@ func TestSelect(t *testing.T) {
 
 	// partial fields
 	v, err := db.Get(3, AllIndexI, AllIndexS)
-	if err != nil || v.I != 3 || v.S != "name" || v.NN != "" {
-		t.Fatal(v.I, v.S, v.NN, err)
+	if err != nil || v.I != 3 || v.S != "name" || v.Nn != "" {
+		t.Fatal(v.I, v.S, v.Nn, err)
 	}
 	if v, err = db.GetBy(AllIndexI, 4); err != nil || v.ID != 4 {
 		t.Fatal(v.ID, err)
@@ -242,7 +242,7 @@ func TestSelect(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	db, _ := testDB(t)
 
-	v := All{S: "a", I: 1, NN: "n", LI: []int{1, 2}, LS: []string{"x"}, Maps: map[string]string{"k": "v"}}
+	v := All{S: "a", I: 1, Nn: "n", Li: []int{1, 2}, Ls: []string{"x"}, Maps: map[string]string{"k": "v"}}
 	if err := db.Insert(&v); err != nil {
 		t.Fatal(err)
 	}
@@ -263,28 +263,28 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("update of missing row:", err)
 	}
 
-	check(db.LIAppend(id, 3, 4))
-	check(db.LIRemove(id, 2))
-	check(db.LUAppend(id, uuid.Nil))
+	check(db.AppendLi(id, 3, 4))
+	check(db.RemoveLi(id, 2))
+	check(db.AppendLu(id, uuid.Nil))
 
-	check(db.MapsUpdate(id, "a", "b"))
-	check(db.MapsMerge(id, map[string]string{"c": "d", "e": "f"}))
-	check(db.MapsDelete(id, "c"))
-	check(db.MapsRename(id, "e", "g"))
-	if err := db.MapsRename(id, "nokey", "x"); !errors.Is(err, pgx.ErrNoRows) {
+	check(db.UpdateMaps(id, "a", "b"))
+	check(db.MergeMaps(id, map[string]string{"c": "d", "e": "f"}))
+	check(db.DeleteMaps(id, "c"))
+	check(db.RenameMaps(id, "e", "g"))
+	if err := db.RenameMaps(id, "nokey", "x"); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatal("rename of missing key:", err)
 	}
-	check(db.ConfsAppend(id, Config{A: 7}, Config{A: 8}))
-	check(db.MapanyUpdate(id, "it's", `quote " $$ ' test`))
-	check(db.ConfUpdate(id, "A", 9))
+	check(db.AppendConfs(id, Config{A: 7}, Config{A: 8}))
+	check(db.UpdateMapany(id, "it's", `quote " $$ ' test`))
+	check(db.UpdateConf(id, "A", 9))
 
 	got, err := db.Get(id)
 	check(err)
 	if got.S != "b" || got.I != 15 || !got.B || got.I64 != -2 {
 		t.Error(got.S, got.I, got.B, got.I64)
 	}
-	if !reflect.DeepEqual(got.LI, []int{1, 3, 4}) || len(got.LU) != 1 {
-		t.Error(got.LI, got.LU)
+	if !reflect.DeepEqual(got.Li, []int{1, 3, 4}) || len(got.Lu) != 1 {
+		t.Error(got.Li, got.Lu)
 	}
 	if !reflect.DeepEqual(got.Maps, map[string]string{"k": "v", "a": "b", "g": "f"}) {
 		t.Error(got.Maps)
@@ -294,11 +294,11 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// save struct
-	got.S, got.F64, got.LS = "saved", 9.5, []string{"y", "z"}
+	got.S, got.F64, got.Ls = "saved", 9.5, []string{"y", "z"}
 	check(db.Save(&got, AllIndexS, AllIndexF64))
 	got2, _ := db.Get(id)
-	if got2.S != "saved" || got2.F64 != 9.5 || len(got2.LS) != 1 {
-		t.Error(got2.S, got2.F64, got2.LS)
+	if got2.S != "saved" || got2.F64 != 9.5 || len(got2.Ls) != 1 {
+		t.Error(got2.S, got2.F64, got2.Ls)
 	}
 	check(db.Save(&got))
 	got2, _ = db.Get(id)
@@ -312,18 +312,18 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// upsert, full insert, sequence
-	check(db.Upsert(&All{ID: id, S: "upsert", NN: "n"}))
-	check(db.Upsert(&All{ID: 77, S: "new", NN: "n"}))
-	check(db.InsertFull(&All{ID: 78, NN: "n"}))
+	check(db.Upsert(&All{ID: id, S: "upsert", Nn: "n"}))
+	check(db.Upsert(&All{ID: 77, S: "new", Nn: "n"}))
+	check(db.InsertFull(&All{ID: 78, Nn: "n"}))
 	check(db.ResetSequence())
-	next := All{NN: "n"}
+	next := All{Nn: "n"}
 	check(db.Insert(&next))
 	if got, _ = db.Get(id); got.S != "upsert" || next.ID != 79 {
 		t.Error(got.S, next.ID)
 	}
 
 	// copy
-	n, err := db.InsertMany([]All{testItem(), testItem(), {NN: "copy"}})
+	n, err := db.InsertMany([]All{testItem(), testItem(), {Nn: "copy"}})
 	if err != nil || n != 3 {
 		t.Fatal("copy:", n, err)
 	}
@@ -347,7 +347,7 @@ func TestTx(t *testing.T) {
 	// rollback of two models
 	fail := errors.New("fail")
 	err := db.Begin(func(tx pgx.Tx) error {
-		v := All{NN: "rollback"}
+		v := All{Nn: "rollback"}
 		if err := db.TX(tx).Insert(&v); err != nil {
 			return err
 		}
@@ -369,7 +369,7 @@ func TestTx(t *testing.T) {
 	// commit of two models
 	var v All
 	err = db.Begin(func(tx pgx.Tx) error {
-		v = All{NN: "commit"}
+		v = All{Nn: "commit"}
 		if err := db.TX(tx).Insert(&v); err != nil {
 			return err
 		}
@@ -379,7 +379,7 @@ func TestTx(t *testing.T) {
 		}
 		// savepoint
 		_ = db.TX(tx).Begin(func(sp pgx.Tx) error {
-			_ = db.TX(sp).Insert(&All{NN: "nested"})
+			_ = db.TX(sp).Insert(&All{Nn: "nested"})
 			return fail
 		})
 		// not visible out of transaction
@@ -387,7 +387,7 @@ func TestTx(t *testing.T) {
 			t.Error("isolation:", n)
 		}
 		// errors.E is not error: empty errors.E returned as error is not nil
-		if err := tags.TX(tx).MetaUpdate(tag.ID, "views", 5); err != nil {
+		if err := tags.TX(tx).UpdateMeta(tag.ID, "views", 5); err != nil {
 			return err
 		}
 		return nil
@@ -397,7 +397,7 @@ func TestTx(t *testing.T) {
 	}
 
 	list, err := db.All()
-	if err != nil || len(list) != 1 || list[0].NN != "commit" {
+	if err != nil || len(list) != 1 || list[0].Nn != "commit" {
 		t.Fatal(list, err)
 	}
 	// own variable: errors.E assigned to variable of type error is never nil
@@ -415,7 +415,7 @@ func TestTx(t *testing.T) {
 		t.Fatal(one, err)
 	}
 
-	if ok, err := db.InsertNoConflict(&All{NN: "x"}); err != nil || !ok {
+	if ok, err := db.InsertNoConflict(&All{Nn: "x"}); err != nil || !ok {
 		t.Fatal(ok, err)
 	}
 }
@@ -428,20 +428,20 @@ func TestParallel(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			v := All{NN: "p", I: i, LI: []int{i}}
+			v := All{Nn: "p", I: i, Li: []int{i}}
 			if err := db.Insert(&v); err != nil {
 				t.Error(err)
 				return
 			}
-			if err := db.LIAppend(v.ID, i+1); err != nil {
+			if err := db.AppendLi(v.ID, i+1); err != nil {
 				t.Error(err)
 			}
 			if err := db.Updates(v.ID, map[AllIndexTyped]any{AllIndexS: "s", AllIndexB: true}); err != nil {
 				t.Error(err)
 			}
-			got, err := db.Get(v.ID, AllIndexI, AllIndexLI, AllIndexS)
-			if err != nil || got.I != i || len(got.LI) != 2 || got.S != "s" {
-				t.Error(got.I, got.LI, got.S, err)
+			got, err := db.Get(v.ID, AllIndexI, AllIndexLi, AllIndexS)
+			if err != nil || got.I != i || len(got.Li) != 2 || got.S != "s" {
+				t.Error(got.I, got.Li, got.S, err)
 			}
 			if _, err := db.Search(&AllQuery{EQ: map[string]any{"i": i}, Fields: []string{"i"}}); err != nil {
 				t.Error(err)
@@ -507,6 +507,21 @@ func TestFuncs(t *testing.T) {
 	}
 	if n, err := tags.Rename(1, "x"); err != nil || n != 2 {
 		t.Fatal(n, err)
+	}
+
+	// reserved sql words: go From, json from, column froms
+	rw := Tag{Name: "rw", Owner: 9, From: 5, To: 6}
+	if err := tags.Insert(&rw); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := tags.GetBy(TagIndexFrom, 5); err != nil || v.To != 6 || TagIndexFrom.SQLName() != "froms" {
+		t.Fatal(v, err)
+	}
+	if list, err := tags.Search(&TagQuery{EQ: map[string]any{"from": 5}, Sort: "to"}); err != nil || len(list) != 1 {
+		t.Fatal(list, err)
+	}
+	if err := tags.Delete(rw.ID); err != nil {
+		t.Fatal(err)
 	}
 
 	// all or nothing

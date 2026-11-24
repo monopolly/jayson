@@ -2609,243 +2609,243 @@ func (a *NewsSQL) DeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-// ListIntsAppend adds values to array list_ints
-func (a *NewsSQL) ListIntsAppend(id int, v ...int) error {
+// AppendListInts adds values to array list_ints
+func (a *NewsSQL) AppendListInts(id int, v ...int) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_ints = coalesce(list_ints, '{}') || $1::bigint[] where inc = $2", v, id))
 }
 
-// ListIntsRemove removes all entries of v from array list_ints
-func (a *NewsSQL) ListIntsRemove(id int, v int) error {
+// RemoveListInts removes all entries of v from array list_ints
+func (a *NewsSQL) RemoveListInts(id int, v int) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_ints = array_remove(list_ints, $1::bigint) where inc = $2", v, id))
 }
 
-// ListStringAppend adds values to array list_string
-func (a *NewsSQL) ListStringAppend(id int, v ...string) error {
+// AppendListString adds values to array list_string
+func (a *NewsSQL) AppendListString(id int, v ...string) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_string = coalesce(list_string, '{}') || $1::text[] where inc = $2", v, id))
 }
 
-// ListStringRemove removes all entries of v from array list_string
-func (a *NewsSQL) ListStringRemove(id int, v string) error {
+// RemoveListString removes all entries of v from array list_string
+func (a *NewsSQL) RemoveListString(id int, v string) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_string = array_remove(list_string, $1::text) where inc = $2", v, id))
 }
 
-// ListFloatAppend adds values to array list_float
-func (a *NewsSQL) ListFloatAppend(id int, v ...float64) error {
+// AppendListFloat adds values to array list_float
+func (a *NewsSQL) AppendListFloat(id int, v ...float64) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_float = coalesce(list_float, '{}') || $1::double precision[] where inc = $2", v, id))
 }
 
-// ListFloatRemove removes all entries of v from array list_float
-func (a *NewsSQL) ListFloatRemove(id int, v float64) error {
+// RemoveListFloat removes all entries of v from array list_float
+func (a *NewsSQL) RemoveListFloat(id int, v float64) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set list_float = array_remove(list_float, $1::double precision) where inc = $2", v, id))
 }
 
-// MapStringStringUpdate sets key of jsonb map_string_string
-func (a *NewsSQL) MapStringStringUpdate(id int, k string, v string) error {
+// UpdateMapStringString sets key of jsonb map_string_string
+func (a *NewsSQL) UpdateMapStringString(id int, k string, v string) error {
 	return a.jsonSet(id, "map_string_string", fmt.Sprint(k), v)
 }
 
-// MapStringStringMerge adds keys to jsonb map_string_string: existing keys are replaced
-func (a *NewsSQL) MapStringStringMerge(id int, v map[string]string) error {
+// MergeMapStringString adds keys to jsonb map_string_string: existing keys are replaced
+func (a *NewsSQL) MergeMapStringString(id int, v map[string]string) error {
 	return a.jsonMerge(id, "map_string_string", "{}", v)
 }
 
-// MapStringStringDelete removes key of jsonb map_string_string
-func (a *NewsSQL) MapStringStringDelete(id int, k string) error {
+// DeleteMapStringString removes key of jsonb map_string_string
+func (a *NewsSQL) DeleteMapStringString(id int, k string) error {
 	return a.jsonDelete(id, "map_string_string", fmt.Sprint(k))
 }
 
-// MapStringStringRename renames key of jsonb map_string_string, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringStringRename(id int, k, newK string) error {
+// RenameMapStringString renames key of jsonb map_string_string, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringString(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_string", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapStringBytesUpdate sets key of jsonb map_string_bytes
-func (a *NewsSQL) MapStringBytesUpdate(id int, k string, v []byte) error {
+// UpdateMapStringBytes sets key of jsonb map_string_bytes
+func (a *NewsSQL) UpdateMapStringBytes(id int, k string, v []byte) error {
 	return a.jsonSet(id, "map_string_bytes", fmt.Sprint(k), v)
 }
 
-// MapStringBytesMerge adds keys to jsonb map_string_bytes: existing keys are replaced
-func (a *NewsSQL) MapStringBytesMerge(id int, v map[string][]byte) error {
+// MergeMapStringBytes adds keys to jsonb map_string_bytes: existing keys are replaced
+func (a *NewsSQL) MergeMapStringBytes(id int, v map[string][]byte) error {
 	return a.jsonMerge(id, "map_string_bytes", "{}", v)
 }
 
-// MapStringBytesDelete removes key of jsonb map_string_bytes
-func (a *NewsSQL) MapStringBytesDelete(id int, k string) error {
+// DeleteMapStringBytes removes key of jsonb map_string_bytes
+func (a *NewsSQL) DeleteMapStringBytes(id int, k string) error {
 	return a.jsonDelete(id, "map_string_bytes", fmt.Sprint(k))
 }
 
-// MapStringBytesRename renames key of jsonb map_string_bytes, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringBytesRename(id int, k, newK string) error {
+// RenameMapStringBytes renames key of jsonb map_string_bytes, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringBytes(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_bytes", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapStringBoolUpdate sets key of jsonb map_string_bool
-func (a *NewsSQL) MapStringBoolUpdate(id int, k string, v bool) error {
+// UpdateMapStringBool sets key of jsonb map_string_bool
+func (a *NewsSQL) UpdateMapStringBool(id int, k string, v bool) error {
 	return a.jsonSet(id, "map_string_bool", fmt.Sprint(k), v)
 }
 
-// MapStringBoolMerge adds keys to jsonb map_string_bool: existing keys are replaced
-func (a *NewsSQL) MapStringBoolMerge(id int, v map[string]bool) error {
+// MergeMapStringBool adds keys to jsonb map_string_bool: existing keys are replaced
+func (a *NewsSQL) MergeMapStringBool(id int, v map[string]bool) error {
 	return a.jsonMerge(id, "map_string_bool", "{}", v)
 }
 
-// MapStringBoolDelete removes key of jsonb map_string_bool
-func (a *NewsSQL) MapStringBoolDelete(id int, k string) error {
+// DeleteMapStringBool removes key of jsonb map_string_bool
+func (a *NewsSQL) DeleteMapStringBool(id int, k string) error {
 	return a.jsonDelete(id, "map_string_bool", fmt.Sprint(k))
 }
 
-// MapStringBoolRename renames key of jsonb map_string_bool, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringBoolRename(id int, k, newK string) error {
+// RenameMapStringBool renames key of jsonb map_string_bool, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringBool(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_bool", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapStringIntUpdate sets key of jsonb map_string_int
-func (a *NewsSQL) MapStringIntUpdate(id int, k string, v int) error {
+// UpdateMapStringInt sets key of jsonb map_string_int
+func (a *NewsSQL) UpdateMapStringInt(id int, k string, v int) error {
 	return a.jsonSet(id, "map_string_int", fmt.Sprint(k), v)
 }
 
-// MapStringIntMerge adds keys to jsonb map_string_int: existing keys are replaced
-func (a *NewsSQL) MapStringIntMerge(id int, v map[string]int) error {
+// MergeMapStringInt adds keys to jsonb map_string_int: existing keys are replaced
+func (a *NewsSQL) MergeMapStringInt(id int, v map[string]int) error {
 	return a.jsonMerge(id, "map_string_int", "{}", v)
 }
 
-// MapStringIntDelete removes key of jsonb map_string_int
-func (a *NewsSQL) MapStringIntDelete(id int, k string) error {
+// DeleteMapStringInt removes key of jsonb map_string_int
+func (a *NewsSQL) DeleteMapStringInt(id int, k string) error {
 	return a.jsonDelete(id, "map_string_int", fmt.Sprint(k))
 }
 
-// MapStringIntRename renames key of jsonb map_string_int, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringIntRename(id int, k, newK string) error {
+// RenameMapStringInt renames key of jsonb map_string_int, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringInt(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_int", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapStringFloat64Update sets key of jsonb map_string_float64
-func (a *NewsSQL) MapStringFloat64Update(id int, k string, v float64) error {
+// UpdateMapStringFloat64 sets key of jsonb map_string_float64
+func (a *NewsSQL) UpdateMapStringFloat64(id int, k string, v float64) error {
 	return a.jsonSet(id, "map_string_float64", fmt.Sprint(k), v)
 }
 
-// MapStringFloat64Merge adds keys to jsonb map_string_float64: existing keys are replaced
-func (a *NewsSQL) MapStringFloat64Merge(id int, v map[string]float64) error {
+// MergeMapStringFloat64 adds keys to jsonb map_string_float64: existing keys are replaced
+func (a *NewsSQL) MergeMapStringFloat64(id int, v map[string]float64) error {
 	return a.jsonMerge(id, "map_string_float64", "{}", v)
 }
 
-// MapStringFloat64Delete removes key of jsonb map_string_float64
-func (a *NewsSQL) MapStringFloat64Delete(id int, k string) error {
+// DeleteMapStringFloat64 removes key of jsonb map_string_float64
+func (a *NewsSQL) DeleteMapStringFloat64(id int, k string) error {
 	return a.jsonDelete(id, "map_string_float64", fmt.Sprint(k))
 }
 
-// MapStringFloat64Rename renames key of jsonb map_string_float64, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringFloat64Rename(id int, k, newK string) error {
+// RenameMapStringFloat64 renames key of jsonb map_string_float64, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringFloat64(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_float64", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapStringAnyUpdate sets key of jsonb map_string_any
-func (a *NewsSQL) MapStringAnyUpdate(id int, k string, v any) error {
+// UpdateMapStringAny sets key of jsonb map_string_any
+func (a *NewsSQL) UpdateMapStringAny(id int, k string, v any) error {
 	return a.jsonSet(id, "map_string_any", fmt.Sprint(k), v)
 }
 
-// MapStringAnyMerge adds keys to jsonb map_string_any: existing keys are replaced
-func (a *NewsSQL) MapStringAnyMerge(id int, v map[string]any) error {
+// MergeMapStringAny adds keys to jsonb map_string_any: existing keys are replaced
+func (a *NewsSQL) MergeMapStringAny(id int, v map[string]any) error {
 	return a.jsonMerge(id, "map_string_any", "{}", v)
 }
 
-// MapStringAnyDelete removes key of jsonb map_string_any
-func (a *NewsSQL) MapStringAnyDelete(id int, k string) error {
+// DeleteMapStringAny removes key of jsonb map_string_any
+func (a *NewsSQL) DeleteMapStringAny(id int, k string) error {
 	return a.jsonDelete(id, "map_string_any", fmt.Sprint(k))
 }
 
-// MapStringAnyRename renames key of jsonb map_string_any, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringAnyRename(id int, k, newK string) error {
+// RenameMapStringAny renames key of jsonb map_string_any, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapStringAny(id int, k, newK string) error {
 	return a.jsonRename(id, "map_string_any", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapIntStringUpdate sets key of jsonb map_int_string
-func (a *NewsSQL) MapIntStringUpdate(id int, k int, v string) error {
+// UpdateMapIntString sets key of jsonb map_int_string
+func (a *NewsSQL) UpdateMapIntString(id int, k int, v string) error {
 	return a.jsonSet(id, "map_int_string", fmt.Sprint(k), v)
 }
 
-// MapIntStringMerge adds keys to jsonb map_int_string: existing keys are replaced
-func (a *NewsSQL) MapIntStringMerge(id int, v map[int]string) error {
+// MergeMapIntString adds keys to jsonb map_int_string: existing keys are replaced
+func (a *NewsSQL) MergeMapIntString(id int, v map[int]string) error {
 	return a.jsonMerge(id, "map_int_string", "{}", v)
 }
 
-// MapIntStringDelete removes key of jsonb map_int_string
-func (a *NewsSQL) MapIntStringDelete(id int, k int) error {
+// DeleteMapIntString removes key of jsonb map_int_string
+func (a *NewsSQL) DeleteMapIntString(id int, k int) error {
 	return a.jsonDelete(id, "map_int_string", fmt.Sprint(k))
 }
 
-// MapIntStringRename renames key of jsonb map_int_string, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntStringRename(id int, k, newK int) error {
+// RenameMapIntString renames key of jsonb map_int_string, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapIntString(id int, k, newK int) error {
 	return a.jsonRename(id, "map_int_string", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapIntIntUpdate sets key of jsonb map_int_int
-func (a *NewsSQL) MapIntIntUpdate(id int, k int, v int) error {
+// UpdateMapIntInt sets key of jsonb map_int_int
+func (a *NewsSQL) UpdateMapIntInt(id int, k int, v int) error {
 	return a.jsonSet(id, "map_int_int", fmt.Sprint(k), v)
 }
 
-// MapIntIntMerge adds keys to jsonb map_int_int: existing keys are replaced
-func (a *NewsSQL) MapIntIntMerge(id int, v map[int]int) error {
+// MergeMapIntInt adds keys to jsonb map_int_int: existing keys are replaced
+func (a *NewsSQL) MergeMapIntInt(id int, v map[int]int) error {
 	return a.jsonMerge(id, "map_int_int", "{}", v)
 }
 
-// MapIntIntDelete removes key of jsonb map_int_int
-func (a *NewsSQL) MapIntIntDelete(id int, k int) error {
+// DeleteMapIntInt removes key of jsonb map_int_int
+func (a *NewsSQL) DeleteMapIntInt(id int, k int) error {
 	return a.jsonDelete(id, "map_int_int", fmt.Sprint(k))
 }
 
-// MapIntIntRename renames key of jsonb map_int_int, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntIntRename(id int, k, newK int) error {
+// RenameMapIntInt renames key of jsonb map_int_int, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapIntInt(id int, k, newK int) error {
 	return a.jsonRename(id, "map_int_int", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// MapIntBoolUpdate sets key of jsonb map_int_bool
-func (a *NewsSQL) MapIntBoolUpdate(id int, k int, v bool) error {
+// UpdateMapIntBool sets key of jsonb map_int_bool
+func (a *NewsSQL) UpdateMapIntBool(id int, k int, v bool) error {
 	return a.jsonSet(id, "map_int_bool", fmt.Sprint(k), v)
 }
 
-// MapIntBoolMerge adds keys to jsonb map_int_bool: existing keys are replaced
-func (a *NewsSQL) MapIntBoolMerge(id int, v map[int]bool) error {
+// MergeMapIntBool adds keys to jsonb map_int_bool: existing keys are replaced
+func (a *NewsSQL) MergeMapIntBool(id int, v map[int]bool) error {
 	return a.jsonMerge(id, "map_int_bool", "{}", v)
 }
 
-// MapIntBoolDelete removes key of jsonb map_int_bool
-func (a *NewsSQL) MapIntBoolDelete(id int, k int) error {
+// DeleteMapIntBool removes key of jsonb map_int_bool
+func (a *NewsSQL) DeleteMapIntBool(id int, k int) error {
 	return a.jsonDelete(id, "map_int_bool", fmt.Sprint(k))
 }
 
-// MapIntBoolRename renames key of jsonb map_int_bool, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntBoolRename(id int, k, newK int) error {
+// RenameMapIntBool renames key of jsonb map_int_bool, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameMapIntBool(id int, k, newK int) error {
 	return a.jsonRename(id, "map_int_bool", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// SqlJsonbIndexUpdate sets key of jsonb sql_jsonb_index
-func (a *NewsSQL) SqlJsonbIndexUpdate(id int, k string, v any) error {
+// UpdateSqlJsonbIndex sets key of jsonb sql_jsonb_index
+func (a *NewsSQL) UpdateSqlJsonbIndex(id int, k string, v any) error {
 	return a.jsonSet(id, "sql_jsonb_index", fmt.Sprint(k), v)
 }
 
-// SqlJsonbIndexMerge adds keys to jsonb sql_jsonb_index: existing keys are replaced
-func (a *NewsSQL) SqlJsonbIndexMerge(id int, v map[string]any) error {
+// MergeSqlJsonbIndex adds keys to jsonb sql_jsonb_index: existing keys are replaced
+func (a *NewsSQL) MergeSqlJsonbIndex(id int, v map[string]any) error {
 	return a.jsonMerge(id, "sql_jsonb_index", "{}", v)
 }
 
-// SqlJsonbIndexDelete removes key of jsonb sql_jsonb_index
-func (a *NewsSQL) SqlJsonbIndexDelete(id int, k string) error {
+// DeleteSqlJsonbIndex removes key of jsonb sql_jsonb_index
+func (a *NewsSQL) DeleteSqlJsonbIndex(id int, k string) error {
 	return a.jsonDelete(id, "sql_jsonb_index", fmt.Sprint(k))
 }
 
-// SqlJsonbIndexRename renames key of jsonb sql_jsonb_index, pgx.ErrNoRows when key not found
-func (a *NewsSQL) SqlJsonbIndexRename(id int, k, newK string) error {
+// RenameSqlJsonbIndex renames key of jsonb sql_jsonb_index, pgx.ErrNoRows when key not found
+func (a *NewsSQL) RenameSqlJsonbIndex(id int, k, newK string) error {
 	return a.jsonRename(id, "sql_jsonb_index", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// GoTypeIntToStringsAppend adds values to array go_type_int_to_strings
-func (a *NewsSQL) GoTypeIntToStringsAppend(id int, v ...string) error {
+// AppendGoTypeIntToStrings adds values to array go_type_int_to_strings
+func (a *NewsSQL) AppendGoTypeIntToStrings(id int, v ...string) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set go_type_int_to_strings = coalesce(go_type_int_to_strings, '{}') || $1::text[] where inc = $2", v, id))
 }
 
-// GoTypeIntToStringsRemove removes all entries of v from array go_type_int_to_strings
-func (a *NewsSQL) GoTypeIntToStringsRemove(id int, v string) error {
+// RemoveGoTypeIntToStrings removes all entries of v from array go_type_int_to_strings
+func (a *NewsSQL) RemoveGoTypeIntToStrings(id int, v string) error {
 	return newsSQLAffected(a.db.Exec(context.Background(), "update news set go_type_int_to_strings = array_remove(go_type_int_to_strings, $1::text) where inc = $2", v, id))
 }
 

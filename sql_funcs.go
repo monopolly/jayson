@@ -28,13 +28,7 @@ var sqlFuncFlag = regexp.MustCompile(`![0-9A-Za-z]+`)
 func newSQLFuncs(m *sqlModel) (res []sqlFunc) {
 
 	// generated methods
-	used := map[string]bool{}
-	for _, name := range []string{"Pool", "Conn", "Begin", "TX", "TableName", "Fields", "Get", "Exists", "GetBy", "GetWhere", "Has",
-		"All", "List", "Select", "Count", "CountWhere", "Insert", "InsertNoConflict", "InsertFull", "Upsert", "InsertMany", "InsertBatch",
-		"Update", "Updates", "Save", "Inc", "Delete", "UpdateWhere", "UpdatesWhere", "DeleteWhere", "Search",
-		"CreateTable", "CreateIndexes", "ResetSequence", "SetSequence"} {
-		used[name] = true
-	}
+	used := sqlMethodNames(m)
 
 	for _, f := range sourceFuncs {
 		if used[f.Name] {
@@ -183,4 +177,50 @@ func sqlSelectsColumn(m *sqlModel, query, goType string) bool {
 		}
 	}
 	return false
+}
+
+// names of generated methods of sql class.
+// Methods of fields must not repeat them: field where > UpdateWhere
+func sqlMethodNames(m *sqlModel) map[string]bool {
+	used := map[string]bool{}
+	for _, name := range []string{"Pool", "Conn", "Begin", "TX", "TableName", "Fields", "Get", "Exists", "GetBy", "GetWhere", "Has",
+		"All", "List", "Select", "Count", "CountWhere", "Insert", "InsertNoConflict", "InsertFull", "Upsert", "InsertMany", "InsertBatch",
+		"Update", "Updates", "Save", "Inc", "Delete", "UpdateWhere", "UpdatesWhere", "DeleteWhere", "Search",
+		"CreateTable", "CreateIndexes", "ResetSequence", "SetSequence"} {
+		used[name] = true
+	}
+
+	add := func(field, name string) {
+		if used[name] {
+			panic(fmt.Sprintf("sql field %s: method %s already exists, rename the field or set go{name=\"...\"}", field, name))
+		}
+		used[name] = true
+	}
+
+	for _, x := range m.Customs {
+		add("@"+x, "Get"+x)
+	}
+	for _, x := range m.Searches {
+		add(x.Name, "FullText"+x.GoName)
+	}
+	for _, c := range m.GetBy {
+		add(c.Name, "GetBy"+c.GoName)
+	}
+	if m.Key == nil {
+		return used
+	}
+	for _, c := range m.Columns {
+		switch {
+		case c.Elem != "":
+			add(c.Name, "Append"+c.GoName)
+			add(c.Name, "Remove"+c.GoName)
+		case c.JSON == "array":
+			add(c.Name, "Append"+c.GoName)
+		case c.JSON != "":
+			for _, action := range []string{"Update", "Merge", "Delete", "Rename"} {
+				add(c.Name, action+c.GoName)
+			}
+		}
+	}
+	return used
 }

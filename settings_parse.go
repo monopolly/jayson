@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/monopolly/jayson/tools"
 )
@@ -122,10 +121,6 @@ func (a *Settings) Parse(in string) {
 	}
 
 	// fmt.Println("after", fields)
-
-	if len(fieldnameSQLErrors) > 0 {
-		panic(fmt.Sprintf("%s — can't use as SQL field name", strings.Join(fieldnameSQLErrors, ", ")))
-	}
 
 	if a.Go.StructName != "" {
 		return

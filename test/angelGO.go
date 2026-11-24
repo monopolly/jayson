@@ -961,51 +961,51 @@ func (a *AngelSQL) stdDeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-func (a *AngelSQL) stdAboutAppend(id int, v ...string) error {
+func (a *AngelSQL) stdAppendAbout(id int, v ...string) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set about = coalesce(about, '{}') || $1::text[] where id = $2", v, id))
 }
 
-func (a *AngelSQL) stdAboutRemove(id int, v string) error {
+func (a *AngelSQL) stdRemoveAbout(id int, v string) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set about = array_remove(about, $1::text) where id = $2", v, id))
 }
 
-func (a *AngelSQL) stdMusicAppend(id int, v ...int) error {
+func (a *AngelSQL) stdAppendMusic(id int, v ...int) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set music = coalesce(music, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-func (a *AngelSQL) stdMusicRemove(id int, v int) error {
+func (a *AngelSQL) stdRemoveMusic(id int, v int) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set music = array_remove(music, $1::bigint) where id = $2", v, id))
 }
 
-func (a *AngelSQL) stdLinksUpdate(id int, k string, v string) error {
+func (a *AngelSQL) stdUpdateLinks(id int, k string, v string) error {
 	return a.jsonSet(id, "links", fmt.Sprint(k), v)
 }
 
-func (a *AngelSQL) stdLinksMerge(id int, v map[string]string) error {
+func (a *AngelSQL) stdMergeLinks(id int, v map[string]string) error {
 	return a.jsonMerge(id, "links", "{}", v)
 }
 
-func (a *AngelSQL) stdLinksDelete(id int, k string) error {
+func (a *AngelSQL) stdDeleteLinks(id int, k string) error {
 	return a.jsonDelete(id, "links", fmt.Sprint(k))
 }
 
-func (a *AngelSQL) stdLinksRename(id int, k, newK string) error {
+func (a *AngelSQL) stdRenameLinks(id int, k, newK string) error {
 	return a.jsonRename(id, "links", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-func (a *AngelSQL) stdStatsUpdate(id int, k string, v int) error {
+func (a *AngelSQL) stdUpdateStats(id int, k string, v int) error {
 	return a.jsonSet(id, "stats", fmt.Sprint(k), v)
 }
 
-func (a *AngelSQL) stdStatsMerge(id int, v map[string]int) error {
+func (a *AngelSQL) stdMergeStats(id int, v map[string]int) error {
 	return a.jsonMerge(id, "stats", "{}", v)
 }
 
-func (a *AngelSQL) stdStatsDelete(id int, k string) error {
+func (a *AngelSQL) stdDeleteStats(id int, k string) error {
 	return a.jsonDelete(id, "stats", fmt.Sprint(k))
 }
 
-func (a *AngelSQL) stdStatsRename(id int, k, newK string) error {
+func (a *AngelSQL) stdRenameStats(id int, k, newK string) error {
 	return a.jsonRename(id, "stats", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
@@ -1430,64 +1430,64 @@ func (a *AngelSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
 	return res, angelSQLErr(err)
 }
 
-// AboutAppend adds values to array about
-func (a *AngelSQL) AboutAppend(id int, v ...string) errors.E {
-	return angelSQLErr(a.stdAboutAppend(id, v...))
+// AppendAbout adds values to array about
+func (a *AngelSQL) AppendAbout(id int, v ...string) errors.E {
+	return angelSQLErr(a.stdAppendAbout(id, v...))
 }
 
-// AboutRemove removes all entries of v from array about
-func (a *AngelSQL) AboutRemove(id int, v string) errors.E {
-	return angelSQLErr(a.stdAboutRemove(id, v))
+// RemoveAbout removes all entries of v from array about
+func (a *AngelSQL) RemoveAbout(id int, v string) errors.E {
+	return angelSQLErr(a.stdRemoveAbout(id, v))
 }
 
-// MusicAppend adds values to array music
-func (a *AngelSQL) MusicAppend(id int, v ...int) errors.E {
-	return angelSQLErr(a.stdMusicAppend(id, v...))
+// AppendMusic adds values to array music
+func (a *AngelSQL) AppendMusic(id int, v ...int) errors.E {
+	return angelSQLErr(a.stdAppendMusic(id, v...))
 }
 
-// MusicRemove removes all entries of v from array music
-func (a *AngelSQL) MusicRemove(id int, v int) errors.E {
-	return angelSQLErr(a.stdMusicRemove(id, v))
+// RemoveMusic removes all entries of v from array music
+func (a *AngelSQL) RemoveMusic(id int, v int) errors.E {
+	return angelSQLErr(a.stdRemoveMusic(id, v))
 }
 
-// LinksUpdate sets key of jsonb links
-func (a *AngelSQL) LinksUpdate(id int, k string, v string) errors.E {
-	return angelSQLErr(a.stdLinksUpdate(id, k, v))
+// UpdateLinks sets key of jsonb links
+func (a *AngelSQL) UpdateLinks(id int, k string, v string) errors.E {
+	return angelSQLErr(a.stdUpdateLinks(id, k, v))
 }
 
-// LinksMerge adds keys to jsonb links: existing keys are replaced
-func (a *AngelSQL) LinksMerge(id int, v map[string]string) errors.E {
-	return angelSQLErr(a.stdLinksMerge(id, v))
+// MergeLinks adds keys to jsonb links: existing keys are replaced
+func (a *AngelSQL) MergeLinks(id int, v map[string]string) errors.E {
+	return angelSQLErr(a.stdMergeLinks(id, v))
 }
 
-// LinksDelete removes key of jsonb links
-func (a *AngelSQL) LinksDelete(id int, k string) errors.E {
-	return angelSQLErr(a.stdLinksDelete(id, k))
+// DeleteLinks removes key of jsonb links
+func (a *AngelSQL) DeleteLinks(id int, k string) errors.E {
+	return angelSQLErr(a.stdDeleteLinks(id, k))
 }
 
-// LinksRename renames key of jsonb links, pgx.ErrNoRows when key not found
-func (a *AngelSQL) LinksRename(id int, k, newK string) errors.E {
-	return angelSQLErr(a.stdLinksRename(id, k, newK))
+// RenameLinks renames key of jsonb links, pgx.ErrNoRows when key not found
+func (a *AngelSQL) RenameLinks(id int, k, newK string) errors.E {
+	return angelSQLErr(a.stdRenameLinks(id, k, newK))
 }
 
-// StatsUpdate sets key of jsonb stats
-func (a *AngelSQL) StatsUpdate(id int, k string, v int) errors.E {
-	return angelSQLErr(a.stdStatsUpdate(id, k, v))
+// UpdateStats sets key of jsonb stats
+func (a *AngelSQL) UpdateStats(id int, k string, v int) errors.E {
+	return angelSQLErr(a.stdUpdateStats(id, k, v))
 }
 
-// StatsMerge adds keys to jsonb stats: existing keys are replaced
-func (a *AngelSQL) StatsMerge(id int, v map[string]int) errors.E {
-	return angelSQLErr(a.stdStatsMerge(id, v))
+// MergeStats adds keys to jsonb stats: existing keys are replaced
+func (a *AngelSQL) MergeStats(id int, v map[string]int) errors.E {
+	return angelSQLErr(a.stdMergeStats(id, v))
 }
 
-// StatsDelete removes key of jsonb stats
-func (a *AngelSQL) StatsDelete(id int, k string) errors.E {
-	return angelSQLErr(a.stdStatsDelete(id, k))
+// DeleteStats removes key of jsonb stats
+func (a *AngelSQL) DeleteStats(id int, k string) errors.E {
+	return angelSQLErr(a.stdDeleteStats(id, k))
 }
 
-// StatsRename renames key of jsonb stats, pgx.ErrNoRows when key not found
-func (a *AngelSQL) StatsRename(id int, k, newK string) errors.E {
-	return angelSQLErr(a.stdStatsRename(id, k, newK))
+// RenameStats renames key of jsonb stats, pgx.ErrNoRows when key not found
+func (a *AngelSQL) RenameStats(id int, k, newK string) errors.E {
+	return angelSQLErr(a.stdRenameStats(id, k, newK))
 }
 
 // Creds: where role = @role and key = @key limit 1

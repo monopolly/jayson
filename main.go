@@ -16,8 +16,6 @@ var (
 	fields []*Field     // list of all fields
 	goFile bytes.Buffer // generated go file
 
-	fieldnameSQLErrors []string // fields that cannot be used in SQL
-
 	A = func(v ...any) {
 		if settings.Debug {
 			fmt.Println(v...)

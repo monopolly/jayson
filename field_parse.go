@@ -27,18 +27,6 @@ func (a *Field) Parse() {
 
 	a.Go.Name = goName(a.Name)
 
-	// make upper for id>ID
-	if len(a.Name) < 3 {
-		a.Go.Name = strings.ToUpper(a.Name)
-	}
-
-	// make upper for sid,bid,rid
-	if len(a.Name) < 4 {
-		if strings.Contains(a.Name, "id") {
-			a.Go.Name = strings.ToUpper(a.Name)
-		}
-	}
-
 	helps.Field[`title{}`] = `Add custom title for index. title{Nice & Sweet}`
 	helps.Field[`desc{}`] = `Add custom desc for index. desc{This field for success}`
 
@@ -85,9 +73,13 @@ func (a *Field) Parse() {
 	a.Go.Bits, a.Go.Align = GoTypeBits(a.Type)
 	// fmt.Println(a.Type, a.Go.Bits, "bytes")
 
-	// check sql stop words
-	if settings.SQL.Table != "" && tools.SqlWord(a.Name) {
-		panic(fmt.Sprintf("%s is a private sql word. Change it!", a.Name))
+	// reserved sql word: from > froms
+	if settings.SQL.Table != "" && !a.SQL.Skip && tools.SqlWord(strings.ToLower(a.SQL.Name)) {
+		reserved := a.SQL.Name
+		for tools.SqlWord(strings.ToLower(a.SQL.Name)) {
+			a.SQL.Name += "s"
+		}
+		fmt.Printf("sql: field %s is stored in column %s: %s is a reserved word\n", a.Name, a.SQL.Name, reserved)
 	}
 
 	// if has ID int field (for sql)

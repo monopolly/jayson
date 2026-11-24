@@ -940,68 +940,68 @@ func (a *AccountSQL) DeleteWhere(where string, args ...any) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-// TagsAppend adds values to array tags
-func (a *AccountSQL) TagsAppend(id int, v ...string) error {
+// AppendTags adds values to array tags
+func (a *AccountSQL) AppendTags(id int, v ...string) error {
 	return accountSQLAffected(a.db.Exec(context.Background(), "update account set tags = coalesce(tags, '{}') || $1::text[] where id = $2", v, id))
 }
 
-// TagsRemove removes all entries of v from array tags
-func (a *AccountSQL) TagsRemove(id int, v string) error {
+// RemoveTags removes all entries of v from array tags
+func (a *AccountSQL) RemoveTags(id int, v string) error {
 	return accountSQLAffected(a.db.Exec(context.Background(), "update account set tags = array_remove(tags, $1::text) where id = $2", v, id))
 }
 
-// ScoresAppend adds values to array scores
-func (a *AccountSQL) ScoresAppend(id int, v ...int) error {
+// AppendScores adds values to array scores
+func (a *AccountSQL) AppendScores(id int, v ...int) error {
 	return accountSQLAffected(a.db.Exec(context.Background(), "update account set scores = coalesce(scores, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-// ScoresRemove removes all entries of v from array scores
-func (a *AccountSQL) ScoresRemove(id int, v int) error {
+// RemoveScores removes all entries of v from array scores
+func (a *AccountSQL) RemoveScores(id int, v int) error {
 	return accountSQLAffected(a.db.Exec(context.Background(), "update account set scores = array_remove(scores, $1::bigint) where id = $2", v, id))
 }
 
-// MetaUpdate sets key of jsonb meta
-func (a *AccountSQL) MetaUpdate(id int, k string, v string) error {
+// UpdateMeta sets key of jsonb meta
+func (a *AccountSQL) UpdateMeta(id int, k string, v string) error {
 	return a.jsonSet(id, "meta", fmt.Sprint(k), v)
 }
 
-// MetaMerge adds keys to jsonb meta: existing keys are replaced
-func (a *AccountSQL) MetaMerge(id int, v map[string]string) error {
+// MergeMeta adds keys to jsonb meta: existing keys are replaced
+func (a *AccountSQL) MergeMeta(id int, v map[string]string) error {
 	return a.jsonMerge(id, "meta", "{}", v)
 }
 
-// MetaDelete removes key of jsonb meta
-func (a *AccountSQL) MetaDelete(id int, k string) error {
+// DeleteMeta removes key of jsonb meta
+func (a *AccountSQL) DeleteMeta(id int, k string) error {
 	return a.jsonDelete(id, "meta", fmt.Sprint(k))
 }
 
-// MetaRename renames key of jsonb meta, pgx.ErrNoRows when key not found
-func (a *AccountSQL) MetaRename(id int, k, newK string) error {
+// RenameMeta renames key of jsonb meta, pgx.ErrNoRows when key not found
+func (a *AccountSQL) RenameMeta(id int, k, newK string) error {
 	return a.jsonRename(id, "meta", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// SettingsUpdate sets key of jsonb settings
-func (a *AccountSQL) SettingsUpdate(id int, k string, v int) error {
+// UpdateSettings sets key of jsonb settings
+func (a *AccountSQL) UpdateSettings(id int, k string, v int) error {
 	return a.jsonSet(id, "settings", fmt.Sprint(k), v)
 }
 
-// SettingsMerge adds keys to jsonb settings: existing keys are replaced
-func (a *AccountSQL) SettingsMerge(id int, v map[string]int) error {
+// MergeSettings adds keys to jsonb settings: existing keys are replaced
+func (a *AccountSQL) MergeSettings(id int, v map[string]int) error {
 	return a.jsonMerge(id, "settings", "{}", v)
 }
 
-// SettingsDelete removes key of jsonb settings
-func (a *AccountSQL) SettingsDelete(id int, k string) error {
+// DeleteSettings removes key of jsonb settings
+func (a *AccountSQL) DeleteSettings(id int, k string) error {
 	return a.jsonDelete(id, "settings", fmt.Sprint(k))
 }
 
-// SettingsRename renames key of jsonb settings, pgx.ErrNoRows when key not found
-func (a *AccountSQL) SettingsRename(id int, k, newK string) error {
+// RenameSettings renames key of jsonb settings, pgx.ErrNoRows when key not found
+func (a *AccountSQL) RenameSettings(id int, k, newK string) error {
 	return a.jsonRename(id, "settings", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// ItemsAppend adds values to jsonb array items
-func (a *AccountSQL) ItemsAppend(id int, v ...Item) error {
+// AppendItems adds values to jsonb array items
+func (a *AccountSQL) AppendItems(id int, v ...Item) error {
 	return a.jsonMerge(id, "items", "[]", v)
 }
 
