@@ -40,7 +40,6 @@ import (
 	lock                          Lock model for generation. Can't change model.
 	msgp                          Create message pack marshal/unmarshal
 	noinit                        No New() init function for struct
-	noprefix                      Generate simple index IndexID instead IndexNewsID
 	optimize                      Try to create golang padding optimized struct
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
@@ -59,8 +58,6 @@ import (
 	desc{}                        Add field user title desc{Use it nice}
 	must                          Create one validation function for all must fields
 	name=""                       Replace golang struct name. Ex: name="NewsList"
-	nofunc                        Do not create any jsons functions for fiels
-	req{}                         Add user required fields
 	title=""                      Add custom title for index
 	title{}                       Add field user title title{Nice}
 	type=""                       Replace golang type. Ex: type="[]*News"

@@ -38,7 +38,6 @@ func (a *Field) parseSQLOptions(v string) {
 	a.SQL.Append = tools.Between(v, `add="`, `"`)
 	a.SQL.Unique = tools.Betweens(v, `unique="`, `"`)
 	a.SQL.Rename = tools.Between(v, `renames="`, `"`)
-	a.SQL.Keys = tools.Between(v, `keys="`, `"`)
 	a.SQL.Index.Group = tools.Betweens(v, `idx="`, `"`)
 	a.SQL.Index.Search = tools.Betweens(v, `search="`, `"`)
 	a.SQL.Type = tools.Between(v, `type="`, `"`)

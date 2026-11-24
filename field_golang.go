@@ -8,7 +8,6 @@ import (
 
 func (a *Field) parseGolangOptions(v string) {
 
-	a.Go.Nofunc = strings.Contains(v, "nofunc")
 	a.Go.Must = strings.Contains(v, "must")
 	a.Go.UpperCase = strings.Contains(v, "up")
 	a.Go.Type = tools.Between(v, `type="`, `"`)
@@ -22,7 +21,6 @@ func (a *Field) parseGolangOptions(v string) {
 	}
 
 	// help
-	helps.Golang["nofunc"] = "Do not create any jsons functions for fiels"
 	helps.Golang["up"] = "Make uppercase for functions"
 	helps.Golang["must"] = "Create one validation function for all must fields"
 	helps.Golang[`type=""`] = `Replace golang type. Ex: type="[]*News"`

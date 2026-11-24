@@ -19,6 +19,10 @@ func (a *Golang) New() []byte {
 		return nil
 	}
 
+	if settings.Options.Noinit {
+		return nil
+	}
+
 	var list []string
 	list = append(list, "\n")
 	list = append(list, "//init struct")

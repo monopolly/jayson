@@ -37,13 +37,6 @@ func (a *Help) init() (b *Help) {
 	return a
 }
 
-func (a *Help) AddCustom(category, k, v string) {
-	if a.Custom[category] == nil {
-		a.Custom[category] = make(map[string]string)
-	}
-	a.Custom[category][k] = v
-}
-
 func (a *Help) Render() (res []byte) {
 
 	var list []string

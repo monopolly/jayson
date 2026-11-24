@@ -1,12 +1,9 @@
 package main
 
-import "fmt"
-
 var settings = NewSettings()
 
 func NewSettings() (a *Settings) {
 	a = new(Settings)
-	a.Imports = make(map[string]bool)
 	return
 }
 
@@ -21,10 +18,8 @@ type Settings struct {
 	Go struct {
 		StructName  string //struct name: News
 		NoOmit      bool
-		NoPrefix    bool
 		Gotiny      bool     //fast binary format
 		MessagePack bool     //msgpack binary format
-		EasyJson    bool     //generate easy json fast code gen
 		Indexes     []string //string list all indexes [IndexNewsID, IndexNewsTitle...]
 	}
 
@@ -41,10 +36,9 @@ type Settings struct {
 	}
 
 	Clickhouse struct {
-		Table     string //sql table from struct
-		Engine    string //MergeTree
-		Class     string //AccountClickhouseSQL: type accountCHSQL int{}
-		QueryName string //NewsClickhouseQuery
+		Table  string //sql table from struct
+		Engine string //MergeTree
+		Class  string //AccountClickhouseSQL: type accountCHSQL int{}
 	}
 
 	Options struct {
@@ -58,27 +52,15 @@ type Settings struct {
 	}
 
 	File struct {
-		path           string //test/news.go
-		golang         string //test/news.go
-		golangTest     string //test/newsGO_test.go
-		golangSQL      string //test/newsSQL.go
-		golangSQLQuery string //test/newsQuery.go
-		sql            string //test/news.sql
-		clickhouse     string //test/news.cql
-		proto          string //test/news.proto
+		path       string //test/news.go
+		golang     string //test/news.go
+		golangTest string //test/newsGO_test.go
+		golangSQL  string //test/newsSQL.go
+		sql        string //test/news.sql
+		clickhouse string //test/news.cql
+		proto      string //test/news.proto
 	}
 
 	Padding int //max len field title
 
-	Imports map[string]bool
-}
-
-// github.com/something
-func (a *Settings) AddImportPackage(v string) {
-	a.Imports[fmt.Sprintf(`"%s"`, v)] = true
-}
-
-// jj "github.com/something"
-func (a *Settings) AddImportRawPackage(v string) {
-	a.Imports[v] = true
 }

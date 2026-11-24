@@ -1,41 +1,11 @@
 package tools
 
 import (
-	"fmt"
-	"regexp"
-	"slices"
 	"strings"
 	"unicode"
 )
 
 var Padding = 100
-
-func FindTags(line string) (res map[string]string) {
-	res = make(map[string]string)
-	re := regexp.MustCompile(`.*?\{(.*?)\}`)
-	rev := regexp.MustCompile(`\{(.*?)\}`)
-	for _, x := range re.FindAllString(line, -1) {
-		x = strings.TrimSpace(x)
-		i := strings.Index(x, "{")
-		if i == -1 {
-			continue
-		}
-		k := x[:i]
-		v := rev.FindString(x)
-		v = strings.ReplaceAll(v, "{", "")
-		v = strings.ReplaceAll(v, "}", "")
-		res[k] = v
-	}
-	return
-}
-
-func ExistList(list []string, index string) bool {
-	return slices.Contains(list, index)
-}
-
-func Replace(v, tag, value string) string {
-	return strings.ReplaceAll(v, tag, value)
-}
 
 func Title(s string) string {
 	if s == "" {
@@ -131,30 +101,6 @@ func Betweens(raw string, startTag, endTag string) (value []string) {
 		raw = raw[to:]
 	}
 
-}
-
-func Formatline(k string, v any) (res string) {
-	switch Padding / 10 {
-	case 0:
-		return fmt.Sprintf("%-15s %v", k, v)
-	case 1:
-		return fmt.Sprintf("%-15s %v", k, v)
-	case 2:
-		return fmt.Sprintf("%-25s %v", k, v)
-	case 3:
-		return fmt.Sprintf("%-35s %v", k, v)
-	default:
-		return fmt.Sprintf("%-45s %v", k, v)
-	}
-}
-
-func FormatLineFix(pad int, k string, v any) (res string) {
-	p := strings.Repeat(" ", pad)
-	return fmt.Sprintf("%s%s%v", p, k, v)
-}
-
-func FormatLineSwift(k string, v any, lens int) (res string) {
-	return fmt.Sprintf("%s%s%v", k, strings.Repeat(" ", lens-len(k)), v)
 }
 
 func SqlWord(s string) bool {

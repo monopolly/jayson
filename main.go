@@ -13,26 +13,17 @@ import (
 )
 
 var (
-	fields []*Field // list of all fields
-	// structed bool
-	debug bool
-
-	// indexFile bytes.Buffer
-	// sqlFile   bytes.Buffer
-	// helpFile bytes.Buffer
-	// jsFile    bytes.Buffer // result
-	goFile bytes.Buffer // for struct output
+	fields []*Field     // list of all fields
+	goFile bytes.Buffer // generated go file
 
 	fieldnameSQLErrors []string // fields that cannot be used in SQL
 
 	A = func(v ...any) {
-		if debug {
+		if settings.Debug {
 			fmt.Println(v...)
 		}
 	}
 )
-
-//go build -o $GOPATH/bin/jsons
 
 func main() {
 
@@ -50,7 +41,7 @@ func main() {
 
 }
 
-// indexfile
+// render generates all files of model
 func render() {
 
 	// package
@@ -103,12 +94,6 @@ func render() {
 	if settings.Options.Test {
 		saveFile(settings.File.golangTest, goTestFile())
 	}
-
-	// msgp
-	// msgpackGenerator()
-
-	// easyjson
-	// easyjsonGenerator()
 
 	// install
 	goModTidy()
@@ -171,59 +156,6 @@ func goFmt() {
 	p.Run()
 }
 
-// func easyjsonCompile() []byte {
-// 	outfile := path.Join(settings.File.path, fmt.Sprintf("%s_easy.go", settings.Origin))
-// 	p := exec.Command(
-// 		"easyjson",
-// 		"-output_filename="+outfile,
-// 		settings.File.golang,
-// 	)
-// 	out, err := p.CombinedOutput()
-// 	if err != nil {
-// 		log.Fatalf("easyjson failed: %v\n%s", err, string(out))
-// 	}
-
-// 	body, err := os.ReadFile(outfile)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	_ = os.Remove(outfile)
-// 	res := generatedGoBody(body)
-// 	// res = append(res, golang.EasyJsonMarshal()...)
-// 	// res = append(res, golang.EasyJsonUnmarshal()...)
-// 	return res
-// }
-
-// func easyjsonImports() []string {
-// 	return []string{
-// 		`json "encoding/json"`,
-// 		`easyjson "github.com/mailru/easyjson"`,
-// 		`jlexer "github.com/mailru/easyjson/jlexer"`,
-// 		`jwriter "github.com/mailru/easyjson/jwriter"`,
-// 	}
-// }
-
-func addGoImports(src []byte, imports []string) []byte {
-	s := string(src)
-	pos := strings.Index(s, "import (\n")
-	if pos == -1 {
-		return src
-	}
-	insertPos := pos + len("import (\n")
-	var list []string
-	for _, x := range imports {
-		if strings.Contains(s, x) {
-			continue
-		}
-		list = append(list, "\t"+x+"\n")
-	}
-	if len(list) == 0 {
-		return src
-	}
-	s = s[:insertPos] + strings.Join(list, "") + s[insertPos:]
-	return []byte(s)
-}
-
 func protoCompile() []byte {
 	p := exec.Command(
 		"protoc",
@@ -246,38 +178,11 @@ func protoCompile() []byte {
 	return generatedProtoGoBody(body)
 }
 
-// func msgpackGenerator() {
-// 	if !settings.Go.MessagePack {
-// 		return
-// 	}
-
-// 	fmt.Println("Install msgp...")
-// 	p := exec.Command("go", "install", "github.com/tinylib/msgp@latest")
-// 	p.Run()
-
 // 	// fmt.Println("generate msgp...")
 
 // }
 
-// func easyjsonGenerator() {
-// 	if !settings.Go.EasyJson {
-// 		return
-// 	}
-
 // 	// go get github.com/mailru/easyjson && go install github.com/mailru/easyjson/...@latest
-
-// 	fmt.Println("Install easyjson...")
-// 	p := exec.Command("go", "get", "github.com/mailru/easyjson", "&&", "go", "install", "github.com/mailru/easyjson/...@latest")
-// 	p.Run()
-
-// 	// easyjson <file>.go
-// 	fmt.Println("Generate easyjson...")
-// 	// g := exec.Command("easyjson", settings.file.golang, "-output_filename", settings.file.golang+"easyjson.go")
-// 	g := exec.Command("easyjson", settings.file.golang)
-// 	er := g.Run()
-// 	if er != nil {
-// 		fmt.Println(er)
-// 	}
 
 // }
 

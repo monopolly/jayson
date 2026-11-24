@@ -11,10 +11,6 @@ type Field struct {
 		Name string // json field name: js{name="sid"}
 	}
 
-	MessagePack struct {
-		Name string
-	}
-
 	Proto struct {
 		Name string
 		Type string
@@ -29,8 +25,6 @@ type Field struct {
 		BaseImport string   // custom type package: github.com/x/role
 		Imports    []string // packages of field type: *netip.Addr > net/netip
 
-		Nofunc        bool
-		Func          string          //NewsAdd
 		UpperCase     bool            //sid > SID
 		Must          bool            //special function for validation field valuer
 		Tags          map[string]bool //#private #visible
@@ -39,8 +33,7 @@ type Field struct {
 		Title string // type title: dims > Dimension
 		Desc  string // desc{Nice}
 
-		UserLists    map[string][]string // list{title="Required", art, cars, any}
-		UserRequired []string            // req{art, cars, any}
+		UserLists map[string][]string // list{title="Required", art, cars, any}
 
 		Bits  int //1,2,8...
 		Align int //1,2,8...
@@ -56,12 +49,9 @@ type Field struct {
 		Array    bool   // native postgres array: bigint[], text[]
 		NotNull  bool   // not null column
 		Get      bool   //need golang sql methods GetName(v type)
-		Keys     string //need golang sql methods GetNameSecond(v1 type, v2 type...)
 
 		Index struct {
-			Simple       bool // create index for field
-			Concurrently bool // concurrent index
-			// Jsonb        bool     // create jsonb index
+			Simple bool     // create index for field
 			Search []string // create text index for search
 			Group  []string
 		}
@@ -70,13 +60,12 @@ type Field struct {
 			Simple   bool
 			Unixtime bool
 		}
-		Inc     bool     //"bigserial primary key" noinsert
-		Skip    bool     // skip in sql table
-		Unique  []string //unique fields
-		Primary bool     //primary key fields
-		// PrimaryKeys []string //primary key fields
-		AlterTable string //version || 1
-		Rename     string //rename="oldname"
+		Inc        bool     //"bigserial primary key" noinsert
+		Skip       bool     // skip in sql table
+		Unique     []string //unique fields
+		Primary    bool     //primary key fields
+		AlterTable string   //version || 1
+		Rename     string   //rename="oldname"
 	}
 
 	Clickhouse struct {

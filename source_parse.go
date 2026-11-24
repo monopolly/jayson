@@ -45,9 +45,8 @@ type sourceField struct {
 
 // struct options: // go=News sql=news ch proto
 var sourceOptionKeys = map[string]bool{
-	"go": true, "sql": true, "ch": true, "js": true, "ts": true, "proto": true, "swift": true,
-	"demo": true, "enum": true, "test": true, "lock": true, "debug": true, "noinit": true,
-	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "noprefix": true, "chengine": true, "ee": true,
+	"go": true, "sql": true, "ch": true, "proto": true, "test": true, "lock": true, "debug": true, "noinit": true,
+	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "chengine": true, "ee": true,
 }
 
 // parse model file: only the model struct, other types of file are ignored

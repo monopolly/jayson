@@ -7,11 +7,6 @@ import (
 
 func (a *Field) parseUserOptions() {
 
-	req := strings.Fields(tools.Between(a.Comment, "req{", "}"))
-	if req != nil {
-		a.Go.UserRequired = req
-	}
-
 	for _, list := range tools.Betweens(a.Comment, "list{", "}") {
 		words := strings.Split(list, ",")
 		var name string
@@ -34,7 +29,6 @@ func (a *Field) parseUserOptions() {
 	a.Go.Desc = strings.TrimSpace(tools.Between(a.Comment, "desc{", "}"))
 
 	// help
-	helps.Golang["req{}"] = "Add user required fields"
 	helps.Golang["title{}"] = "Add field user title title{Nice}"
 	helps.Golang["desc{}"] = "Add field user title desc{Use it nice}"
 }

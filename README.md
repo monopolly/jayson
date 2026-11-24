@@ -1,258 +1,172 @@
-# jsonsgenerator
+<p align="center">
+  <img src="logo.svg" width="360" alt="jayson">
+</p>
 
-`jsonsgenerator` is a beta Go code generator driven by compact struct annotations. It reads a regular `.go` file with a model declaration and generates production-oriented code around that model: PostgreSQL queries on pgx, ClickHouse ingestion helpers, protobuf, gotiny, MessagePack, tests, and benchmarks.
+<p align="center">
+  Describe a Go struct once. Get PostgreSQL, ClickHouse, protobuf and fast JSON code for it.
+</p>
 
-The main idea is simple: describe the model once, then let the generator create the repetitive plumbing around it.
+---
 
-## What It Generates
+`jayson` is a code generator. It reads a plain `.go` file with one struct and a few short tags in comments,
+and writes ready-to-use Go code next to it: the exported struct, typed PostgreSQL queries on
+[pgx](https://github.com/jackc/pgx), a ClickHouse buffer, protobuf, binary and JSON encoding, and the DDL files.
 
-Depending on the options in the comment above the struct, the generator can create:
-
-- `NameGO.go` - the main Go file with the generated struct, field indexes, JSON pack/parse, PostgreSQL and ClickHouse classes, gotiny/protobuf code.
-- `NameGO_test.go` - tests and benchmarks for a specific generated struct.
-- `Name.sql` - PostgreSQL DDL.
-- `Name.cql` - ClickHouse DDL.
-- `Name.proto` - protobuf schema.
-
-## Installation
-
-```bash
-go install github.com/monopolly/jsonsgenerator@latest
+```go
+// go sql
+type account struct {
+	id      int               // sql{inc}
+	email   string            // sql{unique="email"}
+	name    string            // sql{index}
+	balance int64
+	tags    []string
+	meta    map[string]string
+}
 ```
 
-For local development from this repository:
-
 ```bash
-go install .
+jayson account.go
 ```
 
-Go 1.25+ is required.
+```go
+db, err := NewAccountSQL(pool) // creates the table and indexes if they do not exist
 
-If you use the `proto` option, you also need `protoc` and the Go protobuf plugin:
+acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
+err = db.Insert(&acc)                        // sets acc.ID
+err = db.Inc(acc.ID, AccountIndexBalance, 50) // balance = balance + 50
+err = db.TagsAppend(acc.ID, "vip")           // tags = tags || '{vip}'
+err = db.MetaUpdate(acc.ID, "lang", "en")    // jsonb_set(meta, '{lang}', '"en"')
+
+rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
+```
+
+## Why
+
+- **One source of truth.** The struct, the table, the indexes, the queries and the wire formats come from the same
+  ten lines. Add a field, run the generator, everything follows.
+- **Native pgx, no ORM.** Rows are scanned straight into struct fields with `Scan`, in the binary protocol,
+  without reflection or `map[string]any` in between. Go slices are real PostgreSQL arrays (`bigint[]`, `text[]`),
+  not JSON.
+- **No runtime dependency.** The generated file is self-contained: it imports pgx and nothing from this
+  repository. You can read it, debug it and commit it.
+- **SQL stays SQL.** Conditions are plain SQL with parameters. Your own queries are declared as a Go interface
+  and become typed methods.
+- **Safe by construction.** Values are always query parameters. Column names come from generated constants,
+  never from strings.
+- **Typed helpers for every array and jsonb field**: `TagsAppend`, `TagsRemove`, `MetaUpdate`, `MetaMerge`...
+- **Transactions across models** in one function.
+- **Fast JSON.** `Pack` and `Parse` use [goccy/go-json](https://github.com/goccy/go-json).
+- **Tested against real databases.** The SQL layer is covered by tests on PostgreSQL, including every supported
+  type, `NULL` handling, transactions and parallel use under the race detector.
+
+## Install
+
+```bash
+go install github.com/monopolly/jayson@latest
+```
+
+For protobuf you also need `protoc` and `protoc-gen-go`:
 
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ```
 
-## Quick Start
-
-Create `news.go`:
-
-```go
-package model
-
-// go sql proto test gotiny
-type news struct {
-	id     int    // sql{inc} #readonly
-	title  string
-	lang   string // ch{low}
-	ip     string
-	active bool
-	tags   []string
-	views  uint64
-}
-```
-
-Run the generator:
+Run it on a model file. The output is written next to it:
 
 ```bash
-jsonsgenerator news.go
+jayson account.go
 ```
 
-The generated files will be written next to the source file:
-
-```text
-newsGO.go
-newsGO_test.go
-news.sql
-news.proto
-```
-
-If you add the `ch` option, the generator will also create `news.cql` and a ClickHouse class.
-
-## Struct Options
-
-Options are written in the comment above the struct:
-
-```go
-// go=News sql=news ch=news proto=NewsProto test gotiny
-type news struct {
-	// ...
-}
-```
-
-Short option names are supported too:
-
-```go
-// go sql ch proto
-type news struct {
-	// ...
-}
-```
-
-In short form, names are derived from the original struct name:
-
-- `go` -> `News`
-- `sql` -> table `news`, class `NewsSQL`
-- `ch` -> table `news`, class `NewsCQL`
-- `proto` -> `NewsProto`
-
-Common struct options:
-
-| Option | Description |
+| File | Content |
 | --- | --- |
-| `go` / `go=News` | Generate the main Go type. |
-| `sql` / `sql=news` | Generate PostgreSQL class and `.sql` file. |
-| `ch` / `ch=news` | Generate ClickHouse class and `.cql` file. |
-| `proto` / `proto=NewsProto` | Generate `.proto` and embed protobuf Go code into `GO.go`. |
-| `ee` | SQL methods return `errors.E` of `github.com/monopolly/errors` instead of `error`. |
-| `test` | Generate `GO_test.go` with tests and benchmarks. |
-| `gotiny` | Add `MarshalGotiny` and `UnmarshalNewsGotiny`. |
-| `msgp` | Add MessagePack support. |
-| `optimize` | Try to reorder fields to reduce Go struct padding. |
-| `noinit` | Do not generate the `New...()` init function. |
-| `!omit` | Remove `omitempty` from JSON tags. |
+| `accountGO.go` | `Account` struct, field constants, JSON, `AccountSQL`, `AccountCQL`, protobuf code |
+| `account.sql` | PostgreSQL table, indexes, migration lines |
+| `account.cql` | ClickHouse table (option `ch`) |
+| `account.proto` | protobuf schema (option `proto`) |
+| `accountGO_test.go` | tests and benchmarks (option `test`) |
 
-## Field Options
+Use one model per source file. Several models can share a package: every generated name carries the struct name.
 
-Field options are written in the comment after a field:
+## Examples
 
-```go
-type news struct {
-	id       int            // sql{inc} #readonly
-	title    string         // sql{index} js{name="headline"}
-	lang     string         // ch{low}
-	ip       string         // ch{type=ip}
-	payload  map[string]any // sql{type="jsonb"} proto{type="google.protobuf.Value"}
-	internal string         // sql{skip} proto{skip}
-}
-```
+The models and generated files of these examples are in [examples/](examples/).
 
-Common field options:
-
-| Option | Description |
-| --- | --- |
-| `sql{inc}` | Identity field (`bigint generated by default as identity`). Usually `id int`. |
-| `sql{primary}` | Primary key. Several fields make a composite key. |
-| `sql{index}` | Create an SQL index (gin for jsonb and arrays). |
-| `sql{idx="group"}` | Composite index of a group of fields. |
-| `sql{unique="group"}` | Add a unique constraint for a group of fields. |
-| `sql{search="group"}` | Full text search: tsvector column, gin index and `FullTextGroup()` method. |
-| `sql{get}` | Typed getter `GetByName(v)`. |
-| `sql{type="jsonb"}` | Override the SQL field type: `date`, `varchar(64)`, `numeric(18,2)`... |
-| `sql{notnull}`, `sql{defaults}`, `sql{unix}` | `not null`, default by type, default unix time. |
-| `sql{noinsert}` | Do not send the field in `Insert`. |
-| `sql{ver="2"}`, `sql{renames="old"}` | Migration lines in the `.sql` file. |
-| `sql{skip}` | Exclude the field from SQL generation. |
-| `ch{primary}` | Use the field as the ClickHouse key/primary field. |
-| `ch{low}` | Wrap the ClickHouse type in `LowCardinality(...)`. Useful for languages, countries, statuses, and similar fields. |
-| `ch{type=ip}` | Use ClickHouse `IPv4`. A field named `ip` is also treated as IPv4 automatically. |
-| `js{name="..."}` | Override the JSON field name. |
-| `proto{name="..."}` | Override the protobuf field name. |
-| `proto{type="..."}` | Override the protobuf field type. |
-| `proto{skip}` | Exclude the field from protobuf generation. |
-| `go{type="..."}` | Override the generated Go field type. |
-| `#readonly`, `#must` | Custom field tags used by generated helpers. |
-
-## Example: PostgreSQL Model
-
-```go
-package model
-
-// go=Account sql=accounts test
-type account struct {
-	id      int    // sql{inc} #readonly
-	email   string // sql{unique="email"}
-	name    string // sql{index}
-	active  bool
-	balance int64
-}
-```
-
-Generated output:
-
-- `accountGO.go` with `Account`, `AccountSQL`, and `AccountQuery`.
-- `accountGO_test.go` with tests and benchmarks.
-- `account.sql` with table and index definitions.
-
-Usage:
+### 1. CRUD
 
 ```go
 pool, _ := pgxpool.New(ctx, dsn)
-db, err := NewAccountSQL(pool) // creates table and indexes if not exist
+db, err := NewAccountSQL(pool)
 
-item := Account{Email: "hello@example.com", Name: "Sergey", Active: true}
-err = db.Insert(&item) // sets item.ID
+// insert
+acc := Account{Email: "kate@example.com", Name: "Kate"}
+err = db.Insert(&acc)                 // acc.ID is set
+ok, err := db.InsertNoConflict(&acc)  // false when the row exists
+err = db.Upsert(&acc)                 // insert or update by primary key
+n, err := db.InsertMany(list)         // COPY protocol, for bulk loads
 
-// read: all columns, or only listed
-acc, err := db.Get(item.ID)
-acc, err = db.Get(item.ID, AccountIndexName, AccountIndexBalance)
+// read: all columns, or only the listed ones
+acc, err = db.Get(acc.ID)
+acc, err = db.Get(acc.ID, AccountIndexName, AccountIndexBalance)
+acc, err = db.GetBy(AccountIndexEmail, "kate@example.com")
 if errors.Is(err, pgx.ErrNoRows) {
 	// not found
 }
 
-// conditions are sql with parameters
-list, err := db.Select(nil, "active and balance > $1 order by balance desc limit 10", 100)
+list, err := db.Select(nil, "balance > $1 order by balance desc", 100)
+page, err := db.List(20, 40) // limit, offset
+total, err := db.Count()
 
 // update
-err = db.Update(item.ID, AccountIndexName, "Max")
-err = db.Updates(item.ID, map[AccountIndexTyped]any{AccountIndexActive: false, AccountIndexBalance: 0})
-err = db.Inc(item.ID, AccountIndexBalance, 50)
+err = db.Update(acc.ID, AccountIndexName, "Max")
+err = db.Updates(acc.ID, map[AccountIndexTyped]any{AccountIndexName: "Max", AccountIndexBalance: 0})
+err = db.Inc(acc.ID, AccountIndexBalance, -10)
 acc.Name = "Kate"
-err = db.Save(&acc, AccountIndexName)
+err = db.Save(&acc, AccountIndexName) // write listed fields of the struct
+count, err := db.UpdateWhere(AccountIndexBalance, 0, "balance < $1", 0)
 
-// transaction: commit on nil, rollback on error
-err = db.Begin(func(tx pgx.Tx) error {
-	if err := db.TX(tx).Inc(from, AccountIndexBalance, -50); err != nil {
-		return err
-	}
-	return db.TX(tx).Inc(to, AccountIndexBalance, 50)
-})
-
-// query from json: keys are validated, values are sql parameters
-list, err = db.Search(&AccountQuery{
-	EQ:    map[string]any{"active": true},
-	GT:    map[string]any{"balance": 10},
-	Sort:  "balance",
-	Limit: 20,
-})
+// delete
+err = db.Delete(acc.ID)
+count, err = db.DeleteWhere("email like $1", "%@spam.com")
 ```
 
-### Generated SQL API
-
+`fields` selects columns, all columns when empty. `where` is an SQL condition with `$1, $2...` placeholders.
 A missing row is `pgx.ErrNoRows`.
-`fields` selects columns, all columns when empty. `where` is an SQL condition with `$1, $2...` placeholders for `args`.
 
-| Group | Methods |
-| --- | --- |
-| Handle | `NewAccountSQL(pool)`, `Pool()`, `Conn(f)`, `TableName()`, `Fields()` |
-| Transactions | `Begin(f)`, `TX(tx)` |
-| Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
-| Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` (COPY) |
-| Update | `Update`, `Updates`, `Save`, `Inc`, `UpdateWhere`, `UpdatesWhere` |
-| Delete | `Delete`, `DeleteWhere` |
-| Table | `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
+### 2. Arrays and jsonb
 
-Methods by id (`Get`, `Update`, `Delete`...) need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
-`Upsert` uses primary keys (or the identity field) as the conflict target.
+Every array and jsonb field gets its own typed methods, so you do not have to remember operators.
 
-Array and jsonb fields get typed methods named by the field:
+```go
+type account struct {
+	id       int            // sql{inc}
+	tags     []string       // text[]
+	scores   []int          // bigint[]
+	settings map[string]int // jsonb
+	items    []Item         // jsonb array
+}
+```
 
-| Field | Methods |
-| --- | --- |
-| `tags []string` (`text[]`) | `TagsAppend(id, v ...string)`, `TagsRemove(id, v string)` |
-| `settings map[string]int` (`jsonb`) | `SettingsUpdate(id, k string, v int)`, `SettingsMerge(id, v map[string]int)`, `SettingsDelete(id, k string)`, `SettingsRename(id, k, newK string)` |
-| `conf Config` (`jsonb`) | `ConfUpdate(id, k string, v any)`, `ConfMerge`, `ConfDelete`, `ConfRename` |
-| `items []Item` (`jsonb`) | `ItemsAppend(id, v ...Item)` |
+```go
+err = db.TagsAppend(id, "a", "b")       // tags = tags || '{a,b}'
+err = db.TagsRemove(id, "a")            // array_remove(tags, 'a')
+err = db.ScoresAppend(id, 10, 20)
 
-### Own SQL functions
+err = db.SettingsUpdate(id, "volume", 7)                // set one key
+err = db.SettingsMerge(id, map[string]int{"a": 1, "b": 2})
+err = db.SettingsRename(id, "a", "c")
+err = db.SettingsDelete(id, "b")
 
-Describe own queries as an interface named `<struct>SQL` in the model file: SQL in the comment above the method,
-flags in the comment at the end of the line. The generator adds them to `AccountSQL` as methods.
+err = db.ItemsAppend(id, Item{Name: "book"})
+```
+
+### 3. Your own queries
+
+Declare an interface named `<struct>SQL` in the model file. The comment above a method is its SQL.
+The generator turns every method into a typed method of `AccountSQL`.
 
 ```go
 type accountSQL interface {
-	// where active and balance > @min order by balance desc
+	// where balance > @min order by balance desc
 	Rich(min int64) ([]Account, error)
 
 	// where email = @email
@@ -264,81 +178,236 @@ type accountSQL interface {
 	// select id from accounts where name = any(@names)
 	IDs(names []string) ([]int, error)
 
-	// update accounts set active = false where balance < @min
-	Freeze(min int64) (int64, error)
+	// update accounts set balance = 0 where balance < @min
+	Reset(min int64) (int64, error)
 
 	// delete from accounts where id = @id
 	Drop(id int) error
 }
 ```
 
+```go
+rich, err := db.Rich(1000)
+acc, err := db.ByEmail("nobody@example.com") // zero value, no error: !404
+```
+
 | Result | Generated |
 | --- | --- |
-| `([]Account, error)`, `(Account, error)` | Rows of the model. SQL starts with `where`, `order` or `limit`: columns are added by the generator. |
+| `([]Account, error)`, `(Account, error)` | Rows of the model. Start the SQL with `where`, `order` or `limit`: columns are added for you. |
 | `(T, error)` | One value. |
-| `([]T, error)` | A column of values. One array value when the query selects an array column of the model (`select tags from ...`) or has the `!array` flag. |
+| `([]T, error)` | A column of values. One array value when the query selects an array column of the model or has the `!array` flag. |
 | `(int64, error)` with `update`/`delete`/`insert` | Count of affected rows. |
 | `error` | Exec. |
 
-`@name` is a parameter of the function; unknown or unused names are generation errors. `$1, $2` also work.
-`!404` returns the zero value and `nil` instead of `pgx.ErrNoRows`. The methods work in `TX(tx)` like all others.
+`@name` is a parameter of the function. A name that is missing in the signature, or a parameter that is not used,
+is a generation error, not a runtime surprise. `!404` at the end of the line returns the zero value and `nil`
+instead of `pgx.ErrNoRows`.
 
-### Errors: option `ee`
+### 4. Transactions
 
-With `// go sql ee` every method of `AccountSQL` returns `errors.E` from `github.com/monopolly/errors`:
-any error of PostgreSQL goes through `errors.PGX(err)` (not found is 404, unique violation is `exist`).
+`Begin` opens a transaction, commits when the function returns `nil` and rolls everything back on an error.
+`TX(tx)` runs the queries of any model inside it.
 
 ```go
-func (a *AccountSQL) Upsert(v *Account) errors.E
+err := accounts.Begin(func(tx pgx.Tx) error {
+	if err := accounts.TX(tx).Inc(from, AccountIndexBalance, -50); err != nil {
+		return err
+	}
+	if err := accounts.TX(tx).Inc(to, AccountIndexBalance, 50); err != nil {
+		return err
+	}
+	return orders.TX(tx).Insert(&Order{Sender: from, Receiver: to, Sum: 50})
+})
+```
+
+`AccountSQL` keeps no state and works on `pgxpool`, so one instance is safe to use from any number of goroutines.
+
+For queries of your own, write methods on `AccountSQL` and use its `db` field: it is the pool, or the transaction
+after `TX(tx)`. `Conn(f)` gives a dedicated connection of the pool.
+
+### 5. Search from JSON
+
+`AccountQuery` can be filled straight from a request body. Keys are checked against the model,
+values are query parameters, an unknown key is an error.
+
+```go
+var q AccountQuery
+json.Unmarshal(body, &q)
+// {"eq": {"name": "Kate"}, "gt": {"balance": 10}, "in": {"id": [1, 2, 3]},
+//  "like": {"email": "example"}, "sort": "balance", "desc": true, "limit": 20}
+
+list, err := db.Search(&q)
+```
+
+### 6. Full text search
+
+```go
+type article struct {
+	id    int    // sql{inc}
+	title string // sql{search="text"}
+	body  string // sql{search="text"}
+}
+```
+
+This adds a generated `tsvector` column, a GIN index and a method:
+
+```go
+list, err := db.FullTextText("postgres index -mysql", 20) // best match first
+```
+
+### 7. Views of a struct
+
+Mark fields with `@name` to get a smaller struct with only those fields, and with `#name` to get field lists.
+
+```go
+type user struct {
+	id       int    // sql{inc} @public #readonly
+	name     string // @public
+	password string
+}
+```
+
+```go
+pub, err := db.GetPublic(id)   // UserPublic{ID, Name}: selects only these columns
+view := user.UserPublic()      // the same from a loaded struct
+fields := UserReadonlyList()   // []UserIndexTyped{UserIndexID}
+```
+
+### 8. ClickHouse
+
+```go
+// go ch=events
+type event struct {
+	id      uint64 // ch{primary}
+	country string // ch{low}
+	ip      string // ch{type=ip}
+	path    string
+}
+```
+
+`EventCQL` buffers rows in memory and writes them in batches.
+
+```go
+ch := NewEventCQL(conn) // creates the table, flushes the buffer in the background
+
+ch.Add(Event{ID: 1, Country: "DE", IP: "10.0.0.1", Path: "/"})
+err := ch.Push() // flush now
+
+list, err := ch.Select("country = 'DE'")
+stats, err := ch.Stat(EventIndexCountry) // map[string]int{"DE": 425, "US": 134}
+```
+
+### 9. JSON, binary formats and protobuf
+
+```go
+// go proto gotiny msgp
+type stat struct {
+	id     int
+	name   string
+	values []uint64
+}
+```
+
+```go
+item := Stat{ID: 1, Name: "views", Values: []uint64{1, 2, 3}}
+
+b := item.Pack()                 // JSON
+item, err := ParseStat(b)
+
+b = item.MarshalGotiny()         // gotiny
+item = UnmarshalStatGotiny(b)
+
+b = item.MessagePack()           // msgpack
+item, err = ParseStatMessagePack(b)
+
+m := item.Map()                  // map[string]any
+v := item.Get("name")            // value by json key
+```
+
+`StatProto` and `stat.proto` are generated with the `proto` option.
+
+JSON speed for a struct with strings, slices and maps, Apple M1 Pro:
+
+| | Marshal | Unmarshal |
+| --- | --- | --- |
+| `encoding/json` | 1711 ns | 5734 ns |
+| generated `Pack` / `Parse` | 645 ns | 1301 ns |
+
+### 10. Errors as values of your own type
+
+With the `ee` option every method of `AccountSQL` returns `errors.E` from
+[monopolly/errors](https://github.com/monopolly/errors): not found is 404, a unique violation is `exist`
+with the constraint name.
+
+```go
+// go sql ee
+```
+
+```go
 func (a *AccountSQL) Get(id int, fields ...AccountIndexTyped) (Account, errors.E)
 func (a *AccountSQL) Begin(f func(tx pgx.Tx) errors.E) errors.E
 ```
 
-`errors.E` is not the `error` interface. Do not put it into a variable or a result of type `error`:
+`errors.E` is a concrete type, not the `error` interface. Do not store it in a variable of type `error`:
 an empty `errors.E` stored as `error` is not `nil`.
 
-```go
-var err error
-_, err = accounts.Get(id) // wrong: err != nil even when the row is found
-acc, e := accounts.Get(id) // right
-```
+## Reference
 
-### Transactions and concurrency
+### Struct options
 
-`AccountSQL` is created on `*pgxpool.Pool` and is safe for concurrent use: it keeps no state, every query takes a connection from the pool.
-
-One transaction for several models: `Begin` opens it, commits on `nil` and rolls back on error; `TX(tx)` runs queries of any model in it.
+Options are written in the comment above the struct.
 
 ```go
-err := accounts.Begin(func(tx pgx.Tx) error {
-	if err := accounts.TX(tx).Update(id, AccountIndexActive, false); err != nil {
-		return err
-	}
-	_, err := orders.TX(tx).DeleteWhere("account = $1", id)
-	return err
-})
+// go=News sql=news ch=news proto test
+type news struct {
 ```
 
-`Begin` called on `TX(tx)` makes a savepoint.
+| Option | Description |
+| --- | --- |
+| `go` / `go=News` | Name of the generated struct. |
+| `sql` / `sql=news` | PostgreSQL class `NewsSQL` and the `.sql` file. |
+| `ch` / `ch=news` | ClickHouse class `NewsCQL` and the `.cql` file. |
+| `chengine=MergeTree` | ClickHouse engine. |
+| `proto` / `proto=NewsProto` | `.proto` file and protobuf Go code. |
+| `ee` | SQL methods return `errors.E` instead of `error`. |
+| `gotiny`, `msgp` | gotiny and MessagePack encoding. |
+| `test` | `GO_test.go` with tests and benchmarks. |
+| `optimize` | Reorder fields to reduce struct padding. |
+| `noinit` | Do not generate `New...()`. |
+| `!omit` | No `omitempty` in JSON tags. |
+| `lock` | Refuse to regenerate the model. |
 
-Queries run on `context.Background()`: limit their time with `statement_timeout` or pool settings.
+### Field tags
 
-Own methods: use the `a.db` field to work in and out of a transaction, or `Conn` for a dedicated pool connection.
+Tags are written in the comment of a field.
 
 ```go
-func (a *AccountSQL) Rich(min int64) (n int, err error) {
-	err = a.db.QueryRow(context.Background(), "select count(*) from accounts where balance > $1", min).Scan(&n)
-	return
-}
-
-err := db.Conn(func(conn *pgxpool.Conn) error {
-	_, err := conn.Exec(context.Background(), "listen accounts")
-	return err
-})
+title string // sql{index} js{name="headline"} #readonly @public
 ```
 
-Several models can live in one package: every generated name carries the struct name
-(`AccountSQL`, `accountSQLColumns`, `File_account_proto`). Use a separate source file for every model.
+| Tag | Description |
+| --- | --- |
+| `sql{inc}` | Identity column, usually `id int`. |
+| `sql{primary}` | Primary key. Several fields make a composite key. |
+| `sql{index}` | Index. GIN for jsonb and arrays. |
+| `sql{idx="group"}` | Composite index of a group of fields. |
+| `sql{unique="group"}` | Unique constraint of a group of fields. |
+| `sql{search="group"}` | Full text search column, index and method. |
+| `sql{get}` | Typed getter `GetByName(v)`. |
+| `sql{type="date"}` | PostgreSQL type: `date`, `varchar(64)`, `numeric(18,2)`... |
+| `sql{notnull}`, `sql{defaults}`, `sql{unix}` | `not null`, default by type, default unix time. |
+| `sql{name="col"}` | Column name. |
+| `sql{noinsert}` | Do not send the field in `Insert`. |
+| `sql{ver="2"}`, `sql{renames="old"}` | Migration lines in the `.sql` file. |
+| `sql{skip}` | No column for the field. |
+| `ch{primary}`, `ch{low}`, `ch{type=ip}`, `ch{skip}` | ClickHouse key, `LowCardinality`, `IPv4`, skip. |
+| `proto{name="..."}`, `proto{type="..."}`, `proto{skip}` | Protobuf field name, type, skip. |
+| `go{name="..."}`, `go{type="..."}` | Go field name and type. |
+| `js{name="..."}` | JSON key. |
+| `#name` | Field list `NewsNameList()`. |
+| `@name` | Struct `NewsName` with the marked fields. |
+
+Go names have no underscores: the field `user_id` becomes `UserID`, the column stays `user_id`.
 
 ### Go to PostgreSQL types
 
@@ -355,117 +424,44 @@ Several models can live in one package: every generated name carries the struct 
 | `uuid.UUID`, `pgtype.UUID` | `uuid` |
 | `netip.Addr`, `net.IP` / `netip.Prefix`, `net.IPNet` | `inet` / `cidr` |
 | `decimal.Decimal`, `pgtype.Numeric` | `numeric` |
-| `[]T` | `T[]` (native array) |
+| `[]T` | `T[]`, a native array |
 | `*T`, `sql.Null*`, `pgtype.*` | type of `T`, nullable |
 | `type Status int16` | type of the underlying type |
 | `map`, `struct`, `any`, `json.RawMessage`, `[]struct`, `[][]T` | `jsonb` |
 
-`NULL` in a scalar column is read as the zero value. Use a pointer or `sql.Null*` to see `NULL`.
+`NULL` in a scalar column is read as the zero value. Use a pointer or `sql.Null*` to tell `NULL` from zero.
 
-## Example: ClickHouse Buffer
+### Methods of `AccountSQL`
 
-```go
-package model
+| Group | Methods |
+| --- | --- |
+| Handle | `NewAccountSQL(pool)`, `Pool()`, `Conn(f)`, `TableName()`, `Fields()` |
+| Transactions | `Begin(f)`, `TX(tx)` |
+| Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
+| Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` |
+| Update | `Update`, `Updates`, `Save`, `Inc`, `UpdateWhere`, `UpdatesWhere` |
+| Delete | `Delete`, `DeleteWhere` |
+| Table | `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
 
-// go ch=news_events test
-type event struct {
-	id      uint64
-	lang    string // ch{low}
-	country string // ch{low}
-	ip      string // ch{type=ip}
-	path    string
-}
-```
+Methods by id need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
+`Update`, `Updates`, `Save`, `Inc` and the field methods return `pgx.ErrNoRows` when the row does not exist.
 
-ClickHouse generation creates `EventCQL`. The class has a local `list` buffer, `Add` for fast in-memory accumulation, and `Push` for batch insertion.
+Queries run on `context.Background()`. Limit their time with `statement_timeout` or pool settings.
 
-```go
-ch := NewEventCQL(conn)
-
-ch.Add(Event{
-	ID:      1,
-	Lang:    "ru",
-	Country: "RU",
-	IP:      "127.0.0.1",
-	Path:    "/",
-})
-
-err := ch.Push()
-_ = err
-```
-
-`Stat(field)` returns aggregate counts as `map[string]int`:
-
-```go
-stats, err := ch.Stat(IndexEventLang)
-_ = stats // map[string]int{"ru": 425, "en": 134}
-_ = err
-```
-
-## Example: Protobuf And Gotiny
-
-```go
-package model
-
-// go proto gotiny test
-type stat struct {
-	id     int
-	name   string
-	values []uint64
-}
-```
-
-Generated output:
-
-- `statGO.go` with `Stat`, `StatProto`, protobuf runtime code, and gotiny helpers.
-- `stat.proto`.
-- `statGO_test.go` with JSON, protobuf, and gotiny tests/benchmarks.
-
-Usage:
-
-```go
-item := Stat{ID: 1, Name: "views", Values: []uint64{1, 2, 3}}
-
-jsonBytes := item.Pack()
-fromJSON, err := ParseStat(jsonBytes)
-
-tinyBytes := item.MarshalGotiny()
-fromTiny := UnmarshalStatGotiny(tinyBytes)
-
-_, _ = fromJSON, err
-_ = fromTiny
-```
-
-## Tests And Benchmarks
-
-The `test` option generates tests for the specific struct, so multiple generated models can live in the same package without function name collisions:
-
-```go
-func TestStatGotinyMarshal(t *testing.T)
-func TestStat2GotinyMarshal(t *testing.T)
-func BenchmarkStatProtoMarshal(b *testing.B)
-```
-
-Benchmarks use the modern `testing.B.Loop` API.
-
-Database tests are skipped without connection strings:
+## Tests
 
 ```bash
-JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres \
-JAYSON_TEST_CH=clickhouse://default:pass@127.0.0.1:9000/default \
-go test ./test/ ./test/alltypes/
+go test ./...
 ```
 
-## Supported Types
+The database tests are skipped unless a connection string is set:
 
-For PostgreSQL see the type table above. Protobuf and ClickHouse support common Go scalar types, strings, booleans, numbers, `time.Time`, `time.Duration`, `[]byte`, slices of strings and numbers, and several `map[...]...` shapes.
+```bash
+JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres go test ./test/alltypes/
+```
 
-For ClickHouse, numeric arrays, string arrays, `LowCardinality`, and IPv4 fields are supported. IP fields are always generated as ClickHouse `IPv4`.
+## Notes
 
-## Recommendations
-
-- Keep source models separate from generated files, for example `news.go` and `newsGO.go`.
-- Do not edit `*GO.go`, `.sql`, `.cql`, or `.proto` manually. Change the source struct and rerun the generator instead.
-- For multiple models in the same package, use separate source files. Test names and protobuf init helpers are generated from the struct name.
-- Commit generated files if you want reproducible builds without running the generator in CI.
-
+- Do not edit generated files. Change the model and run the generator again.
+- Commit generated files if you want builds without running the generator.
+- The ClickHouse class has an older API than the PostgreSQL one: string keys in updates and raw `where` strings.

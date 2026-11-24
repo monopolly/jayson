@@ -71,10 +71,6 @@ func (a *Settings) Parse(in string) {
 	a.Options.Test = res.Options["test"] != nil
 	helps.Struct["test"] = "Generate go tests for generated model"
 
-	// simple index name NewsIndexID > IndexID (if 1 struct in package)
-	a.Go.NoPrefix = res.Options["noprefix"] != nil
-	helps.Struct["noprefix"] = "Generate simple index IndexID instead IndexNewsID"
-
 	// sql
 	a.SQL.Table = optionName(res.Options, "sql", a.Origin)
 	helps.Struct["sql=news"] = "Set sql table name. Ex: sql=accounts"
@@ -99,7 +95,6 @@ func (a *Settings) Parse(in string) {
 
 	// clickhouse class
 	a.Clickhouse.Class = fmt.Sprintf("%sCQL", a.Go.StructName)
-	a.Clickhouse.QueryName = fmt.Sprintf("%sClickhouseQuery", a.Go.StructName)
 
 	// indextype
 	a.IndexTypeName = fmt.Sprintf("%sIndexTyped", a.Go.StructName)
@@ -108,7 +103,6 @@ func (a *Settings) Parse(in string) {
 	for _, x := range res.Fields {
 		var p Field
 		p.Name = x.Name
-		p.MessagePack.Name = x.Name
 		p.Comment = x.Comment
 		p.Type = x.Type
 		p.Go.Name = goName(p.Name)

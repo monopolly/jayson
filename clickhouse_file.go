@@ -57,13 +57,6 @@ func (a *Clickhouse) fieldNames() (res []string) {
 	return
 }
 
-func (a *Clickhouse) placeholders() (res []string) {
-	for range a.fieldNames() {
-		res = append(res, "?")
-	}
-	return
-}
-
 func (a *Clickhouse) primaryFields() (res []string) {
 	for _, x := range fields {
 		if x.Clickhouse.Skip || !x.Clickhouse.Primary {
