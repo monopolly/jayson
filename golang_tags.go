@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/monopolly/jsonsgenerator/tools"
@@ -22,7 +24,8 @@ func (a *Golang) Tags() []byte {
 
 	var list []string
 	list = append(list, "\n")
-	for tag, filds := range tags {
+	for _, tag := range slices.Sorted(maps.Keys(tags)) {
+		filds := tags[tag]
 		list = append(list, fmt.Sprintf("func %s%sList() []%s {", settings.Go.StructName, tools.Title(tag), settings.IndexTypeName))
 		var taglist []string
 		for _, x := range filds {

@@ -33,87 +33,87 @@ import (
 	Ex: //! [] go=News js=NewsJson sql=news noinit up...
 
 	STRUCT:
-	debug                         Debug mode
-	js=NewsJson                   Change json struct names. Ex: js=NewsJson
-	proto=NewsProto               Generate proto file and compile to current package
-	swift                         Generate swift model
-	optimize                      Try to create golang padding optimized struct
-	sql=news                      Set sql table name. Ex: sql=accounts
-	lock                          Lock model for generation. Can't change model.
-	noinit                        No New() init function for struct
-	noprefix                      Generate simple index IndexID instead IndexNewsID
+	!omit                         No omit tag for json
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
-	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
+	debug                         Debug mode
 	demo                          Generate demo json file with default values
-	test                          Generate go tests for generated model
-	gotiny                        Create gotiny marshal/unmarshal
-	msgp                          Create message pack marshal/unmarshal
-	!omit                         No omit tag for json
-	ts=news                       Set typescript struct names. Ex: ts=NewsJson
 	enum                          Generate swift enum
+	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
+	gotiny                        Create gotiny marshal/unmarshal
+	js=NewsJson                   Change json struct names. Ex: js=NewsJson
+	lock                          Lock model for generation. Can't change model.
+	msgp                          Create message pack marshal/unmarshal
+	noinit                        No New() init function for struct
+	noprefix                      Generate simple index IndexID instead IndexNewsID
+	optimize                      Try to create golang padding optimized struct
+	proto=NewsProto               Generate proto file and compile to current package
+	sql=news                      Set sql table name. Ex: sql=accounts
+	swift                         Generate swift model
+	test                          Generate go tests for generated model
+	ts=news                       Set typescript struct names. Ex: ts=NewsJson
 
 	Field:
-	title{}                       Add custom title for index. title{Nice & Sweet}
 	desc{}                        Add custom desc for index. desc{This field for success}
+	title{}                       Add custom title for index. title{Nice & Sweet}
 
 	GO:
-	@                             Add custom structs for fields. Ex: id int //@public @team...
-	nofunc                        Do not create any jsons functions for fiels
-	up                            Make uppercase for functions
-	type=""                       Replace golang type. Ex: type="[]*News"
-	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
-	title=""                      Add custom title for index
-	desc=""                       Add custom desc for index
-	title{}                       Add field user title title{Nice}
 	#                             Add lists for fields. Ex: id int //#readonly #must...
+	@                             Add custom structs for fields. Ex: id int //@public @team...
+	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
+	desc=""                       Add custom desc for index
+	desc{}                        Add field user title desc{Use it nice}
 	must                          Create one validation function for all must fields
 	name=""                       Replace golang struct name. Ex: name="NewsList"
+	nofunc                        Do not create any jsons functions for fiels
 	req{}                         Add user required fields
-	desc{}                        Add field user title desc{Use it nice}
+	title=""                      Add custom title for index
+	title{}                       Add field user title title{Nice}
+	type=""                       Replace golang type. Ex: type="[]*News"
+	up                            Make uppercase for functions
 
 	SQL:
-	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
-	type="date"                   Explicit postgres type: date, timestamp, time, interval, varchar(64), numeric(18,2), json, vector(3)...
-	unix                          Add default value: extract(epoch from now())
-	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
-	noinsert                      Do use field for insert function
-	altertable                    Add field line Alter table to SQL file with current time comment
-	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
-	notnull                       Add not null to column
-	skip                          Skip field for sql queries
-	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
-	defaults                      Add default value based on field type
-	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
 	add="primary key"             Append sql for field. Ex: replace="primary key"
-	unique="groupname"            Add unique fields constrains by group (you need set group name, then generator join fields). Ex: unique="group1" unique="group2"
-	renames="oldname"             Create an alter table record in SQL file. Rename table column.
+	altertable                    Add field line Alter table to SQL file with current time comment
+	defaults                      Add default value based on field type
+	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
 	index                         Create simple default index or gin for jsonb and arrays
+	noinsert                      Do use field for insert function
+	notnull                       Add not null to column
+	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
+	renames="oldname"             Create an alter table record in SQL file. Rename table column.
+	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
+	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
+	skip                          Skip field for sql queries
+	type="date"                   Explicit postgres type: date, timestamp, time, interval, varchar(64), numeric(18,2), json, vector(3)...
+	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
+	unique="groupname"            Add unique fields constrains by group (you need set group name, then generator join fields). Ex: unique="group1" unique="group2"
+	unix                          Add default value: extract(epoch from now())
 	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
 
 	Clickhouse:
-	primary"                      ch{primary} Make primary key
 	low                           ch{low} Wrap field type in LowCardinality(...)
+	primary"                      ch{primary} Make primary key
 	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
 
 	PROTO:
-	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 	name="field"                  Rewrite proto field name
 	skip                          Skip field for proto
+	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 
 	SWIFT:
-	skip                          Ignore field for Swift
-	type=""                       Replace type for Swift model. Ex: type="string"
 	file=""                       Create another swift file for this field Swift model. file="f1", file="f2"
 	must                          Swift field with required values
+	skip                          Ignore field for Swift
+	type=""                       Replace type for Swift model. Ex: type="string"
 
 	JSON:
-	skip                          Skip json field
-	inc                           Add inc jsons function for numbers fields
 	bool                          Add set jsons function for bool fields
-	time                          Create convert jsons function for unixtime fields
-	raw                           Set Raw json function inside field
+	inc                           Add inc jsons function for numbers fields
 	name=""                       Replace json field name. Ex: name="sid"
+	raw                           Set Raw json function inside field
+	skip                          Skip json field
+	time                          Create convert jsons function for unixtime fields
 */
 
 // field type
@@ -322,33 +322,6 @@ type News struct {
 	Public_field_me3       int                `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"`             // @me
 }
 
-type NewsPublic struct {
-	Public_field1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
-	Public_field2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
-	Public_field3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
-}
-
-func (a *News) NewsPublic() (res *NewsPublic) {
-	return &NewsPublic{
-		Public_field1: a.Public_field1,
-		Public_field2: a.Public_field2,
-		Public_field3: a.Public_field3,
-	}
-}
-
-func (a *NewsPublic) News() (res *News) {
-	return &News{
-		Public_field1: a.Public_field1,
-		Public_field2: a.Public_field2,
-		Public_field3: a.Public_field3,
-	}
-}
-
-func (a *NewsPublic) Pack() (res []byte) {
-	res, _ = jsoniter.Marshal(a)
-	return
-}
-
 type NewsMe struct {
 	Public_field_me1 int `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"` // @me
 	Public_field_me2 int `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"` // @me
@@ -372,6 +345,33 @@ func (a *NewsMe) News() (res *News) {
 }
 
 func (a *NewsMe) Pack() (res []byte) {
+	res, _ = jsoniter.Marshal(a)
+	return
+}
+
+type NewsPublic struct {
+	Public_field1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
+	Public_field2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
+	Public_field3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
+}
+
+func (a *News) NewsPublic() (res *NewsPublic) {
+	return &NewsPublic{
+		Public_field1: a.Public_field1,
+		Public_field2: a.Public_field2,
+		Public_field3: a.Public_field3,
+	}
+}
+
+func (a *NewsPublic) News() (res *News) {
+	return &News{
+		Public_field1: a.Public_field1,
+		Public_field2: a.Public_field2,
+		Public_field3: a.Public_field3,
+	}
+}
+
+func (a *NewsPublic) Pack() (res []byte) {
 	res, _ = jsoniter.Marshal(a)
 	return
 }
@@ -1127,21 +1127,21 @@ func (a *News) ToJson() (r []byte) {
 	return js.Bytes()
 }
 
-func NewsReadonlyList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexInc}
+func NewsMeList() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
 }
 
 func NewsPublicList() []NewsIndexTyped {
 	return []NewsIndexTyped{NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3}
 }
 
-func NewsMeList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+func NewsReadonlyList() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexInc}
 }
 
-func (a NewsIndexTyped) Readonly() bool {
+func (a NewsIndexTyped) Me() bool {
 	switch a {
-	case NewsIndexInc:
+	case NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3:
 		return true
 	default:
 		return false
@@ -1155,9 +1155,9 @@ func (a NewsIndexTyped) Public() bool {
 		return false
 	}
 }
-func (a NewsIndexTyped) Me() bool {
+func (a NewsIndexTyped) Readonly() bool {
 	switch a {
-	case NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3:
+	case NewsIndexInc:
 		return true
 	default:
 		return false
@@ -4912,9 +4912,9 @@ func (a *NewsSQL) CreateTable() (err error) {
 	public_field_me2           bigint,
 	public_field_me3           bigint,
 	search                     tsvector generated always as (to_tsvector('simple', sql_search)) stored,
-	unique(sql_unique_x2,sql_unique_x1_x2),
 	unique(sql_unique_u1_1,sql_unique_u1_2),
-	unique(sql_unique_x1,sql_unique_x1_x2)
+	unique(sql_unique_x1_x2,sql_unique_x1),
+	unique(sql_unique_x2,sql_unique_x1_x2)
 )
 `
 		_, err = conn.Exec(context.Background(), q)
@@ -6216,9 +6216,9 @@ func (a *NewsSQL) CreateTableTX(tx pgx.Tx, ctx context.Context) (err error) {
 	public_field_me2           bigint,
 	public_field_me3           bigint,
 	search                     tsvector generated always as (to_tsvector('simple', sql_search)) stored,
-	unique(sql_unique_x2,sql_unique_x1_x2),
 	unique(sql_unique_u1_1,sql_unique_u1_2),
-	unique(sql_unique_x1,sql_unique_x1_x2)
+	unique(sql_unique_x1_x2,sql_unique_x1),
+	unique(sql_unique_x2,sql_unique_x1_x2)
 )
 `
 	_, err = tx.Exec(ctx, q)

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/monopolly/jsonsgenerator/tools"
@@ -19,7 +21,7 @@ func (a *Golang) StructCustom() []byte {
 	}
 
 	var b bytes.Buffer
-	for k := range all {
+	for _, k := range slices.Sorted(maps.Keys(all)) {
 		// fmt.Println("add custom", k)
 		b.Write(a.structCustom(k))
 		b.WriteString("\n")

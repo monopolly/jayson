@@ -7,14 +7,15 @@ import (
 
 	"github.com/monopolly/cast"
 	"github.com/monopolly/jsonsgenerator/tools"
-
-	"github.com/monopolly/structs"
 )
 
 func (a *Settings) Parse(in string) {
 
 	// ast parse
-	res := structs.Parse(in)
+	res, err := parseSource(in)
+	if err != nil {
+		panic(err)
+	}
 
 	// package name "model"
 	a.PackageName = res.Package

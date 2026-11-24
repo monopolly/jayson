@@ -11,9 +11,7 @@ require (
 	github.com/monopolly/file v0.0.0-20260512105950-963f9f41b40b
 	github.com/monopolly/jsons v0.0.0-20260525163037-3c895072bec3
 	github.com/monopolly/jsonsgenerator v0.0.0-20260525183215-ba3492aca3a6
-	github.com/monopolly/structs v0.0.0-20250802145905-d741991e4aee
 	github.com/niubaoshu/gotiny v0.0.3
-	github.com/shopspring/decimal v1.6.0
 	github.com/stretchr/testify v1.12.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	google.golang.org/protobuf v1.36.12
@@ -42,6 +40,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/shamaton/msgpack v1.2.1 // indirect
 	github.com/shamaton/msgpack/v3 v3.1.2 // indirect
+	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 )
@@ -60,58 +62,42 @@ func (a *Help) Render() (res []byte) {
 
 	// structs
 	list = append(list, "STRUCT:")
-	for k, v := range a.Struct {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Struct)...)
 
 	// golang
 	list = append(list, "")
 	list = append(list, "Field:")
-	for k, v := range a.Field {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Field)...)
 
 	// golang
 	list = append(list, "")
 	list = append(list, "GO:")
-	for k, v := range a.Golang {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Golang)...)
 
 	// sql
 	list = append(list, "")
 	list = append(list, "SQL:")
-	for k, v := range a.SQL {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.SQL)...)
 
 	// clickhouse
 	list = append(list, "")
 	list = append(list, "Clickhouse:")
-	for k, v := range a.Clickhouse {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Clickhouse)...)
 
 	// proto
 	list = append(list, "")
 	list = append(list, "PROTO:")
-	for k, v := range a.Proto {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Proto)...)
 
 	// swift
 	list = append(list, "")
 	list = append(list, "SWIFT:")
-	for k, v := range a.Swift {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.Swift)...)
 
 	// js
 	list = append(list, "")
 	list = append(list, "JSON:")
-	for k, v := range a.JS {
-		list = append(list, Status(k, v))
-	}
+	list = append(list, helpLines(a.JS)...)
 
 	// add \t
 	for p := range list {
@@ -126,4 +112,12 @@ func (a *Help) Render() (res []byte) {
 
 func Status(name string, v interface{}) string {
 	return fmt.Sprintf("%s%s%v", name, strings.Repeat(" ", 30-len(name)), v)
+}
+
+// sorted help lines
+func helpLines[V any](m map[string]V) (res []string) {
+	for _, k := range slices.Sorted(maps.Keys(m)) {
+		res = append(res, Status(k, m[k]))
+	}
+	return
 }

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/monopolly/file"
@@ -381,7 +383,7 @@ func importers() []byte {
 	}
 
 	list := []string{}
-	for x := range imports {
+	for _, x := range slices.Sorted(maps.Keys(imports)) {
 		switch strings.Contains(x, " ") {
 		case true:
 			list = append(list, x)

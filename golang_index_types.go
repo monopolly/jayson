@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/monopolly/jsonsgenerator/tools"
@@ -19,7 +21,7 @@ func (a *Golang) IndexType() []byte {
 
 	var list []string
 	list = append(list, "\n")
-	for tag := range tags {
+	for _, tag := range slices.Sorted(maps.Keys(tags)) {
 		list = append(list, fmt.Sprintf("func (a %s) %s() bool {", settings.IndexTypeName, tools.Title(tag)))
 		list = append(list, "switch a {")
 		var trues []string

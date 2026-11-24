@@ -50,8 +50,6 @@ github.com/monopolly/jsons v0.0.0-20260525163037-3c895072bec3 h1:PXFxPhRkDcll3QG
 github.com/monopolly/jsons v0.0.0-20260525163037-3c895072bec3/go.mod h1:m+r2JU+dfwgssx25vtM7Tk0wY1NHC4LN1GtiDautwS4=
 github.com/monopolly/jsonsgenerator v0.0.0-20260525183215-ba3492aca3a6 h1:AhSBJRBy7rVl1WF2MPLyFVWcqe9H0d4zVJ1uaF4jar8=
 github.com/monopolly/jsonsgenerator v0.0.0-20260525183215-ba3492aca3a6/go.mod h1:Fo7+spKUdbH4yXLVfyDuujpGujGvEZDVBn7nPVkDDYM=
-github.com/monopolly/structs v0.0.0-20250802145905-d741991e4aee h1:cBS1S3tzX1b+heQNYHhxOk6b6ZFmXfbQp/0+v/wGdiA=
-github.com/monopolly/structs v0.0.0-20250802145905-d741991e4aee/go.mod h1:EhsRux2VOO545haJ4Cgy0YfkUmy/6Ht+PktH05wm1SU=
 github.com/monopolly/useragent v0.0.0-20220710193710-261fb66b5f7a h1:xpYxrezSAtBAHgZtQY2SV+VPLH7yp/nQhOEwBdibLls=
 github.com/monopolly/useragent v0.0.0-20220710193710-261fb66b5f7a/go.mod h1:1YBLUf4ldCiTMCJE/GN8ijMBOEmihDTApn8up4S9MEw=
 github.com/niubaoshu/gotiny v0.0.3 h1:aUt+fvr8nQmitT6XqwuBH8JUQz7QyS4A+KyCNXSesGc=

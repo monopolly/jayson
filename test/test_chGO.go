@@ -30,63 +30,63 @@ import (
 	Ex: //! [] go=News js=NewsJson sql=news noinit up...
 
 	STRUCT:
-	ch=views                      Set clickhouse sql table name. Ex: ch=views
-	chengine=MergeTree            Optional, mergeTree by default
-	gotiny                        Create gotiny marshal/unmarshal
+	msgp                          Create message pack marshal/unmarshal
+	!omit                         No omit tag for json
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	proto=NewsProto               Generate proto file and compile to current package
-	enum                          Generate swift enum
-	noprefix                      Generate simple index IndexID instead IndexNewsID
-	optimize                      Try to create golang padding optimized struct
+	ts=news                       Set typescript struct names. Ex: ts=NewsJson
+	swift                         Generate swift model
+	sql=news                      Set sql table name. Ex: sql=accounts
+	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	lock                          Lock model for generation. Can't change model.
 	noinit                        No New() init function for struct
-	msgp                          Create message pack marshal/unmarshal
-	swift                         Generate swift model
+	enum                          Generate swift enum
+	optimize                      Try to create golang padding optimized struct
+	chengine=MergeTree            Optional, mergeTree by default
+	debug                         Debug mode
 	demo                          Generate demo json file with default values
 	test                          Generate go tests for generated model
-	sql=news                      Set sql table name. Ex: sql=accounts
-	debug                         Debug mode
-	!omit                         No omit tag for json
+	gotiny                        Create gotiny marshal/unmarshal
 	js=NewsJson                   Change json struct names. Ex: js=NewsJson
-	ts=news                       Set typescript struct names. Ex: ts=NewsJson
+	noprefix                      Generate simple index IndexID instead IndexNewsID
 
 	Field:
-	desc{}                        Add custom desc for index. desc{This field for success}
 	title{}                       Add custom title for index. title{Nice & Sweet}
+	desc{}                        Add custom desc for index. desc{This field for success}
 
 	GO:
-	must                          Create one validation function for all must fields
-	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
-	name=""                       Replace golang struct name. Ex: name="NewsList"
-	title=""                      Add custom title for index
-	desc=""                       Add custom desc for index
-	title{}                       Add field user title title{Nice}
-	#                             Add lists for fields. Ex: id int //#readonly #must...
 	nofunc                        Do not create any jsons functions for fiels
 	up                            Make uppercase for functions
-	type=""                       Replace golang type. Ex: type="[]*News"
-	req{}                         Add user required fields
+	base=""                       Underlying type for custom type (detected automatically). Ex: role role.Role // go{base="int"}
+	name=""                       Replace golang struct name. Ex: name="NewsList"
+	desc=""                       Add custom desc for index
+	title{}                       Add field user title title{Nice}
 	desc{}                        Add field user title desc{Use it nice}
+	#                             Add lists for fields. Ex: id int //#readonly #must...
+	must                          Create one validation function for all must fields
+	type=""                       Replace golang type. Ex: type="[]*News"
+	title=""                      Add custom title for index
+	req{}                         Add user required fields
 	@                             Add custom structs for fields. Ex: id int //@public @team...
 
 	SQL:
-	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
-	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
-	unix                          Add default value: extract(epoch from now())
-	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
-	add="primary key"             Append sql for field. Ex: replace="primary key"
-	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
-	noinsert                      Do use field for insert function
 	index                         Create simple default index or gin for jsonb and arrays
 	type="date"                   Explicit postgres type: date, timestamp, time, interval, varchar(64), numeric(18,2), json, vector(3)...
+	defaults                      Add default value based on field type
+	noinsert                      Do use field for insert function
+	search                        Add tsvector index by group. Ex: search="tsv": tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', title || ' ' || brand)). For search: SELECT brand, title FROM assets WHERE search @@ to_tsquery('english', 'f8');
+	type="jsonb"                  Rewrite sql type for field. Ex: type="jsonb"
+	add="primary key"             Append sql for field. Ex: replace="primary key"
+	renames="oldname"             Create an alter table record in SQL file. Rename table column.
+	primary                       Primary key. One field: asset bigint primary key. Several fields: primary key (asset, user)
+	altertable                    Add field line Alter table to SQL file with current time comment
+	idx                           Add index fields by group name. Ex: idx="nameIndex" idx="credsIndex"
 	skip                          Skip field for sql queries
-	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
 	unique="groupname"            Add unique fields constrains by group (you need set group name, then generator join fields). Ex: unique="group1" unique="group2"
 	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
-	renames="oldname"             Create an alter table record in SQL file. Rename table column.
-	altertable                    Add field line Alter table to SQL file with current time comment
 	notnull                       Add not null to column
-	defaults                      Add default value based on field type
+	unix                          Add default value: extract(epoch from now())
+	replace="bigint primary key"  Rewrite sql for field. Ex: replace="bigint primary key"
 
 	Clickhouse:
 	low                           ch{low} Wrap field type in LowCardinality(...)
@@ -105,12 +105,12 @@ import (
 	file=""                       Create another swift file for this field Swift model. file="f1", file="f2"
 
 	JSON:
+	time                          Create convert jsons function for unixtime fields
+	raw                           Set Raw json function inside field
 	name=""                       Replace json field name. Ex: name="sid"
 	skip                          Skip json field
 	inc                           Add inc jsons function for numbers fields
 	bool                          Add set jsons function for bool fields
-	time                          Create convert jsons function for unixtime fields
-	raw                           Set Raw json function inside field
 */
 
 // field type
