@@ -14,8 +14,12 @@ var sqlTemplate = template.Must(template.ParseFS(templates, "templates/sql.go.tm
 // sqlGenerate renders postgres queries of model on pgx, part of NameGO.go
 func sqlGenerate() []byte {
 	var b bytes.Buffer
-	if err := sqlTemplate.Execute(&b, newSQLModel()); err != nil {
+	m := newSQLModel()
+	if err := sqlTemplate.Execute(&b, m); err != nil {
 		panic(err)
+	}
+	if m.EE {
+		return sqlErrors(m, b.Bytes())
 	}
 	return b.Bytes()
 }

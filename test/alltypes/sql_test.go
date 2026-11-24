@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	merrors "github.com/monopolly/errors"
 	"github.com/monopolly/jayson/test/role"
 	"github.com/shopspring/decimal"
 )
@@ -338,14 +339,14 @@ func TestTx(t *testing.T) {
 	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
 		t.Fatal(err)
 	}
-	tags, err := NewTagSQL(db.Pool())
-	if err != nil {
-		t.Fatal(err)
+	tags, e := NewTagSQL(db.Pool())
+	if e != nil {
+		t.Fatal(e)
 	}
 
 	// rollback of two models
 	fail := errors.New("fail")
-	err = db.Begin(func(tx pgx.Tx) error {
+	err := db.Begin(func(tx pgx.Tx) error {
 		v := All{NN: "rollback"}
 		if err := db.TX(tx).Insert(&v); err != nil {
 			return err
@@ -385,7 +386,11 @@ func TestTx(t *testing.T) {
 		if n, _ := tags.Count(); n != 0 {
 			t.Error("isolation:", n)
 		}
-		return tags.TX(tx).MetaUpdate(tag.ID, "views", 5)
+		// errors.E is not error: empty errors.E returned as error is not nil
+		if err := tags.TX(tx).MetaUpdate(tag.ID, "views", 5); err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -395,9 +400,10 @@ func TestTx(t *testing.T) {
 	if err != nil || len(list) != 1 || list[0].NN != "commit" {
 		t.Fatal(list, err)
 	}
-	got, err := tags.GetBy(TagIndexOwner, v.ID)
-	if err != nil || got.Name != "commit" || got.Meta["views"] != 5 {
-		t.Fatal(got, err)
+	// own variable: errors.E assigned to variable of type error is never nil
+	got, e := tags.GetBy(TagIndexOwner, v.ID)
+	if e != nil || got.Name != "commit" || got.Meta["views"] != 5 {
+		t.Fatal(got, e)
 	}
 
 	// own query on connection of pool
@@ -478,7 +484,15 @@ func TestFuncs(t *testing.T) {
 		t.Fatal(n, err)
 	}
 	// without !404
-	if _, err := tags.Name(100); !errors.Is(err, pgx.ErrNoRows) {
+	// option ee: errors.E, not found is 404
+	if _, err := tags.Name(100); err == nil || err.Code() != 404 {
+		t.Fatal(err)
+	}
+	// unique violation is exist
+	if err := tags.InsertFull(&Tag{ID: 1}); err == nil || err.ID() != "exist" {
+		t.Fatal(err)
+	}
+	if err := tags.Update(100, TagIndexName, "x"); err == nil || err.Code() != 404 {
 		t.Fatal(err)
 	}
 	if name, err := tags.Name(1); err != nil || name != "a" {
@@ -492,14 +506,24 @@ func TestFuncs(t *testing.T) {
 	}
 
 	// all or nothing
-	err = tags.Begin(func(tx pgx.Tx) error {
+	err = tags.Begin(func(tx pgx.Tx) merrors.E {
 		if err := tags.TX(tx).Drop(3); err != nil {
 			return err
 		}
 		_, err := tags.TX(tx).Name(100) // not found: rollback
 		return err
 	})
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if err == nil || err.Code() != 404 {
+		t.Fatal(err)
+	}
+	// commit
+	err = tags.Begin(func(tx pgx.Tx) merrors.E {
+		return tags.TX(tx).Update(1, TagIndexName, "tx")
+	})
+	if name, _ := tags.Name(1); err != nil || name != "tx" {
+		t.Fatal(name, err)
+	}
+	if err := tags.Conn(func(conn *pgxpool.Conn) merrors.E { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if n, _ := tags.Count(); n != 3 {

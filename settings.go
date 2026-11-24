@@ -37,6 +37,7 @@ type Settings struct {
 		Class     string //accountSQL: type accountSQL int{}
 		Table     string //sql table from struct
 		QueryName string //NewsQuery
+		EE        bool   //errors of sql methods are errors.E of github.com/monopolly/errors
 	}
 
 	Clickhouse struct {

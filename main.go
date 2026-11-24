@@ -68,6 +68,12 @@ func render() {
 	// sql
 	if settings.SQL.Table != "" {
 		A("sql table", settings.SQL.Table)
+		// option ee: errors is github.com/monopolly/errors, standard package is stderrors
+		if settings.SQL.EE {
+			code := stdErrorsAlias(goFile.Bytes())
+			goFile.Reset()
+			goFile.Write(code)
+		}
 		goFile.Write(sqlGenerate())
 		saveFile(settings.File.sql, sqlFile())
 		removeGenerated(settings.File.golangSQL) // sql was a separate file
@@ -329,6 +335,13 @@ func importers() []byte {
 		if t := x.GoType(); strings.Contains(t, "net.IP") || strings.Contains(t, "netip.Addr") {
 			imports["net/netip"] = true
 		}
+	}
+
+	// option ee: errors is github.com/monopolly/errors, standard package is stderrors
+	if settings.SQL.Table != "" && settings.SQL.EE {
+		delete(imports, "errors")
+		imports["stderrors \"errors\""] = true
+		imports[errorsImport] = true
 	}
 
 	list := []string{}

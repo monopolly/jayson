@@ -79,6 +79,10 @@ func (a *Settings) Parse(in string) {
 	a.SQL.Table = optionName(res.Options, "sql", a.Origin)
 	helps.Struct["sql=news"] = "Set sql table name. Ex: sql=accounts"
 
+	// sql errors
+	a.SQL.EE = res.Options["ee"] != nil
+	helps.Struct["ee"] = "Errors of sql methods are errors.E of github.com/monopolly/errors: errors.PGX(err)"
+
 	// clickhouse
 	a.Clickhouse.Table = optionName(res.Options, "ch", a.Origin)
 	a.Clickhouse.Engine, _ = res.Options["chengine"].(string)

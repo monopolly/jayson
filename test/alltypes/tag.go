@@ -1,6 +1,6 @@
 package alltypes
 
-// go=Tag sql=tags proto
+// go=Tag sql=tags proto ee
 type tag struct {
 	id    int // sql{inc}
 	name  string

@@ -105,6 +105,7 @@ Common struct options:
 | `sql` / `sql=news` | Generate PostgreSQL class and `.sql` file. |
 | `ch` / `ch=news` | Generate ClickHouse class and `.cql` file. |
 | `proto` / `proto=NewsProto` | Generate `.proto` and embed protobuf Go code into `GO.go`. |
+| `ee` | SQL methods return `errors.E` of `github.com/monopolly/errors` instead of `error`. |
 | `test` | Generate `GO_test.go` with tests and benchmarks. |
 | `gotiny` | Add `MarshalGotiny` and `UnmarshalNewsGotiny`. |
 | `msgp` | Add MessagePack support. |
@@ -281,6 +282,26 @@ type accountSQL interface {
 
 `@name` is a parameter of the function; unknown or unused names are generation errors. `$1, $2` also work.
 `!404` returns the zero value and `nil` instead of `pgx.ErrNoRows`. The methods work in `TX(tx)` like all others.
+
+### Errors: option `ee`
+
+With `// go sql ee` every method of `AccountSQL` returns `errors.E` from `github.com/monopolly/errors`:
+any error of PostgreSQL goes through `errors.PGX(err)` (not found is 404, unique violation is `exist`).
+
+```go
+func (a *AccountSQL) Upsert(v *Account) errors.E
+func (a *AccountSQL) Get(id int, fields ...AccountIndexTyped) (Account, errors.E)
+func (a *AccountSQL) Begin(f func(tx pgx.Tx) errors.E) errors.E
+```
+
+`errors.E` is not the `error` interface. Do not put it into a variable or a result of type `error`:
+an empty `errors.E` stored as `error` is not `nil`.
+
+```go
+var err error
+_, err = accounts.Get(id) // wrong: err != nil even when the row is found
+acc, e := accounts.Get(id) // right
+```
 
 ### Transactions and concurrency
 

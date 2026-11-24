@@ -7,7 +7,7 @@ import (
 	"github.com/monopolly/jayson/test/role"
 )
 
-// go sql
+// go sql ee
 type angel struct {
 	id      int       // sql{primary}  #readonly
 	role    role.Role //sql{unique="css"}

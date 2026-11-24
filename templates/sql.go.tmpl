@@ -21,7 +21,7 @@ type {{.Class}} struct {
 }
 
 // New{{.Class}} creates queries on pool, table and indexes if not exist
-func New{{.Class}}(pool *pgxpool.Pool) (*{{.Class}}, error) {
+func New{{.Class}}(pool *pgxpool.Pool) (*{{.Class}}, {{if .EE}}errors.E{{else}}error{{end}}) {
 	a := &{{.Class}}{pool: pool, db: pool}
 	if err := a.CreateTable(); err != nil {
 		return nil, err
@@ -42,6 +42,16 @@ func (a *{{.Class}}) Pool() *pgxpool.Pool {
 //		_, err := conn.Exec(context.Background(), "vacuum {{.Table}}")
 //		return err
 //	})
+{{- if .EE}}
+func (a *{{.Class}}) Conn(f func(conn *pgxpool.Conn) errors.E) errors.E {
+	conn, err := a.pool.Acquire(context.Background())
+	if err != nil {
+		return errors.PGX(err)
+	}
+	defer conn.Release()
+	return f(conn)
+}
+{{- else}}
 func (a *{{.Class}}) Conn(f func(conn *pgxpool.Conn) error) error {
 	conn, err := a.pool.Acquire(context.Background())
 	if err != nil {
@@ -50,6 +60,7 @@ func (a *{{.Class}}) Conn(f func(conn *pgxpool.Conn) error) error {
 	defer conn.Release()
 	return f(conn)
 }
+{{- end}}
 
 // Begin runs f in transaction: commit on nil, rollback on error or panic.
 // TX(tx) of every model runs its queries in this transaction
@@ -62,9 +73,20 @@ func (a *{{.Class}}) Conn(f func(conn *pgxpool.Conn) error) error {
 //	})
 //
 // Begin of TX(tx) makes a savepoint
+{{- if .EE}}
+func (a *{{.Class}}) Begin(f func(tx pgx.Tx) errors.E) errors.E {
+	return {{.Priv}}Err(pgx.BeginFunc(context.Background(), a.db, func(tx pgx.Tx) error {
+		if err := f(tx); err != nil {
+			return err
+		}
+		return nil
+	}))
+}
+{{- else}}
 func (a *{{.Class}}) Begin(f func(tx pgx.Tx) error) error {
 	return pgx.BeginFunc(context.Background(), a.db, f)
 }
+{{- end}}
 
 // TX returns queries in transaction tx
 func (a *{{.Class}}) TX(tx pgx.Tx) *{{.Class}} {

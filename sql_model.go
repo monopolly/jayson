@@ -37,6 +37,7 @@ type sqlModel struct {
 	HasArrays bool // bigint[], text[]
 	HasJSON   bool // jsonb
 	HasIPNet  bool // net.IPNet
+	EE        bool // errors of methods are errors.E: github.com/monopolly/errors
 
 	SelectAll     string // inc, coalesce(title, '')
 	InsertSQL     string // insert into news (title) values ($1)
@@ -99,6 +100,7 @@ func newSQLModel() *sqlModel {
 		Index:      settings.IndexTypeName,
 		Priv:       strings.ToLower(settings.Go.StructName[:1]) + settings.Go.StructName[1:] + "SQL",
 		Table:      settings.SQL.Table,
+		EE:         settings.SQL.EE,
 		KeyIndexFn: settings.Go.StructName + "KeyIndex",
 		ValidKeyFn: settings.Go.StructName + "ValidKey",
 	}
