@@ -6,7 +6,7 @@ import (
 	"sync"
 	"unsafe"
 
-	jsoniter "github.com/json-iterator/go"
+	gojson "github.com/goccy/go-json"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -300,13 +300,13 @@ func (a *Tag) Iterate(f func(k TagIndexTyped, v any)) {
 
 // fast json marshal
 func (a *Tag) Pack() []byte {
-	b, _ := jsoniter.Marshal(a)
+	b, _ := gojson.Marshal(a)
 	return b
 }
 
 // fast json unmarshal
 func ParseTag(v []byte) (a Tag, err error) {
-	err = jsoniter.Unmarshal(v, &a)
+	err = gojson.Unmarshal(v, &a)
 	return
 }
 

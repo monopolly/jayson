@@ -46,7 +46,7 @@ func (a *Field) SQLValue() string {
 	switch a.GoType() {
 	case "any", "interface{}":
 		if a.SQL.Type == "jsonb" || a.SQL.Type == "json" {
-			return fmt.Sprintf("func() []byte { b, _ := json.Marshal(a.%s); return b }()", a.Go.Name)
+			return fmt.Sprintf("func() []byte { b, _ := gojson.Marshal(a.%s); return b }()", a.Go.Name)
 		}
 	}
 	return a.GoValue()

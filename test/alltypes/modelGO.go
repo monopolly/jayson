@@ -8,9 +8,9 @@ import (
 	"net/netip"
 	"time"
 
+	gojson "github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/monopolly/jayson/test/role"
 	"github.com/shopspring/decimal"
 )
@@ -1805,12 +1805,12 @@ func (a *All) Iterate(f func(k AllIndexTyped, v any)) {
 
 // fast json marshal
 func (a *All) Pack() []byte {
-	b, _ := jsoniter.Marshal(a)
+	b, _ := gojson.Marshal(a)
 	return b
 }
 
 // fast json unmarshal
 func ParseAll(v []byte) (a All, err error) {
-	err = jsoniter.Unmarshal(v, &a)
+	err = gojson.Unmarshal(v, &a)
 	return
 }

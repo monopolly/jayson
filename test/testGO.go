@@ -12,8 +12,8 @@ import (
 	"unsafe"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	gojson "github.com/goccy/go-json"
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/monopolly/jayson/test/role"
 	"github.com/niubaoshu/gotiny"
 	"github.com/vmihailenco/msgpack/v5"
@@ -326,7 +326,7 @@ func (a *NewsMe) News() (res *News) {
 }
 
 func (a *NewsMe) Pack() (res []byte) {
-	res, _ = jsoniter.Marshal(a)
+	res, _ = gojson.Marshal(a)
 	return
 }
 
@@ -353,7 +353,7 @@ func (a *NewsPublic) News() (res *News) {
 }
 
 func (a *NewsPublic) Pack() (res []byte) {
-	res, _ = jsoniter.Marshal(a)
+	res, _ = gojson.Marshal(a)
 	return
 }
 
@@ -1575,13 +1575,13 @@ func ParseNewsMessagePack(v []byte) (a News, err error) {
 
 // fast json marshal
 func (a *News) Pack() []byte {
-	b, _ := jsoniter.Marshal(a)
+	b, _ := gojson.Marshal(a)
 	return b
 }
 
 // fast json unmarshal
 func ParseNews(v []byte) (a News, err error) {
-	err = jsoniter.Unmarshal(v, &a)
+	err = gojson.Unmarshal(v, &a)
 	return
 }
 

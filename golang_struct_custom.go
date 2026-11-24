@@ -164,7 +164,7 @@ func (a *Golang) structCustomParseFunctionReverse(name string) []byte {
 func (a *Golang) structCustomParseFunctionPack(name string) []byte {
 	return fmt.Appendf(nil, `
 		func (a *%s%s) Pack() (res []byte){
-			res,_ = jsoniter.Marshal(a)
+			res,_ = gojson.Marshal(a)
 			return
 		}
 	`, settings.Go.StructName, tools.Title(name))

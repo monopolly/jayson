@@ -139,7 +139,7 @@ Common field options:
 | `sql{idx="group"}` | Composite index of a group of fields. |
 | `sql{unique="group"}` | Add a unique constraint for a group of fields. |
 | `sql{search="group"}` | Full text search: tsvector column, gin index and `FullTextGroup()` method. |
-| `sql{get}` | Typed getter `GetByName(ctx, value)`. |
+| `sql{get}` | Typed getter `GetByName(v)`. |
 | `sql{type="jsonb"}` | Override the SQL field type: `date`, `varchar(64)`, `numeric(18,2)`... |
 | `sql{notnull}`, `sql{defaults}`, `sql{unix}` | `not null`, default by type, default unix time. |
 | `sql{noinsert}` | Do not send the field in `Insert`. |
@@ -182,38 +182,38 @@ Usage:
 ```go
 pool, _ := pgxpool.New(ctx, dsn)
 db := NewAccountSQL(pool)
-err := db.Init(ctx)       // create table and indexes if not exist
+err := db.Init()       // create table and indexes if not exist
 
 item := Account{Email: "hello@example.com", Name: "Sergey", Active: true}
-err = db.Insert(ctx, &item) // sets item.ID
+err = db.Insert(&item) // sets item.ID
 
 // read: all columns, or only listed
-acc, err := db.Get(ctx, item.ID)
-acc, err = db.Get(ctx, item.ID, AccountIndexName, AccountIndexBalance)
+acc, err := db.Get(item.ID)
+acc, err = db.Get(item.ID, AccountIndexName, AccountIndexBalance)
 if errors.Is(err, pgx.ErrNoRows) {
 	// not found
 }
 
 // conditions are sql with parameters
-list, err := db.Select(ctx, nil, "active and balance > $1 order by balance desc limit 10", 100)
+list, err := db.Select(nil, "active and balance > $1 order by balance desc limit 10", 100)
 
 // update
-err = db.Update(ctx, item.ID, AccountIndexName, "Max")
-err = db.Updates(ctx, item.ID, map[AccountIndexTyped]any{AccountIndexActive: false, AccountIndexBalance: 0})
-err = db.Increment(ctx, item.ID, AccountIndexBalance, 50)
+err = db.Update(item.ID, AccountIndexName, "Max")
+err = db.Updates(item.ID, map[AccountIndexTyped]any{AccountIndexActive: false, AccountIndexBalance: 0})
+err = db.Increment(item.ID, AccountIndexBalance, 50)
 acc.Name = "Kate"
-err = db.Save(ctx, &acc, AccountIndexName)
+err = db.Save(&acc, AccountIndexName)
 
 // transaction: commit on nil, rollback on error
-err = db.Tx(ctx, func(tx pgx.Tx) error {
-	if err := db.With(tx).Increment(ctx, from, AccountIndexBalance, -50); err != nil {
+err = db.Begin(func(tx pgx.Tx) error {
+	if err := db.TX(tx).Increment(from, AccountIndexBalance, -50); err != nil {
 		return err
 	}
-	return db.With(tx).Increment(ctx, to, AccountIndexBalance, 50)
+	return db.TX(tx).Increment(to, AccountIndexBalance, 50)
 })
 
 // query from json: keys are validated, values are sql parameters
-list, err = db.Search(ctx, &AccountQuery{
+list, err = db.Search(&AccountQuery{
 	EQ:    map[string]any{"active": true},
 	GT:    map[string]any{"balance": 10},
 	Sort:  "balance",
@@ -223,13 +223,13 @@ list, err = db.Search(ctx, &AccountQuery{
 
 ### Generated SQL API
 
-Every method takes `context.Context` first. A missing row is `pgx.ErrNoRows`.
+A missing row is `pgx.ErrNoRows`.
 `fields` selects columns, all columns when empty. `where` is an SQL condition with `$1, $2...` placeholders for `args`.
 
 | Group | Methods |
 | --- | --- |
-| Handle | `NewAccountSQL(pool)`, `Pool()`, `DB()`, `Conn(ctx, f)`, `TableName()`, `Fields()` |
-| Transactions | `Begin(ctx)`, `With(tx)`, `Tx(ctx, f)` |
+| Handle | `NewAccountSQL(pool)`, `Pool()`, `DB()`, `Conn(f)`, `TableName()`, `Fields()` |
+| Transactions | `Begin(f)`, `TX(tx)` |
 | Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
 | Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` (COPY) |
 | Update | `Update`, `Updates`, `Save`, `Increment`, `UpdateWhere`, `UpdatesWhere` |
@@ -243,45 +243,41 @@ Array and jsonb fields get typed methods named by the field:
 
 | Field | Methods |
 | --- | --- |
-| `tags []string` (`text[]`) | `TagsAppend(ctx, id, v ...string)`, `TagsRemove(ctx, id, v string)` |
-| `settings map[string]int` (`jsonb`) | `SettingsUpdate(ctx, id, k string, v int)`, `SettingsMerge(ctx, id, v map[string]int)`, `SettingsDelete(ctx, id, k string)`, `SettingsRename(ctx, id, k, newK string)` |
-| `conf Config` (`jsonb`) | `ConfUpdate(ctx, id, k string, v any)`, `ConfMerge`, `ConfDelete`, `ConfRename` |
-| `items []Item` (`jsonb`) | `ItemsAppend(ctx, id, v ...Item)` |
+| `tags []string` (`text[]`) | `TagsAppend(id, v ...string)`, `TagsRemove(id, v string)` |
+| `settings map[string]int` (`jsonb`) | `SettingsUpdate(id, k string, v int)`, `SettingsMerge(id, v map[string]int)`, `SettingsDelete(id, k string)`, `SettingsRename(id, k, newK string)` |
+| `conf Config` (`jsonb`) | `ConfUpdate(id, k string, v any)`, `ConfMerge`, `ConfDelete`, `ConfRename` |
+| `items []Item` (`jsonb`) | `ItemsAppend(id, v ...Item)` |
 
 ### Transactions and concurrency
 
 `AccountSQL` is created on `*pgxpool.Pool` and is safe for concurrent use: it keeps no state, every query takes a connection from the pool.
 
-One transaction for several models: start it once and bind every model with `With(tx)`.
+One transaction for several models: `Begin` opens it, commits on `nil` and rolls back on error; `TX(tx)` runs queries of any model in it.
 
 ```go
-tx, err := accounts.Begin(ctx)
-if err != nil {
+err := accounts.Begin(func(tx pgx.Tx) error {
+	if err := accounts.TX(tx).Update(id, AccountIndexActive, false); err != nil {
+		return err
+	}
+	_, err := orders.TX(tx).DeleteWhere("account = $1", id)
 	return err
-}
-defer tx.Rollback(ctx) // no-op after commit
-
-if err = accounts.With(tx).Update(ctx, id, AccountIndexActive, false); err != nil {
-	return err
-}
-if _, err = orders.With(tx).DeleteWhere(ctx, "account = $1", id); err != nil {
-	return err
-}
-return tx.Commit(ctx)
+})
 ```
 
-`Tx(ctx, f)` does the same with automatic commit or rollback; called on `With(tx)` it makes a savepoint.
+`Begin` called on `TX(tx)` makes a savepoint.
+
+Queries run on `context.Background()`: limit their time with `statement_timeout` or pool settings.
 
 Own methods: use `DB()` to work in and out of a transaction, or `Conn` for a dedicated pool connection.
 
 ```go
-func (a *AccountSQL) Rich(ctx context.Context, min int64) (n int, err error) {
-	err = a.DB().QueryRow(ctx, "select count(*) from accounts where balance > $1", min).Scan(&n)
+func (a *AccountSQL) Rich(min int64) (n int, err error) {
+	err = a.DB().QueryRow(context.Background(), "select count(*) from accounts where balance > $1", min).Scan(&n)
 	return
 }
 
-err := db.Conn(ctx, func(conn *pgxpool.Conn) error {
-	_, err := conn.Exec(ctx, "listen accounts")
+err := db.Conn(func(conn *pgxpool.Conn) error {
+	_, err := conn.Exec(context.Background(), "listen accounts")
 	return err
 })
 ```

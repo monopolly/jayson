@@ -4,7 +4,6 @@ package news
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	gojson "github.com/goccy/go-json"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,8 +36,11 @@ type NewsDB interface {
 //   - where: sql condition with placeholders $1, $2... for args: "title = $1 and views > $2"
 type NewsSQL struct {
 	pool *pgxpool.Pool
-	db   NewsDB // pool, or transaction after With
+	db   NewsDB // pool, or transaction after TX
 }
+
+// context of all queries
+var newsSQLCtx = context.Background()
 
 // NewNewsSQL creates queries on pool
 func NewNewsSQL(pool *pgxpool.Pool) *NewsSQL {
@@ -49,11 +52,11 @@ func (a *NewsSQL) Pool() *pgxpool.Pool {
 	return a.pool
 }
 
-// DB returns current query runner: pool, or transaction inside of Tx and With.
+// DB returns current query runner: pool, or transaction after TX.
 // Use it in own methods to work in and out of transaction
 //
-//	func (a *NewsSQL) Top(ctx context.Context) (n int, err error) {
-//		err = a.DB().QueryRow(ctx, "select count(*) from news").Scan(&n)
+//	func (a *NewsSQL) Total() (n int, err error) {
+//		err = a.DB().QueryRow(context.Background(), "select count(*) from news").Scan(&n)
 //		return
 //	}
 func (a *NewsSQL) DB() NewsDB {
@@ -63,12 +66,12 @@ func (a *NewsSQL) DB() NewsDB {
 // Conn runs f on a connection of pool, for own queries.
 // Connection is always taken from pool: inside of transaction use DB()
 //
-//	err := db.Conn(ctx, func(conn *pgxpool.Conn) error {
-//		_, err := conn.Exec(ctx, "vacuum news")
+//	err := db.Conn(func(conn *pgxpool.Conn) error {
+//		_, err := conn.Exec(context.Background(), "vacuum news")
 //		return err
 //	})
-func (a *NewsSQL) Conn(ctx context.Context, f func(conn *pgxpool.Conn) error) error {
-	conn, err := a.pool.Acquire(ctx)
+func (a *NewsSQL) Conn(f func(conn *pgxpool.Conn) error) error {
+	conn, err := a.pool.Acquire(newsSQLCtx)
 	if err != nil {
 		return err
 	}
@@ -76,40 +79,24 @@ func (a *NewsSQL) Conn(ctx context.Context, f func(conn *pgxpool.Conn) error) er
 	return f(conn)
 }
 
-// Begin starts transaction. Use With(tx) of every model to run queries in it
+// Begin runs f in transaction: commit on nil, rollback on error or panic.
+// TX(tx) of every model runs its queries in this transaction
 //
-//	tx, err := news.Begin(ctx)
-//	if err != nil {
-//		return err
-//	}
-//	defer tx.Rollback(ctx) // no-op after commit
-//	if err = news.With(tx).Insert(ctx, &item); err != nil {
-//		return err
-//	}
-//	if err = users.With(tx).Update(ctx, id, UserIndexNews, item.ID); err != nil {
-//		return err
-//	}
-//	return tx.Commit(ctx)
-func (a *NewsSQL) Begin(ctx context.Context) (pgx.Tx, error) {
-	return a.db.Begin(ctx)
-}
-
-// With returns queries in transaction tx
-func (a *NewsSQL) With(tx pgx.Tx) *NewsSQL {
-	return &NewsSQL{pool: a.pool, db: tx}
-}
-
-// Tx runs f in transaction: commit on nil, rollback on error.
-// Inside of transaction it makes a savepoint
-//
-//	err := news.Tx(ctx, func(tx pgx.Tx) error {
-//		if err := news.With(tx).Delete(ctx, id); err != nil {
+//	err := news.Begin(func(tx pgx.Tx) error {
+//		if err := news.TX(tx).Insert(&item); err != nil {
 //			return err
 //		}
-//		return users.With(tx).Increment(ctx, user, UserIndexNews, -1)
+//		return users.TX(tx).Update(id, UserIndexNews, item.ID)
 //	})
-func (a *NewsSQL) Tx(ctx context.Context, f func(tx pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, a.db, f)
+//
+// Begin of TX(tx) makes a savepoint
+func (a *NewsSQL) Begin(f func(tx pgx.Tx) error) error {
+	return pgx.BeginFunc(newsSQLCtx, a.db, f)
+}
+
+// TX returns queries in transaction tx
+func (a *NewsSQL) TX(tx pgx.Tx) *NewsSQL {
+	return &NewsSQL{pool: a.pool, db: tx}
 }
 
 // TableName returns sql table name
@@ -788,12 +775,12 @@ func (a *News) sqlAllArgs() []any {
 // ---------------------------------------------------------------------------
 
 // query selects rows: tail is sql after table name
-func (a *NewsSQL) query(ctx context.Context, fields []NewsIndexTyped, tail string, args ...any) ([]News, error) {
+func (a *NewsSQL) query(fields []NewsIndexTyped, tail string, args ...any) ([]News, error) {
 	cols, fields, err := newsSQLSelect(fields)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := a.db.Query(ctx, "select "+cols+" from news"+tail, args...)
+	rows, err := a.db.Query(newsSQLCtx, "select "+cols+" from news"+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -804,23 +791,23 @@ func (a *NewsSQL) query(ctx context.Context, fields []NewsIndexTyped, tail strin
 }
 
 // queryRow selects one row
-func (a *NewsSQL) queryRow(ctx context.Context, fields []NewsIndexTyped, tail string, args ...any) (v News, err error) {
+func (a *NewsSQL) queryRow(fields []NewsIndexTyped, tail string, args ...any) (v News, err error) {
 	cols, fields, err := newsSQLSelect(fields)
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(ctx, "select "+cols+" from news"+tail, args...).Scan(v.sqlDest(fields)...)
+	err = a.db.QueryRow(newsSQLCtx, "select "+cols+" from news"+tail, args...).Scan(v.sqlDest(fields)...)
 	return
 }
 
 // Get returns row by inc
-func (a *NewsSQL) Get(ctx context.Context, id int, fields ...NewsIndexTyped) (News, error) {
-	return a.queryRow(ctx, fields, " where inc = $1", id)
+func (a *NewsSQL) Get(id int, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(fields, " where inc = $1", id)
 }
 
 // GetMe returns NewsMe by inc
-func (a *NewsSQL) GetMe(ctx context.Context, id int) (res NewsMe, err error) {
-	v, err := a.Get(ctx, id, NewsMeList()...)
+func (a *NewsSQL) GetMe(id int) (res NewsMe, err error) {
+	v, err := a.Get(id, NewsMeList()...)
 	if err != nil {
 		return
 	}
@@ -828,8 +815,8 @@ func (a *NewsSQL) GetMe(ctx context.Context, id int) (res NewsMe, err error) {
 }
 
 // GetPublic returns NewsPublic by inc
-func (a *NewsSQL) GetPublic(ctx context.Context, id int) (res NewsPublic, err error) {
-	v, err := a.Get(ctx, id, NewsPublicList()...)
+func (a *NewsSQL) GetPublic(id int) (res NewsPublic, err error) {
+	v, err := a.Get(id, NewsPublicList()...)
 	if err != nil {
 		return
 	}
@@ -837,84 +824,84 @@ func (a *NewsSQL) GetPublic(ctx context.Context, id int) (res NewsPublic, err er
 }
 
 // Exists checks row by inc
-func (a *NewsSQL) Exists(ctx context.Context, id int) (has bool, err error) {
-	err = a.db.QueryRow(ctx, "select exists (select 1 from news where inc = $1)", id).Scan(&has)
+func (a *NewsSQL) Exists(id int) (has bool, err error) {
+	err = a.db.QueryRow(newsSQLCtx, "select exists (select 1 from news where inc = $1)", id).Scan(&has)
 	return
 }
 
 // GetBy returns first row with field = v
-func (a *NewsSQL) GetBy(ctx context.Context, field NewsIndexTyped, v any, fields ...NewsIndexTyped) (res News, err error) {
+func (a *NewsSQL) GetBy(field NewsIndexTyped, v any, fields ...NewsIndexTyped) (res News, err error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return
 	}
-	return a.queryRow(ctx, fields, " where "+col+" = $1 limit 1", v)
+	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
 }
 
 // GetBySqlSearch returns first row by sql_search
-func (a *NewsSQL) GetBySqlSearch(ctx context.Context, v string, fields ...NewsIndexTyped) (News, error) {
-	return a.queryRow(ctx, fields, " where sql_search = $1 limit 1", v)
+func (a *NewsSQL) GetBySqlSearch(v string, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(fields, " where sql_search = $1 limit 1", v)
 }
 
 // GetBySqlGet returns first row by sql_get
-func (a *NewsSQL) GetBySqlGet(ctx context.Context, v string, fields ...NewsIndexTyped) (News, error) {
-	return a.queryRow(ctx, fields, " where sql_get = $1 limit 1", v)
+func (a *NewsSQL) GetBySqlGet(v string, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(fields, " where sql_get = $1 limit 1", v)
 }
 
 // GetWhere returns first row by condition
 //
-//	db.GetWhere(ctx, nil, "title = $1 order by created desc", "James")
-func (a *NewsSQL) GetWhere(ctx context.Context, fields []NewsIndexTyped, where string, args ...any) (News, error) {
-	return a.queryRow(ctx, fields, " where "+where+" limit 1", args...)
+//	db.GetWhere(nil, "title = $1 order by created desc", "James")
+func (a *NewsSQL) GetWhere(fields []NewsIndexTyped, where string, args ...any) (News, error) {
+	return a.queryRow(fields, " where "+where+" limit 1", args...)
 }
 
 // Has checks row with field = v
-func (a *NewsSQL) Has(ctx context.Context, field NewsIndexTyped, v any) (has bool, err error) {
+func (a *NewsSQL) Has(field NewsIndexTyped, v any) (has bool, err error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(ctx, "select exists (select 1 from news where "+col+" = $1)", v).Scan(&has)
+	err = a.db.QueryRow(newsSQLCtx, "select exists (select 1 from news where "+col+" = $1)", v).Scan(&has)
 	return
 }
 
 // All returns all rows
-func (a *NewsSQL) All(ctx context.Context, fields ...NewsIndexTyped) ([]News, error) {
-	return a.query(ctx, fields, " order by inc")
+func (a *NewsSQL) All(fields ...NewsIndexTyped) ([]News, error) {
+	return a.query(fields, " order by inc")
 }
 
 // List returns page of rows
-func (a *NewsSQL) List(ctx context.Context, limit, offset int, fields ...NewsIndexTyped) ([]News, error) {
-	return a.query(ctx, fields, " order by inc limit $1 offset $2", limit, offset)
+func (a *NewsSQL) List(limit, offset int, fields ...NewsIndexTyped) ([]News, error) {
+	return a.query(fields, " order by inc limit $1 offset $2", limit, offset)
 }
 
 // Select returns rows by condition, all rows when where is empty
 //
-//	db.Select(ctx, nil, "views > $1 order by views desc limit 10", 100)
-func (a *NewsSQL) Select(ctx context.Context, fields []NewsIndexTyped, where string, args ...any) ([]News, error) {
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *NewsSQL) Select(fields []NewsIndexTyped, where string, args ...any) ([]News, error) {
 	if where != "" {
 		where = " where " + where
 	}
-	return a.query(ctx, fields, where, args...)
+	return a.query(fields, where, args...)
 }
 
 // Count returns count of rows
-func (a *NewsSQL) Count(ctx context.Context) (count int, err error) {
-	err = a.db.QueryRow(ctx, "select count(*) from news").Scan(&count)
+func (a *NewsSQL) Count() (count int, err error) {
+	err = a.db.QueryRow(newsSQLCtx, "select count(*) from news").Scan(&count)
 	return
 }
 
 // CountWhere returns count of rows by condition
-func (a *NewsSQL) CountWhere(ctx context.Context, where string, args ...any) (count int, err error) {
-	err = a.db.QueryRow(ctx, "select count(*) from news where "+where, args...).Scan(&count)
+func (a *NewsSQL) CountWhere(where string, args ...any) (count int, err error) {
+	err = a.db.QueryRow(newsSQLCtx, "select count(*) from news where "+where, args...).Scan(&count)
 	return
 }
 
 // FullTextSearch full text search in search, best match first
 //
-//	db.FullTextSearch(ctx, "red car -old", 20)
-func (a *NewsSQL) FullTextSearch(ctx context.Context, text string, limit int, fields ...NewsIndexTyped) ([]News, error) {
-	return a.query(ctx, fields, " where search @@ websearch_to_tsquery('simple', $1) order by ts_rank(search, websearch_to_tsquery('simple', $1)) desc limit $2", text, limit)
+//	db.FullTextSearch("red car -old", 20)
+func (a *NewsSQL) FullTextSearch(text string, limit int, fields ...NewsIndexTyped) ([]News, error) {
+	return a.query(fields, " where search @@ websearch_to_tsquery('simple', $1) order by ts_rank(search, websearch_to_tsquery('simple', $1)) desc limit $2", text, limit)
 }
 
 // ---------------------------------------------------------------------------
@@ -926,13 +913,13 @@ const newsSQLInsert = "insert into news (role, key, t, d, ints, ints8, ints16, i
 const newsSQLInsertFull = "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL_OK, renameGO, renameJS, mast_upper_go, intToSmallInt, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60)"
 
 // Insert adds row and sets generated v.Inc
-func (a *NewsSQL) Insert(ctx context.Context, v *News) error {
-	return a.db.QueryRow(ctx, newsSQLInsert+" returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
+func (a *NewsSQL) Insert(v *News) error {
+	return a.db.QueryRow(newsSQLCtx, newsSQLInsert+" returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
 }
 
 // InsertNoConflict adds row and sets v.Inc, false when row exists
-func (a *NewsSQL) InsertNoConflict(ctx context.Context, v *News) (inserted bool, err error) {
-	err = a.db.QueryRow(ctx, newsSQLInsert+" on conflict do nothing returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
+func (a *NewsSQL) InsertNoConflict(v *News) (inserted bool, err error) {
+	err = a.db.QueryRow(newsSQLCtx, newsSQLInsert+" on conflict do nothing returning inc", v.sqlInsertArgs()...).Scan(&v.Inc)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -940,26 +927,26 @@ func (a *NewsSQL) InsertNoConflict(ctx context.Context, v *News) (inserted bool,
 }
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *NewsSQL) InsertFull(ctx context.Context, v *News) error {
-	_, err := a.db.Exec(ctx, newsSQLInsertFull, v.sqlAllArgs()...)
+func (a *NewsSQL) InsertFull(v *News) error {
+	_, err := a.db.Exec(newsSQLCtx, newsSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (sql_primary)
-func (a *NewsSQL) Upsert(ctx context.Context, v *News) error {
-	_, err := a.db.Exec(ctx, "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL_OK, renameGO, renameJS, mast_upper_go, intToSmallInt, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60) on conflict (sql_primary) do update set inc = excluded.inc, role = excluded.role, key = excluded.key, t = excluded.t, d = excluded.d, ints = excluded.ints, ints8 = excluded.ints8, ints16 = excluded.ints16, ints32 = excluded.ints32, ints64 = excluded.ints64, uints = excluded.uints, uints8 = excluded.uints8, uints16 = excluded.uints16, uints32 = excluded.uints32, uints64 = excluded.uints64, floats32 = excluded.floats32, floats64 = excluded.floats64, bools = excluded.bools, byte1 = excluded.byte1, bytes = excluded.bytes, list_ints = excluded.list_ints, list_string = excluded.list_string, list_float = excluded.list_float, map_string_string = excluded.map_string_string, map_string_bytes = excluded.map_string_bytes, map_string_bool = excluded.map_string_bool, map_string_int = excluded.map_string_int, map_string_float64 = excluded.map_string_float64, map_string_any = excluded.map_string_any, map_int_string = excluded.map_int_string, map_int_int = excluded.map_int_int, map_int_bool = excluded.map_int_bool, renameSQL_OK = excluded.renameSQL_OK, renameGO = excluded.renameGO, renameJS = excluded.renameJS, mast_upper_go = excluded.mast_upper_go, intToSmallInt = excluded.intToSmallInt, sql_unique_u1_1 = excluded.sql_unique_u1_1, sql_unique_u1_2 = excluded.sql_unique_u1_2, sql_index1_1 = excluded.sql_index1_1, sql_index1_2 = excluded.sql_index1_2, sql_index1_3 = excluded.sql_index1_3, sql_keys_1 = excluded.sql_keys_1, sql_keys_2 = excluded.sql_keys_2, sql_keys_3 = excluded.sql_keys_3, sql_search = excluded.sql_search, sql_get = excluded.sql_get, sql_unique_x1 = excluded.sql_unique_x1, sql_unique_x2 = excluded.sql_unique_x2, sql_unique_x1_x2 = excluded.sql_unique_x1_x2, sql_jsonb_index = excluded.sql_jsonb_index, time_duration = excluded.time_duration, go_type_int_to_strings = excluded.go_type_int_to_strings, public_field1 = excluded.public_field1, public_field2 = excluded.public_field2, public_field3 = excluded.public_field3, public_field_me1 = excluded.public_field_me1, public_field_me2 = excluded.public_field_me2, public_field_me3 = excluded.public_field_me3", v.sqlAllArgs()...)
+func (a *NewsSQL) Upsert(v *News) error {
+	_, err := a.db.Exec(newsSQLCtx, "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL_OK, renameGO, renameJS, mast_upper_go, intToSmallInt, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60) on conflict (sql_primary) do update set inc = excluded.inc, role = excluded.role, key = excluded.key, t = excluded.t, d = excluded.d, ints = excluded.ints, ints8 = excluded.ints8, ints16 = excluded.ints16, ints32 = excluded.ints32, ints64 = excluded.ints64, uints = excluded.uints, uints8 = excluded.uints8, uints16 = excluded.uints16, uints32 = excluded.uints32, uints64 = excluded.uints64, floats32 = excluded.floats32, floats64 = excluded.floats64, bools = excluded.bools, byte1 = excluded.byte1, bytes = excluded.bytes, list_ints = excluded.list_ints, list_string = excluded.list_string, list_float = excluded.list_float, map_string_string = excluded.map_string_string, map_string_bytes = excluded.map_string_bytes, map_string_bool = excluded.map_string_bool, map_string_int = excluded.map_string_int, map_string_float64 = excluded.map_string_float64, map_string_any = excluded.map_string_any, map_int_string = excluded.map_int_string, map_int_int = excluded.map_int_int, map_int_bool = excluded.map_int_bool, renameSQL_OK = excluded.renameSQL_OK, renameGO = excluded.renameGO, renameJS = excluded.renameJS, mast_upper_go = excluded.mast_upper_go, intToSmallInt = excluded.intToSmallInt, sql_unique_u1_1 = excluded.sql_unique_u1_1, sql_unique_u1_2 = excluded.sql_unique_u1_2, sql_index1_1 = excluded.sql_index1_1, sql_index1_2 = excluded.sql_index1_2, sql_index1_3 = excluded.sql_index1_3, sql_keys_1 = excluded.sql_keys_1, sql_keys_2 = excluded.sql_keys_2, sql_keys_3 = excluded.sql_keys_3, sql_search = excluded.sql_search, sql_get = excluded.sql_get, sql_unique_x1 = excluded.sql_unique_x1, sql_unique_x2 = excluded.sql_unique_x2, sql_unique_x1_x2 = excluded.sql_unique_x1_x2, sql_jsonb_index = excluded.sql_jsonb_index, time_duration = excluded.time_duration, go_type_int_to_strings = excluded.go_type_int_to_strings, public_field1 = excluded.public_field1, public_field2 = excluded.public_field2, public_field3 = excluded.public_field3, public_field_me1 = excluded.public_field_me1, public_field_me2 = excluded.public_field_me2, public_field_me3 = excluded.public_field_me3", v.sqlAllArgs()...)
 	return err
 }
 
 // InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
-func (a *NewsSQL) InsertMany(ctx context.Context, list []News) (int64, error) {
-	return a.db.CopyFrom(ctx, pgx.Identifier{"news"}, newsSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
+func (a *NewsSQL) InsertMany(list []News) (int64, error) {
+	return a.db.CopyFrom(newsSQLCtx, pgx.Identifier{"news"}, newsSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
 		return list[i].sqlInsertArgs(), nil
 	}))
 }
 
 // InsertBatch adds rows in one round trip and sets generated Inc
-func (a *NewsSQL) InsertBatch(ctx context.Context, list []*News) error {
+func (a *NewsSQL) InsertBatch(list []*News) error {
 	if len(list) == 0 {
 		return nil
 	}
@@ -967,7 +954,7 @@ func (a *NewsSQL) InsertBatch(ctx context.Context, list []*News) error {
 	for _, v := range list {
 		b.Queue(newsSQLInsert+" returning inc", v.sqlInsertArgs()...)
 	}
-	res := a.db.SendBatch(ctx, b)
+	res := a.db.SendBatch(newsSQLCtx, b)
 	for _, v := range list {
 		if err := res.QueryRow().Scan(&v.Inc); err != nil {
 			res.Close()
@@ -982,25 +969,25 @@ func (a *NewsSQL) InsertBatch(ctx context.Context, list []*News) error {
 // ---------------------------------------------------------------------------
 
 // Update sets field of row, pgx.ErrNoRows when row not found
-func (a *NewsSQL) Update(ctx context.Context, id int, field NewsIndexTyped, v any) error {
+func (a *NewsSQL) Update(id int, field NewsIndexTyped, v any) error {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = $1 where inc = $2", v, id))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = $1 where inc = $2", v, id))
 }
 
 // Updates sets fields of row, pgx.ErrNoRows when row not found
-func (a *NewsSQL) Updates(ctx context.Context, id int, v map[NewsIndexTyped]any) error {
+func (a *NewsSQL) Updates(id int, v map[NewsIndexTyped]any) error {
 	set, args, err := newsSQLSet(v, 1)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+set+" where inc = $"+strconv.Itoa(len(args)+1), append(args, id)...))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+set+" where inc = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
 // Save updates row from struct by v.Inc: listed fields or all columns
-func (a *NewsSQL) Save(ctx context.Context, v *News, fields ...NewsIndexTyped) error {
+func (a *NewsSQL) Save(v *News, fields ...NewsIndexTyped) error {
 	if len(fields) == 0 {
 		fields = newsSQLFields
 	}
@@ -1014,318 +1001,318 @@ func (a *NewsSQL) Save(ctx context.Context, v *News, fields ...NewsIndexTyped) e
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+set+" where inc = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(NewsIndexInc))...))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+set+" where inc = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(NewsIndexInc))...))
 }
 
 // Increment adds v to number field: views = views + 1
-func (a *NewsSQL) Increment(ctx context.Context, id int, field NewsIndexTyped, v any) error {
+func (a *NewsSQL) Increment(id int, field NewsIndexTyped, v any) error {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", 0) + $1 where inc = $2", v, id))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = coalesce("+col+", 0) + $1 where inc = $2", v, id))
 }
 
 // Delete removes row by inc
-func (a *NewsSQL) Delete(ctx context.Context, id int) error {
-	_, err := a.db.Exec(ctx, "delete from news where inc = $1", id)
+func (a *NewsSQL) Delete(id int) error {
+	_, err := a.db.Exec(newsSQLCtx, "delete from news where inc = $1", id)
 	return err
 }
 
 // UpdateWhere sets field of rows by condition, returns count of rows
 //
-//	db.UpdateWhere(ctx, IndexActive, false, "created < $1", date)
-func (a *NewsSQL) UpdateWhere(ctx context.Context, field NewsIndexTyped, v any, where string, args ...any) (int64, error) {
+//	db.UpdateWhere(IndexActive, false, "created < $1", date)
+func (a *NewsSQL) UpdateWhere(field NewsIndexTyped, v any, where string, args ...any) (int64, error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(ctx, "update news set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
+	tag, err := a.db.Exec(newsSQLCtx, "update news set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
 	return tag.RowsAffected(), err
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
-func (a *NewsSQL) UpdatesWhere(ctx context.Context, v map[NewsIndexTyped]any, where string, args ...any) (int64, error) {
+func (a *NewsSQL) UpdatesWhere(v map[NewsIndexTyped]any, where string, args ...any) (int64, error) {
 	set, vals, err := newsSQLSet(v, len(args)+1)
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(ctx, "update news set "+set+" where "+where, append(slices.Clone(args), vals...)...)
+	tag, err := a.db.Exec(newsSQLCtx, "update news set "+set+" where "+where, append(slices.Clone(args), vals...)...)
 	return tag.RowsAffected(), err
 }
 
 // DeleteWhere removes rows by condition, returns count of rows
-func (a *NewsSQL) DeleteWhere(ctx context.Context, where string, args ...any) (int64, error) {
-	tag, err := a.db.Exec(ctx, "delete from news where "+where, args...)
+func (a *NewsSQL) DeleteWhere(where string, args ...any) (int64, error) {
+	tag, err := a.db.Exec(newsSQLCtx, "delete from news where "+where, args...)
 	return tag.RowsAffected(), err
 }
 
 // ListIntsAppend adds values to array list_ints
-func (a *NewsSQL) ListIntsAppend(ctx context.Context, id int, v ...int) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_ints = coalesce(list_ints, '{}') || $1::bigint[] where inc = $2", v, id))
+func (a *NewsSQL) ListIntsAppend(id int, v ...int) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_ints = coalesce(list_ints, '{}') || $1::bigint[] where inc = $2", v, id))
 }
 
 // ListIntsRemove removes all entries of v from array list_ints
-func (a *NewsSQL) ListIntsRemove(ctx context.Context, id int, v int) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_ints = array_remove(list_ints, $1::bigint) where inc = $2", v, id))
+func (a *NewsSQL) ListIntsRemove(id int, v int) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_ints = array_remove(list_ints, $1::bigint) where inc = $2", v, id))
 }
 
 // ListStringAppend adds values to array list_string
-func (a *NewsSQL) ListStringAppend(ctx context.Context, id int, v ...string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_string = coalesce(list_string, '{}') || $1::text[] where inc = $2", v, id))
+func (a *NewsSQL) ListStringAppend(id int, v ...string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_string = coalesce(list_string, '{}') || $1::text[] where inc = $2", v, id))
 }
 
 // ListStringRemove removes all entries of v from array list_string
-func (a *NewsSQL) ListStringRemove(ctx context.Context, id int, v string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_string = array_remove(list_string, $1::text) where inc = $2", v, id))
+func (a *NewsSQL) ListStringRemove(id int, v string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_string = array_remove(list_string, $1::text) where inc = $2", v, id))
 }
 
 // ListFloatAppend adds values to array list_float
-func (a *NewsSQL) ListFloatAppend(ctx context.Context, id int, v ...float64) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_float = coalesce(list_float, '{}') || $1::double precision[] where inc = $2", v, id))
+func (a *NewsSQL) ListFloatAppend(id int, v ...float64) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_float = coalesce(list_float, '{}') || $1::double precision[] where inc = $2", v, id))
 }
 
 // ListFloatRemove removes all entries of v from array list_float
-func (a *NewsSQL) ListFloatRemove(ctx context.Context, id int, v float64) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set list_float = array_remove(list_float, $1::double precision) where inc = $2", v, id))
+func (a *NewsSQL) ListFloatRemove(id int, v float64) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set list_float = array_remove(list_float, $1::double precision) where inc = $2", v, id))
 }
 
 // MapStringStringUpdate sets key of jsonb map_string_string
-func (a *NewsSQL) MapStringStringUpdate(ctx context.Context, id int, k string, v string) error {
-	return a.jsonSet(ctx, id, "map_string_string", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringStringUpdate(id int, k string, v string) error {
+	return a.jsonSet(id, "map_string_string", fmt.Sprint(k), v)
 }
 
 // MapStringStringMerge adds keys to jsonb map_string_string: existing keys are replaced
-func (a *NewsSQL) MapStringStringMerge(ctx context.Context, id int, v map[string]string) error {
-	return a.jsonMerge(ctx, id, "map_string_string", "{}", v)
+func (a *NewsSQL) MapStringStringMerge(id int, v map[string]string) error {
+	return a.jsonMerge(id, "map_string_string", "{}", v)
 }
 
 // MapStringStringDelete removes key of jsonb map_string_string
-func (a *NewsSQL) MapStringStringDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_string", fmt.Sprint(k))
+func (a *NewsSQL) MapStringStringDelete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_string", fmt.Sprint(k))
 }
 
 // MapStringStringRename renames key of jsonb map_string_string, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringStringRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_string", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringStringRename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_string", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapStringBytesUpdate sets key of jsonb map_string_bytes
-func (a *NewsSQL) MapStringBytesUpdate(ctx context.Context, id int, k string, v []byte) error {
-	return a.jsonSet(ctx, id, "map_string_bytes", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringBytesUpdate(id int, k string, v []byte) error {
+	return a.jsonSet(id, "map_string_bytes", fmt.Sprint(k), v)
 }
 
 // MapStringBytesMerge adds keys to jsonb map_string_bytes: existing keys are replaced
-func (a *NewsSQL) MapStringBytesMerge(ctx context.Context, id int, v map[string][]byte) error {
-	return a.jsonMerge(ctx, id, "map_string_bytes", "{}", v)
+func (a *NewsSQL) MapStringBytesMerge(id int, v map[string][]byte) error {
+	return a.jsonMerge(id, "map_string_bytes", "{}", v)
 }
 
 // MapStringBytesDelete removes key of jsonb map_string_bytes
-func (a *NewsSQL) MapStringBytesDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_bytes", fmt.Sprint(k))
+func (a *NewsSQL) MapStringBytesDelete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_bytes", fmt.Sprint(k))
 }
 
 // MapStringBytesRename renames key of jsonb map_string_bytes, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringBytesRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_bytes", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringBytesRename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_bytes", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapStringBoolUpdate sets key of jsonb map_string_bool
-func (a *NewsSQL) MapStringBoolUpdate(ctx context.Context, id int, k string, v bool) error {
-	return a.jsonSet(ctx, id, "map_string_bool", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringBoolUpdate(id int, k string, v bool) error {
+	return a.jsonSet(id, "map_string_bool", fmt.Sprint(k), v)
 }
 
 // MapStringBoolMerge adds keys to jsonb map_string_bool: existing keys are replaced
-func (a *NewsSQL) MapStringBoolMerge(ctx context.Context, id int, v map[string]bool) error {
-	return a.jsonMerge(ctx, id, "map_string_bool", "{}", v)
+func (a *NewsSQL) MapStringBoolMerge(id int, v map[string]bool) error {
+	return a.jsonMerge(id, "map_string_bool", "{}", v)
 }
 
 // MapStringBoolDelete removes key of jsonb map_string_bool
-func (a *NewsSQL) MapStringBoolDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_bool", fmt.Sprint(k))
+func (a *NewsSQL) MapStringBoolDelete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_bool", fmt.Sprint(k))
 }
 
 // MapStringBoolRename renames key of jsonb map_string_bool, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringBoolRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_bool", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringBoolRename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_bool", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapStringIntUpdate sets key of jsonb map_string_int
-func (a *NewsSQL) MapStringIntUpdate(ctx context.Context, id int, k string, v int) error {
-	return a.jsonSet(ctx, id, "map_string_int", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringIntUpdate(id int, k string, v int) error {
+	return a.jsonSet(id, "map_string_int", fmt.Sprint(k), v)
 }
 
 // MapStringIntMerge adds keys to jsonb map_string_int: existing keys are replaced
-func (a *NewsSQL) MapStringIntMerge(ctx context.Context, id int, v map[string]int) error {
-	return a.jsonMerge(ctx, id, "map_string_int", "{}", v)
+func (a *NewsSQL) MapStringIntMerge(id int, v map[string]int) error {
+	return a.jsonMerge(id, "map_string_int", "{}", v)
 }
 
 // MapStringIntDelete removes key of jsonb map_string_int
-func (a *NewsSQL) MapStringIntDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_int", fmt.Sprint(k))
+func (a *NewsSQL) MapStringIntDelete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_int", fmt.Sprint(k))
 }
 
 // MapStringIntRename renames key of jsonb map_string_int, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringIntRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_int", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringIntRename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_int", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapStringFloat64Update sets key of jsonb map_string_float64
-func (a *NewsSQL) MapStringFloat64Update(ctx context.Context, id int, k string, v float64) error {
-	return a.jsonSet(ctx, id, "map_string_float64", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringFloat64Update(id int, k string, v float64) error {
+	return a.jsonSet(id, "map_string_float64", fmt.Sprint(k), v)
 }
 
 // MapStringFloat64Merge adds keys to jsonb map_string_float64: existing keys are replaced
-func (a *NewsSQL) MapStringFloat64Merge(ctx context.Context, id int, v map[string]float64) error {
-	return a.jsonMerge(ctx, id, "map_string_float64", "{}", v)
+func (a *NewsSQL) MapStringFloat64Merge(id int, v map[string]float64) error {
+	return a.jsonMerge(id, "map_string_float64", "{}", v)
 }
 
 // MapStringFloat64Delete removes key of jsonb map_string_float64
-func (a *NewsSQL) MapStringFloat64Delete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_float64", fmt.Sprint(k))
+func (a *NewsSQL) MapStringFloat64Delete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_float64", fmt.Sprint(k))
 }
 
 // MapStringFloat64Rename renames key of jsonb map_string_float64, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringFloat64Rename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_float64", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringFloat64Rename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_float64", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapStringAnyUpdate sets key of jsonb map_string_any
-func (a *NewsSQL) MapStringAnyUpdate(ctx context.Context, id int, k string, v any) error {
-	return a.jsonSet(ctx, id, "map_string_any", fmt.Sprint(k), v)
+func (a *NewsSQL) MapStringAnyUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "map_string_any", fmt.Sprint(k), v)
 }
 
 // MapStringAnyMerge adds keys to jsonb map_string_any: existing keys are replaced
-func (a *NewsSQL) MapStringAnyMerge(ctx context.Context, id int, v map[string]any) error {
-	return a.jsonMerge(ctx, id, "map_string_any", "{}", v)
+func (a *NewsSQL) MapStringAnyMerge(id int, v map[string]any) error {
+	return a.jsonMerge(id, "map_string_any", "{}", v)
 }
 
 // MapStringAnyDelete removes key of jsonb map_string_any
-func (a *NewsSQL) MapStringAnyDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "map_string_any", fmt.Sprint(k))
+func (a *NewsSQL) MapStringAnyDelete(id int, k string) error {
+	return a.jsonDelete(id, "map_string_any", fmt.Sprint(k))
 }
 
 // MapStringAnyRename renames key of jsonb map_string_any, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapStringAnyRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "map_string_any", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapStringAnyRename(id int, k, newK string) error {
+	return a.jsonRename(id, "map_string_any", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapIntStringUpdate sets key of jsonb map_int_string
-func (a *NewsSQL) MapIntStringUpdate(ctx context.Context, id int, k int, v string) error {
-	return a.jsonSet(ctx, id, "map_int_string", fmt.Sprint(k), v)
+func (a *NewsSQL) MapIntStringUpdate(id int, k int, v string) error {
+	return a.jsonSet(id, "map_int_string", fmt.Sprint(k), v)
 }
 
 // MapIntStringMerge adds keys to jsonb map_int_string: existing keys are replaced
-func (a *NewsSQL) MapIntStringMerge(ctx context.Context, id int, v map[int]string) error {
-	return a.jsonMerge(ctx, id, "map_int_string", "{}", v)
+func (a *NewsSQL) MapIntStringMerge(id int, v map[int]string) error {
+	return a.jsonMerge(id, "map_int_string", "{}", v)
 }
 
 // MapIntStringDelete removes key of jsonb map_int_string
-func (a *NewsSQL) MapIntStringDelete(ctx context.Context, id int, k int) error {
-	return a.jsonDelete(ctx, id, "map_int_string", fmt.Sprint(k))
+func (a *NewsSQL) MapIntStringDelete(id int, k int) error {
+	return a.jsonDelete(id, "map_int_string", fmt.Sprint(k))
 }
 
 // MapIntStringRename renames key of jsonb map_int_string, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntStringRename(ctx context.Context, id int, k, newK int) error {
-	return a.jsonRename(ctx, id, "map_int_string", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapIntStringRename(id int, k, newK int) error {
+	return a.jsonRename(id, "map_int_string", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapIntIntUpdate sets key of jsonb map_int_int
-func (a *NewsSQL) MapIntIntUpdate(ctx context.Context, id int, k int, v int) error {
-	return a.jsonSet(ctx, id, "map_int_int", fmt.Sprint(k), v)
+func (a *NewsSQL) MapIntIntUpdate(id int, k int, v int) error {
+	return a.jsonSet(id, "map_int_int", fmt.Sprint(k), v)
 }
 
 // MapIntIntMerge adds keys to jsonb map_int_int: existing keys are replaced
-func (a *NewsSQL) MapIntIntMerge(ctx context.Context, id int, v map[int]int) error {
-	return a.jsonMerge(ctx, id, "map_int_int", "{}", v)
+func (a *NewsSQL) MapIntIntMerge(id int, v map[int]int) error {
+	return a.jsonMerge(id, "map_int_int", "{}", v)
 }
 
 // MapIntIntDelete removes key of jsonb map_int_int
-func (a *NewsSQL) MapIntIntDelete(ctx context.Context, id int, k int) error {
-	return a.jsonDelete(ctx, id, "map_int_int", fmt.Sprint(k))
+func (a *NewsSQL) MapIntIntDelete(id int, k int) error {
+	return a.jsonDelete(id, "map_int_int", fmt.Sprint(k))
 }
 
 // MapIntIntRename renames key of jsonb map_int_int, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntIntRename(ctx context.Context, id int, k, newK int) error {
-	return a.jsonRename(ctx, id, "map_int_int", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapIntIntRename(id int, k, newK int) error {
+	return a.jsonRename(id, "map_int_int", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // MapIntBoolUpdate sets key of jsonb map_int_bool
-func (a *NewsSQL) MapIntBoolUpdate(ctx context.Context, id int, k int, v bool) error {
-	return a.jsonSet(ctx, id, "map_int_bool", fmt.Sprint(k), v)
+func (a *NewsSQL) MapIntBoolUpdate(id int, k int, v bool) error {
+	return a.jsonSet(id, "map_int_bool", fmt.Sprint(k), v)
 }
 
 // MapIntBoolMerge adds keys to jsonb map_int_bool: existing keys are replaced
-func (a *NewsSQL) MapIntBoolMerge(ctx context.Context, id int, v map[int]bool) error {
-	return a.jsonMerge(ctx, id, "map_int_bool", "{}", v)
+func (a *NewsSQL) MapIntBoolMerge(id int, v map[int]bool) error {
+	return a.jsonMerge(id, "map_int_bool", "{}", v)
 }
 
 // MapIntBoolDelete removes key of jsonb map_int_bool
-func (a *NewsSQL) MapIntBoolDelete(ctx context.Context, id int, k int) error {
-	return a.jsonDelete(ctx, id, "map_int_bool", fmt.Sprint(k))
+func (a *NewsSQL) MapIntBoolDelete(id int, k int) error {
+	return a.jsonDelete(id, "map_int_bool", fmt.Sprint(k))
 }
 
 // MapIntBoolRename renames key of jsonb map_int_bool, pgx.ErrNoRows when key not found
-func (a *NewsSQL) MapIntBoolRename(ctx context.Context, id int, k, newK int) error {
-	return a.jsonRename(ctx, id, "map_int_bool", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) MapIntBoolRename(id int, k, newK int) error {
+	return a.jsonRename(id, "map_int_bool", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // SqlJsonbIndexUpdate sets key of jsonb sql_jsonb_index
-func (a *NewsSQL) SqlJsonbIndexUpdate(ctx context.Context, id int, k string, v any) error {
-	return a.jsonSet(ctx, id, "sql_jsonb_index", fmt.Sprint(k), v)
+func (a *NewsSQL) SqlJsonbIndexUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "sql_jsonb_index", fmt.Sprint(k), v)
 }
 
 // SqlJsonbIndexMerge adds keys to jsonb sql_jsonb_index: existing keys are replaced
-func (a *NewsSQL) SqlJsonbIndexMerge(ctx context.Context, id int, v map[string]any) error {
-	return a.jsonMerge(ctx, id, "sql_jsonb_index", "{}", v)
+func (a *NewsSQL) SqlJsonbIndexMerge(id int, v map[string]any) error {
+	return a.jsonMerge(id, "sql_jsonb_index", "{}", v)
 }
 
 // SqlJsonbIndexDelete removes key of jsonb sql_jsonb_index
-func (a *NewsSQL) SqlJsonbIndexDelete(ctx context.Context, id int, k string) error {
-	return a.jsonDelete(ctx, id, "sql_jsonb_index", fmt.Sprint(k))
+func (a *NewsSQL) SqlJsonbIndexDelete(id int, k string) error {
+	return a.jsonDelete(id, "sql_jsonb_index", fmt.Sprint(k))
 }
 
 // SqlJsonbIndexRename renames key of jsonb sql_jsonb_index, pgx.ErrNoRows when key not found
-func (a *NewsSQL) SqlJsonbIndexRename(ctx context.Context, id int, k, newK string) error {
-	return a.jsonRename(ctx, id, "sql_jsonb_index", fmt.Sprint(k), fmt.Sprint(newK))
+func (a *NewsSQL) SqlJsonbIndexRename(id int, k, newK string) error {
+	return a.jsonRename(id, "sql_jsonb_index", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
 // GoTypeIntToStringsAppend adds values to array go_type_int_to_strings
-func (a *NewsSQL) GoTypeIntToStringsAppend(ctx context.Context, id int, v ...string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set go_type_int_to_strings = coalesce(go_type_int_to_strings, '{}') || $1::text[] where inc = $2", v, id))
+func (a *NewsSQL) GoTypeIntToStringsAppend(id int, v ...string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set go_type_int_to_strings = coalesce(go_type_int_to_strings, '{}') || $1::text[] where inc = $2", v, id))
 }
 
 // GoTypeIntToStringsRemove removes all entries of v from array go_type_int_to_strings
-func (a *NewsSQL) GoTypeIntToStringsRemove(ctx context.Context, id int, v string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set go_type_int_to_strings = array_remove(go_type_int_to_strings, $1::text) where inc = $2", v, id))
+func (a *NewsSQL) GoTypeIntToStringsRemove(id int, v string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set go_type_int_to_strings = array_remove(go_type_int_to_strings, $1::text) where inc = $2", v, id))
 }
 
 // jsonSet sets key of jsonb column
-func (a *NewsSQL) jsonSet(ctx context.Context, id int, col, k string, v any) error {
-	b, err := json.Marshal(v)
+func (a *NewsSQL) jsonSet(id int, col, k string, v any) error {
+	b, err := gojson.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where inc = $3", k, b, id))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where inc = $3", k, b, id))
 }
 
 // jsonMerge concats json to jsonb column: object keys or array values
-func (a *NewsSQL) jsonMerge(ctx context.Context, id int, col, empty string, v any) error {
-	b, err := json.Marshal(v)
+func (a *NewsSQL) jsonMerge(id int, col, empty string, v any) error {
+	b, err := gojson.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where inc = $2", b, id))
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where inc = $2", b, id))
 }
 
 // jsonDelete removes key of jsonb column
-func (a *NewsSQL) jsonDelete(ctx context.Context, id int, col, k string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = "+col+" - $1::text where inc = $2", k, id))
+func (a *NewsSQL) jsonDelete(id int, col, k string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = "+col+" - $1::text where inc = $2", k, id))
 }
 
 // jsonRename renames key of jsonb column
-func (a *NewsSQL) jsonRename(ctx context.Context, id int, col, k, newK string) error {
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where inc = $3 and "+col+" ? $1::text", k, newK, id))
+func (a *NewsSQL) jsonRename(id int, col, k, newK string) error {
+	return newsSQLAffected(a.db.Exec(newsSQLCtx, "update news set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where inc = $3 and "+col+" ? $1::text", k, newK, id))
 }
 
 // ---------------------------------------------------------------------------
@@ -1499,12 +1486,12 @@ func (q *NewsQuery) Render() (tail string, fields []NewsIndexTyped, args []any, 
 }
 
 // Search returns rows by query
-func (a *NewsSQL) Search(ctx context.Context, q *NewsQuery) ([]News, error) {
+func (a *NewsSQL) Search(q *NewsQuery) ([]News, error) {
 	tail, fields, args, err := q.Render()
 	if err != nil {
 		return nil, err
 	}
-	return a.query(ctx, fields, tail, args...)
+	return a.query(fields, tail, args...)
 }
 
 // ---------------------------------------------------------------------------
@@ -1586,15 +1573,15 @@ var newsSQLIndexes = []string{
 }
 
 // CreateTable creates table if not exists
-func (a *NewsSQL) CreateTable(ctx context.Context) error {
-	_, err := a.db.Exec(ctx, newsSQLCreateTable)
+func (a *NewsSQL) CreateTable() error {
+	_, err := a.db.Exec(newsSQLCtx, newsSQLCreateTable)
 	return err
 }
 
 // CreateIndexes creates indexes if not exist
-func (a *NewsSQL) CreateIndexes(ctx context.Context) error {
+func (a *NewsSQL) CreateIndexes() error {
 	for _, q := range newsSQLIndexes {
-		if _, err := a.db.Exec(ctx, q); err != nil {
+		if _, err := a.db.Exec(newsSQLCtx, q); err != nil {
 			return err
 		}
 	}
@@ -1602,26 +1589,26 @@ func (a *NewsSQL) CreateIndexes(ctx context.Context) error {
 }
 
 // Init creates table and indexes
-func (a *NewsSQL) Init(ctx context.Context) error {
-	if err := a.CreateTable(ctx); err != nil {
+func (a *NewsSQL) Init() error {
+	if err := a.CreateTable(); err != nil {
 		return err
 	}
-	return a.CreateIndexes(ctx)
+	return a.CreateIndexes()
 }
 
 // ResetSequence sets next inc to max(inc) + add (1 by default).
 // Useful after insert with own ids: InsertFull, Upsert, InsertMany
-func (a *NewsSQL) ResetSequence(ctx context.Context, add ...int64) error {
+func (a *NewsSQL) ResetSequence(add ...int64) error {
 	plus := int64(1)
 	if len(add) > 0 {
 		plus = add[0]
 	}
-	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('news', 'inc'), coalesce((select max(inc) from news), 0) + $1, false)", plus)
+	_, err := a.db.Exec(newsSQLCtx, "select setval(pg_get_serial_sequence('news', 'inc'), coalesce((select max(inc) from news), 0) + $1, false)", plus)
 	return err
 }
 
 // SetSequence sets next inc
-func (a *NewsSQL) SetSequence(ctx context.Context, v int64) error {
-	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('news', 'inc'), $1, false)", v)
+func (a *NewsSQL) SetSequence(v int64) error {
+	_, err := a.db.Exec(newsSQLCtx, "select setval(pg_get_serial_sequence('news', 'inc'), $1, false)", v)
 	return err
 }

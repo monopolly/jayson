@@ -103,7 +103,7 @@ func newSQLModel() *sqlModel {
 
 	// imports of template
 	imports := map[string]bool{
-		"context": true, "encoding/json": true, "errors": true, "fmt": true, "maps": true, "slices": true,
+		"context": true, "github.com/goccy/go-json": true, "errors": true, "fmt": true, "maps": true, "slices": true,
 		"strconv": true, "strings": true, "github.com/jackc/pgx/v5": true, "github.com/jackc/pgx/v5/pgconn": true,
 	}
 	customs := map[string]bool{}

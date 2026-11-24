@@ -281,7 +281,7 @@ func importers() []byte {
 	imports = map[string]bool{
 		"fmt": true,
 	}
-	imports["jsoniter \"github.com/json-iterator/go\""] = true
+	imports["gojson \"github.com/goccy/go-json\""] = true
 
 	if settings.SQL.Table != "" {
 		imports["context"] = true
