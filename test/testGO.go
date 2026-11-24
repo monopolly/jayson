@@ -101,148 +101,23 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type NewsIndexTyped int
-
-// int index
-const (
-	NewsIndexInc = NewsIndexTyped(iota)
-	NewsIndexRole
-	NewsIndexKey
-	NewsIndexT
-	NewsIndexD
-	NewsIndexInts
-	NewsIndexInts8
-	NewsIndexInts16
-	NewsIndexInts32
-	NewsIndexInts64
-	NewsIndexUints
-	NewsIndexUints8
-	NewsIndexUints16
-	NewsIndexUints32
-	NewsIndexUints64
-	NewsIndexFloats32
-	NewsIndexFloats64
-	NewsIndexBools
-	NewsIndexByte1
-	NewsIndexBytes
-	NewsIndexListInts
-	NewsIndexListString
-	NewsIndexListFloat
-	NewsIndexMapStringString
-	NewsIndexMapStringBytes
-	NewsIndexMapStringBool
-	NewsIndexMapStringInt
-	NewsIndexMapStringFloat64
-	NewsIndexMapStringAny
-	NewsIndexMapIntString
-	NewsIndexMapIntInt
-	NewsIndexMapIntBool
-	NewsIndexRenameSQL
-	NewsIndexRenameGO_OK
-	NewsIndexRenameJS
-	NewsIndexMASTUPPERGO
-	NewsIndexIntToSmallInt
-	NewsIndexSkip
-	NewsIndexSqlUniqueU11
-	NewsIndexSqlUniqueU12
-	NewsIndexSqlIndex11
-	NewsIndexSqlIndex12
-	NewsIndexSqlIndex13
-	NewsIndexSqlKeys1
-	NewsIndexSqlKeys2
-	NewsIndexSqlKeys3
-	NewsIndexSqlSearch
-	NewsIndexSqlGet
-	NewsIndexSqlUniqueX1
-	NewsIndexSqlUniqueX2
-	NewsIndexSqlUniqueX1X2
-	NewsIndexSqlPrimary
-	NewsIndexSqlJsonbIndex
-	NewsIndexTimeDuration
-	NewsIndexGoTypeIntToStrings
-	NewsIndexPublicField1
-	NewsIndexPublicField2
-	NewsIndexPublicField3
-	NewsIndexPublicFieldMe1
-	NewsIndexPublicFieldMe2
-	NewsIndexPublicFieldMe3
-)
-
-// string index
-const (
-	NewsFieldInc                = "inc"                    // int sql{inc}  #readonly
-	NewsFieldRole               = "role"                   // role.Role
-	NewsFieldKey                = "key"                    // uuid.UUID
-	NewsFieldT                  = "t"                      // time.Time
-	NewsFieldD                  = "d"                      // time.Duration
-	NewsFieldInts               = "ints"                   // int
-	NewsFieldInts8              = "ints8"                  // int8
-	NewsFieldInts16             = "ints16"                 // int16
-	NewsFieldInts32             = "ints32"                 // int32
-	NewsFieldInts64             = "ints64"                 // int64
-	NewsFieldUints              = "uints"                  // uint
-	NewsFieldUints8             = "uints8"                 // uint8
-	NewsFieldUints16            = "uints16"                // uint16
-	NewsFieldUints32            = "uints32"                // uint32
-	NewsFieldUints64            = "uints64"                // uint64
-	NewsFieldFloats32           = "floats32"               // float32
-	NewsFieldFloats64           = "floats64"               // float64
-	NewsFieldBools              = "bools"                  // bool
-	NewsFieldByte1              = "byte1"                  // byte
-	NewsFieldBytes              = "bytes"                  // []byte
-	NewsFieldListInts           = "list_ints"              // []int
-	NewsFieldListString         = "list_string"            // []string
-	NewsFieldListFloat          = "list_float"             // []float64
-	NewsFieldMapStringString    = "map_string_string"      // map[string]string
-	NewsFieldMapStringBytes     = "map_string_bytes"       // map[string][]byte
-	NewsFieldMapStringBool      = "map_string_bool"        // map[string]bool
-	NewsFieldMapStringInt       = "map_string_int"         // map[string]int
-	NewsFieldMapStringFloat64   = "map_string_float64"     // map[string]float64
-	NewsFieldMapStringAny       = "map_string_any"         // map[string]any
-	NewsFieldMapIntString       = "map_int_string"         // map[int]string
-	NewsFieldMapIntInt          = "map_int_int"            // map[int]int
-	NewsFieldMapIntBool         = "map_int_bool"           // map[int]bool
-	NewsFieldRenameSQL          = "renameSQL"              // string sql{name="renameSQL_OK"}
-	NewsFieldRenameGO_OK        = "renameGO"               // string go{name="RenameGO_OK"}
-	NewsFieldRenameJS           = "renameJS_OK"            // string js{name="renameJS_OK"}
-	NewsFieldMASTUPPERGO        = "mast_upper_go"          // string go{up}
-	NewsFieldIntToSmallInt      = "intToSmallInt"          // int sql{type="smallint"} rename
-	NewsFieldSkip               = "skip"                   // string sql{skip} swift{skip} js{skip}
-	NewsFieldSqlUniqueU11       = "sql_unique_u1_1"        // int sql{unique="u1"}
-	NewsFieldSqlUniqueU12       = "sql_unique_u1_2"        // int sql{unique="u1"}
-	NewsFieldSqlIndex11         = "sql_index1_1"           // int sql{idx="index1"}
-	NewsFieldSqlIndex12         = "sql_index1_2"           // int sql{idx="index1"}
-	NewsFieldSqlIndex13         = "sql_index1_3"           // int sql{idx="index1"}
-	NewsFieldSqlKeys1           = "sql_keys_1"             // int sql{keys="keys1"}
-	NewsFieldSqlKeys2           = "sql_keys_2"             // int sql{keys="keys1"}
-	NewsFieldSqlKeys3           = "sql_keys_3"             // int sql{keys="keys1"}
-	NewsFieldSqlSearch          = "sql_search"             // string sql{search="search" get}
-	NewsFieldSqlGet             = "sql_get"                // string sql{get}
-	NewsFieldSqlUniqueX1        = "sql_unique_x1"          // int sql{unique="x1"}
-	NewsFieldSqlUniqueX2        = "sql_unique_x2"          // int sql{unique="x2"}
-	NewsFieldSqlUniqueX1X2      = "sql_unique_x1_x2"       // int sql{unique="x1", unique="x2"}
-	NewsFieldSqlPrimary         = "sql_primary"            // float64 sql{primarykey}
-	NewsFieldSqlJsonbIndex      = "sql_jsonb_index"        // map[string]any sql{index}
-	NewsFieldTimeDuration       = "time_duration"          // time.Duration
-	NewsFieldGoTypeIntToStrings = "go_type_int_to_strings" // int go{type="[]string"}
-	NewsFieldPublicField1       = "public_field1"          // int @public
-	NewsFieldPublicField2       = "public_field2"          // int @public
-	NewsFieldPublicField3       = "public_field3"          // int @public
-	NewsFieldPublicFieldMe1     = "public_field_me1"       // int @me
-	NewsFieldPublicFieldMe2     = "public_field_me2"       // int @me
-	NewsFieldPublicFieldMe3     = "public_field_me3"       // int @me
-)
-
-// index func
-func NewsIndexes() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
-
+// init struct
+func NewNews() (a *News) {
+	a = new(News)
+	a.MapStringString = make(map[string]string)
+	a.MapStringBytes = make(map[string][]byte)
+	a.MapStringBool = make(map[string]bool)
+	a.MapStringInt = make(map[string]int)
+	a.MapStringFloat64 = make(map[string]float64)
+	a.MapStringAny = make(map[string]any)
+	a.MapIntString = make(map[int]string)
+	a.MapIntInt = make(map[int]int)
+	a.MapIntBool = make(map[int]bool)
+	a.SqlJsonbIndex = make(map[string]any)
+	return
 }
 
 // 504 bytes (go padding)
-//
-//easyjson:json
 type News struct {
 	Inc                int                `json:"inc,omitempty" msg:"inc,omitempty"`                                       // sql{inc}  #readonly
 	Role               role.Role          `json:"role,omitempty" msg:"role,omitempty"`                                     //
@@ -307,1312 +182,6 @@ type News struct {
 	PublicFieldMe3     int                `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"`             // @me
 }
 
-type NewsMe struct {
-	PublicFieldMe1 int `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"` // @me
-	PublicFieldMe2 int `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"` // @me
-	PublicFieldMe3 int `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"` // @me
-}
-
-func (a *News) NewsMe() (res *NewsMe) {
-	return &NewsMe{
-		PublicFieldMe1: a.PublicFieldMe1,
-		PublicFieldMe2: a.PublicFieldMe2,
-		PublicFieldMe3: a.PublicFieldMe3,
-	}
-}
-
-func (a *NewsMe) News() (res *News) {
-	return &News{
-		PublicFieldMe1: a.PublicFieldMe1,
-		PublicFieldMe2: a.PublicFieldMe2,
-		PublicFieldMe3: a.PublicFieldMe3,
-	}
-}
-
-func (a *NewsMe) Pack() (res []byte) {
-	res, _ = gojson.Marshal(a)
-	return
-}
-
-type NewsPublic struct {
-	PublicField1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
-	PublicField2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
-	PublicField3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
-}
-
-func (a *News) NewsPublic() (res *NewsPublic) {
-	return &NewsPublic{
-		PublicField1: a.PublicField1,
-		PublicField2: a.PublicField2,
-		PublicField3: a.PublicField3,
-	}
-}
-
-func (a *NewsPublic) News() (res *News) {
-	return &News{
-		PublicField1: a.PublicField1,
-		PublicField2: a.PublicField2,
-		PublicField3: a.PublicField3,
-	}
-}
-
-func (a *NewsPublic) Pack() (res []byte) {
-	res, _ = gojson.Marshal(a)
-	return
-}
-
-// init struct
-func NewNews() (a *News) {
-	a = new(News)
-	a.MapStringString = make(map[string]string)
-	a.MapStringBytes = make(map[string][]byte)
-	a.MapStringBool = make(map[string]bool)
-	a.MapStringInt = make(map[string]int)
-	a.MapStringFloat64 = make(map[string]float64)
-	a.MapStringAny = make(map[string]any)
-	a.MapIntString = make(map[int]string)
-	a.MapIntInt = make(map[int]int)
-	a.MapIntBool = make(map[int]bool)
-	a.SqlJsonbIndex = make(map[string]any)
-	return
-}
-
-// Tuple create an array from struct
-func (a *News) Tuple() (r []any) {
-	return []any{a.Inc, a.Role, a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, a.MapStringInt, a.MapStringFloat64, a.MapStringAny, a.MapIntString, a.MapIntInt, a.MapIntBool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *News) clickhouseTuple() (r []any) {
-	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, func() map[string]int64 {
-		r := make(map[string]int64, len(a.MapStringInt))
-		for k, v := range a.MapStringInt {
-			r[string(k)] = int64(v)
-		}
-		return r
-	}(), a.MapStringFloat64, a.MapStringAny, func() map[int64]string {
-		r := make(map[int64]string, len(a.MapIntString))
-		for k, v := range a.MapIntString {
-			r[int64(k)] = string(v)
-		}
-		return r
-	}(), func() map[int64]int64 {
-		r := make(map[int64]int64, len(a.MapIntInt))
-		for k, v := range a.MapIntInt {
-			r[int64(k)] = int64(v)
-		}
-		return r
-	}(), func() map[int64]bool {
-		r := make(map[int64]bool, len(a.MapIntBool))
-		for k, v := range a.MapIntBool {
-			r[int64(k)] = bool(v)
-		}
-		return r
-	}(), a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
-}
-
-// get struct value with function
-func (a *News) Get(k string) (v any) {
-	switch k {
-	case "inc":
-		return a.Inc //int
-	case "role":
-		return a.Role //role.Role
-	case "key":
-		return a.Key //uuid.UUID
-	case "t":
-		return a.T //time.Time
-	case "d":
-		return a.D //time.Duration
-	case "ints":
-		return a.Ints //int
-	case "ints8":
-		return a.Ints8 //int8
-	case "ints16":
-		return a.Ints16 //int16
-	case "ints32":
-		return a.Ints32 //int32
-	case "ints64":
-		return a.Ints64 //int64
-	case "uints":
-		return a.Uints //uint
-	case "uints8":
-		return a.Uints8 //uint8
-	case "uints16":
-		return a.Uints16 //uint16
-	case "uints32":
-		return a.Uints32 //uint32
-	case "uints64":
-		return a.Uints64 //uint64
-	case "floats32":
-		return a.Floats32 //float32
-	case "floats64":
-		return a.Floats64 //float64
-	case "bools":
-		return a.Bools //bool
-	case "byte1":
-		return a.Byte1 //byte
-	case "bytes":
-		return a.Bytes //[]byte
-	case "list_ints":
-		return a.ListInts //[]int
-	case "list_string":
-		return a.ListString //[]string
-	case "list_float":
-		return a.ListFloat //[]float64
-	case "map_string_string":
-		return a.MapStringString //map[string]string
-	case "map_string_bytes":
-		return a.MapStringBytes //map[string][]byte
-	case "map_string_bool":
-		return a.MapStringBool //map[string]bool
-	case "map_string_int":
-		return a.MapStringInt //map[string]int
-	case "map_string_float64":
-		return a.MapStringFloat64 //map[string]float64
-	case "map_string_any":
-		return a.MapStringAny //map[string]any
-	case "map_int_string":
-		return a.MapIntString //map[int]string
-	case "map_int_int":
-		return a.MapIntInt //map[int]int
-	case "map_int_bool":
-		return a.MapIntBool //map[int]bool
-	case "renameSQL":
-		return a.RenameSQL //string
-	case "renameGO":
-		return a.RenameGO_OK //string
-	case "renameJS":
-		return a.RenameJS //string
-	case "mast_upper_go":
-		return a.MASTUPPERGO //string
-	case "intToSmallInt":
-		return a.IntToSmallInt //int
-	case "skip":
-		return a.Skip //string
-	case "sql_unique_u1_1":
-		return a.SqlUniqueU11 //int
-	case "sql_unique_u1_2":
-		return a.SqlUniqueU12 //int
-	case "sql_index1_1":
-		return a.SqlIndex11 //int
-	case "sql_index1_2":
-		return a.SqlIndex12 //int
-	case "sql_index1_3":
-		return a.SqlIndex13 //int
-	case "sql_keys_1":
-		return a.SqlKeys1 //int
-	case "sql_keys_2":
-		return a.SqlKeys2 //int
-	case "sql_keys_3":
-		return a.SqlKeys3 //int
-	case "sql_search":
-		return a.SqlSearch //string
-	case "sql_get":
-		return a.SqlGet //string
-	case "sql_unique_x1":
-		return a.SqlUniqueX1 //int
-	case "sql_unique_x2":
-		return a.SqlUniqueX2 //int
-	case "sql_unique_x1_x2":
-		return a.SqlUniqueX1X2 //int
-	case "sql_primary":
-		return a.SqlPrimary //float64
-	case "sql_jsonb_index":
-		return a.SqlJsonbIndex //map[string]any
-	case "time_duration":
-		return a.TimeDuration //time.Duration
-	case "go_type_int_to_strings":
-		return a.GoTypeIntToStrings //int
-	case "public_field1":
-		return a.PublicField1 //int
-	case "public_field2":
-		return a.PublicField2 //int
-	case "public_field3":
-		return a.PublicField3 //int
-	case "public_field_me1":
-		return a.PublicFieldMe1 //int
-	case "public_field_me2":
-		return a.PublicFieldMe2 //int
-	case "public_field_me3":
-		return a.PublicFieldMe3 //int
-	}
-	return
-}
-
-// get any struct value as string
-func (a *News) String(k string) (v string) {
-	switch k {
-	case "inc":
-		return fmt.Sprint(a.Inc) //int
-	case "role":
-		return fmt.Sprint(a.Role) //role.Role
-	case "key":
-		return fmt.Sprint(a.Key) //uuid.UUID
-	case "t":
-		return fmt.Sprint(a.T) //time.Time
-	case "d":
-		return fmt.Sprint(a.D) //time.Duration
-	case "ints":
-		return fmt.Sprint(a.Ints) //int
-	case "ints8":
-		return fmt.Sprint(a.Ints8) //int8
-	case "ints16":
-		return fmt.Sprint(a.Ints16) //int16
-	case "ints32":
-		return fmt.Sprint(a.Ints32) //int32
-	case "ints64":
-		return fmt.Sprint(a.Ints64) //int64
-	case "uints":
-		return fmt.Sprint(a.Uints) //uint
-	case "uints8":
-		return fmt.Sprint(a.Uints8) //uint8
-	case "uints16":
-		return fmt.Sprint(a.Uints16) //uint16
-	case "uints32":
-		return fmt.Sprint(a.Uints32) //uint32
-	case "uints64":
-		return fmt.Sprint(a.Uints64) //uint64
-	case "floats32":
-		return fmt.Sprint(a.Floats32) //float32
-	case "floats64":
-		return fmt.Sprint(a.Floats64) //float64
-	case "bools":
-		return fmt.Sprint(a.Bools) //bool
-	case "byte1":
-		return fmt.Sprint(a.Byte1) //byte
-	case "bytes":
-		return fmt.Sprint(a.Bytes) //[]byte
-	case "list_ints":
-		return fmt.Sprint(a.ListInts) //[]int
-	case "list_string":
-		return fmt.Sprint(a.ListString) //[]string
-	case "list_float":
-		return fmt.Sprint(a.ListFloat) //[]float64
-	case "map_string_string":
-		return fmt.Sprint(a.MapStringString) //map[string]string
-	case "map_string_bytes":
-		return fmt.Sprint(a.MapStringBytes) //map[string][]byte
-	case "map_string_bool":
-		return fmt.Sprint(a.MapStringBool) //map[string]bool
-	case "map_string_int":
-		return fmt.Sprint(a.MapStringInt) //map[string]int
-	case "map_string_float64":
-		return fmt.Sprint(a.MapStringFloat64) //map[string]float64
-	case "map_string_any":
-		return fmt.Sprint(a.MapStringAny) //map[string]any
-	case "map_int_string":
-		return fmt.Sprint(a.MapIntString) //map[int]string
-	case "map_int_int":
-		return fmt.Sprint(a.MapIntInt) //map[int]int
-	case "map_int_bool":
-		return fmt.Sprint(a.MapIntBool) //map[int]bool
-	case "renameSQL":
-		return fmt.Sprint(a.RenameSQL) //string
-	case "renameGO":
-		return fmt.Sprint(a.RenameGO_OK) //string
-	case "renameJS":
-		return fmt.Sprint(a.RenameJS) //string
-	case "mast_upper_go":
-		return fmt.Sprint(a.MASTUPPERGO) //string
-	case "intToSmallInt":
-		return fmt.Sprint(a.IntToSmallInt) //int
-	case "skip":
-		return fmt.Sprint(a.Skip) //string
-	case "sql_unique_u1_1":
-		return fmt.Sprint(a.SqlUniqueU11) //int
-	case "sql_unique_u1_2":
-		return fmt.Sprint(a.SqlUniqueU12) //int
-	case "sql_index1_1":
-		return fmt.Sprint(a.SqlIndex11) //int
-	case "sql_index1_2":
-		return fmt.Sprint(a.SqlIndex12) //int
-	case "sql_index1_3":
-		return fmt.Sprint(a.SqlIndex13) //int
-	case "sql_keys_1":
-		return fmt.Sprint(a.SqlKeys1) //int
-	case "sql_keys_2":
-		return fmt.Sprint(a.SqlKeys2) //int
-	case "sql_keys_3":
-		return fmt.Sprint(a.SqlKeys3) //int
-	case "sql_search":
-		return fmt.Sprint(a.SqlSearch) //string
-	case "sql_get":
-		return fmt.Sprint(a.SqlGet) //string
-	case "sql_unique_x1":
-		return fmt.Sprint(a.SqlUniqueX1) //int
-	case "sql_unique_x2":
-		return fmt.Sprint(a.SqlUniqueX2) //int
-	case "sql_unique_x1_x2":
-		return fmt.Sprint(a.SqlUniqueX1X2) //int
-	case "sql_primary":
-		return fmt.Sprint(a.SqlPrimary) //float64
-	case "sql_jsonb_index":
-		return fmt.Sprint(a.SqlJsonbIndex) //map[string]any
-	case "time_duration":
-		return fmt.Sprint(a.TimeDuration) //time.Duration
-	case "go_type_int_to_strings":
-		return fmt.Sprint(a.GoTypeIntToStrings) //int
-	case "public_field1":
-		return fmt.Sprint(a.PublicField1) //int
-	case "public_field2":
-		return fmt.Sprint(a.PublicField2) //int
-	case "public_field3":
-		return fmt.Sprint(a.PublicField3) //int
-	case "public_field_me1":
-		return fmt.Sprint(a.PublicFieldMe1) //int
-	case "public_field_me2":
-		return fmt.Sprint(a.PublicFieldMe2) //int
-	case "public_field_me3":
-		return fmt.Sprint(a.PublicFieldMe3) //int
-	}
-	return
-}
-
-func NewsMeList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
-}
-
-func NewsPublicList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3}
-}
-
-func NewsReadonlyList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexInc}
-}
-
-func (a NewsIndexTyped) Me() bool {
-	switch a {
-	case NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3:
-		return true
-	default:
-		return false
-	}
-}
-func (a NewsIndexTyped) Public() bool {
-	switch a {
-	case NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3:
-		return true
-	default:
-		return false
-	}
-}
-func (a NewsIndexTyped) Readonly() bool {
-	switch a {
-	case NewsIndexInc:
-		return true
-	default:
-		return false
-	}
-}
-
-// key index string
-func (a NewsIndexTyped) String() string {
-	switch a {
-	case NewsIndexInc:
-		return "inc"
-	case NewsIndexRole:
-		return "role"
-	case NewsIndexKey:
-		return "key"
-	case NewsIndexT:
-		return "t"
-	case NewsIndexD:
-		return "d"
-	case NewsIndexInts:
-		return "ints"
-	case NewsIndexInts8:
-		return "ints8"
-	case NewsIndexInts16:
-		return "ints16"
-	case NewsIndexInts32:
-		return "ints32"
-	case NewsIndexInts64:
-		return "ints64"
-	case NewsIndexUints:
-		return "uints"
-	case NewsIndexUints8:
-		return "uints8"
-	case NewsIndexUints16:
-		return "uints16"
-	case NewsIndexUints32:
-		return "uints32"
-	case NewsIndexUints64:
-		return "uints64"
-	case NewsIndexFloats32:
-		return "floats32"
-	case NewsIndexFloats64:
-		return "floats64"
-	case NewsIndexBools:
-		return "bools"
-	case NewsIndexByte1:
-		return "byte1"
-	case NewsIndexBytes:
-		return "bytes"
-	case NewsIndexListInts:
-		return "list_ints"
-	case NewsIndexListString:
-		return "list_string"
-	case NewsIndexListFloat:
-		return "list_float"
-	case NewsIndexMapStringString:
-		return "map_string_string"
-	case NewsIndexMapStringBytes:
-		return "map_string_bytes"
-	case NewsIndexMapStringBool:
-		return "map_string_bool"
-	case NewsIndexMapStringInt:
-		return "map_string_int"
-	case NewsIndexMapStringFloat64:
-		return "map_string_float64"
-	case NewsIndexMapStringAny:
-		return "map_string_any"
-	case NewsIndexMapIntString:
-		return "map_int_string"
-	case NewsIndexMapIntInt:
-		return "map_int_int"
-	case NewsIndexMapIntBool:
-		return "map_int_bool"
-	case NewsIndexRenameSQL:
-		return "renameSQL"
-	case NewsIndexRenameGO_OK:
-		return "renameGO"
-	case NewsIndexRenameJS:
-		return "renameJS"
-	case NewsIndexMASTUPPERGO:
-		return "mast_upper_go"
-	case NewsIndexIntToSmallInt:
-		return "intToSmallInt"
-	case NewsIndexSkip:
-		return "skip"
-	case NewsIndexSqlUniqueU11:
-		return "sql_unique_u1_1"
-	case NewsIndexSqlUniqueU12:
-		return "sql_unique_u1_2"
-	case NewsIndexSqlIndex11:
-		return "sql_index1_1"
-	case NewsIndexSqlIndex12:
-		return "sql_index1_2"
-	case NewsIndexSqlIndex13:
-		return "sql_index1_3"
-	case NewsIndexSqlKeys1:
-		return "sql_keys_1"
-	case NewsIndexSqlKeys2:
-		return "sql_keys_2"
-	case NewsIndexSqlKeys3:
-		return "sql_keys_3"
-	case NewsIndexSqlSearch:
-		return "sql_search"
-	case NewsIndexSqlGet:
-		return "sql_get"
-	case NewsIndexSqlUniqueX1:
-		return "sql_unique_x1"
-	case NewsIndexSqlUniqueX2:
-		return "sql_unique_x2"
-	case NewsIndexSqlUniqueX1X2:
-		return "sql_unique_x1_x2"
-	case NewsIndexSqlPrimary:
-		return "sql_primary"
-	case NewsIndexSqlJsonbIndex:
-		return "sql_jsonb_index"
-	case NewsIndexTimeDuration:
-		return "time_duration"
-	case NewsIndexGoTypeIntToStrings:
-		return "go_type_int_to_strings"
-	case NewsIndexPublicField1:
-		return "public_field1"
-	case NewsIndexPublicField2:
-		return "public_field2"
-	case NewsIndexPublicField3:
-		return "public_field3"
-	case NewsIndexPublicFieldMe1:
-		return "public_field_me1"
-	case NewsIndexPublicFieldMe2:
-		return "public_field_me2"
-	case NewsIndexPublicFieldMe3:
-		return "public_field_me3"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a NewsIndexTyped) SQLName() string {
-	switch a {
-	case NewsIndexInc:
-		return "inc"
-	case NewsIndexRole:
-		return "role"
-	case NewsIndexKey:
-		return "key"
-	case NewsIndexT:
-		return "t"
-	case NewsIndexD:
-		return "d"
-	case NewsIndexInts:
-		return "ints"
-	case NewsIndexInts8:
-		return "ints8"
-	case NewsIndexInts16:
-		return "ints16"
-	case NewsIndexInts32:
-		return "ints32"
-	case NewsIndexInts64:
-		return "ints64"
-	case NewsIndexUints:
-		return "uints"
-	case NewsIndexUints8:
-		return "uints8"
-	case NewsIndexUints16:
-		return "uints16"
-	case NewsIndexUints32:
-		return "uints32"
-	case NewsIndexUints64:
-		return "uints64"
-	case NewsIndexFloats32:
-		return "floats32"
-	case NewsIndexFloats64:
-		return "floats64"
-	case NewsIndexBools:
-		return "bools"
-	case NewsIndexByte1:
-		return "byte1"
-	case NewsIndexBytes:
-		return "bytes"
-	case NewsIndexListInts:
-		return "list_ints"
-	case NewsIndexListString:
-		return "list_string"
-	case NewsIndexListFloat:
-		return "list_float"
-	case NewsIndexMapStringString:
-		return "map_string_string"
-	case NewsIndexMapStringBytes:
-		return "map_string_bytes"
-	case NewsIndexMapStringBool:
-		return "map_string_bool"
-	case NewsIndexMapStringInt:
-		return "map_string_int"
-	case NewsIndexMapStringFloat64:
-		return "map_string_float64"
-	case NewsIndexMapStringAny:
-		return "map_string_any"
-	case NewsIndexMapIntString:
-		return "map_int_string"
-	case NewsIndexMapIntInt:
-		return "map_int_int"
-	case NewsIndexMapIntBool:
-		return "map_int_bool"
-	case NewsIndexRenameSQL:
-		return "renameSQL_OK"
-	case NewsIndexRenameGO_OK:
-		return "renameGO"
-	case NewsIndexRenameJS:
-		return "renameJS"
-	case NewsIndexMASTUPPERGO:
-		return "mast_upper_go"
-	case NewsIndexIntToSmallInt:
-		return "intToSmallInt"
-	case NewsIndexSkip:
-		return "skip"
-	case NewsIndexSqlUniqueU11:
-		return "sql_unique_u1_1"
-	case NewsIndexSqlUniqueU12:
-		return "sql_unique_u1_2"
-	case NewsIndexSqlIndex11:
-		return "sql_index1_1"
-	case NewsIndexSqlIndex12:
-		return "sql_index1_2"
-	case NewsIndexSqlIndex13:
-		return "sql_index1_3"
-	case NewsIndexSqlKeys1:
-		return "sql_keys_1"
-	case NewsIndexSqlKeys2:
-		return "sql_keys_2"
-	case NewsIndexSqlKeys3:
-		return "sql_keys_3"
-	case NewsIndexSqlSearch:
-		return "sql_search"
-	case NewsIndexSqlGet:
-		return "sql_get"
-	case NewsIndexSqlUniqueX1:
-		return "sql_unique_x1"
-	case NewsIndexSqlUniqueX2:
-		return "sql_unique_x2"
-	case NewsIndexSqlUniqueX1X2:
-		return "sql_unique_x1_x2"
-	case NewsIndexSqlPrimary:
-		return "sql_primary"
-	case NewsIndexSqlJsonbIndex:
-		return "sql_jsonb_index"
-	case NewsIndexTimeDuration:
-		return "time_duration"
-	case NewsIndexGoTypeIntToStrings:
-		return "go_type_int_to_strings"
-	case NewsIndexPublicField1:
-		return "public_field1"
-	case NewsIndexPublicField2:
-		return "public_field2"
-	case NewsIndexPublicField3:
-		return "public_field3"
-	case NewsIndexPublicFieldMe1:
-		return "public_field_me1"
-	case NewsIndexPublicFieldMe2:
-		return "public_field_me2"
-	case NewsIndexPublicFieldMe3:
-		return "public_field_me3"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a NewsIndexTyped) ClickhouseName() string {
-	switch a {
-	case NewsIndexInc:
-		return "inc"
-	case NewsIndexRole:
-		return "role"
-	case NewsIndexKey:
-		return "key"
-	case NewsIndexT:
-		return "t"
-	case NewsIndexD:
-		return "d"
-	case NewsIndexInts:
-		return "ints"
-	case NewsIndexInts8:
-		return "ints8"
-	case NewsIndexInts16:
-		return "ints16"
-	case NewsIndexInts32:
-		return "ints32"
-	case NewsIndexInts64:
-		return "ints64"
-	case NewsIndexUints:
-		return "uints"
-	case NewsIndexUints8:
-		return "uints8"
-	case NewsIndexUints16:
-		return "uints16"
-	case NewsIndexUints32:
-		return "uints32"
-	case NewsIndexUints64:
-		return "uints64"
-	case NewsIndexFloats32:
-		return "floats32"
-	case NewsIndexFloats64:
-		return "floats64"
-	case NewsIndexBools:
-		return "bools"
-	case NewsIndexByte1:
-		return "byte1"
-	case NewsIndexBytes:
-		return "bytes"
-	case NewsIndexListInts:
-		return "list_ints"
-	case NewsIndexListString:
-		return "list_string"
-	case NewsIndexListFloat:
-		return "list_float"
-	case NewsIndexMapStringString:
-		return "map_string_string"
-	case NewsIndexMapStringBytes:
-		return "map_string_bytes"
-	case NewsIndexMapStringBool:
-		return "map_string_bool"
-	case NewsIndexMapStringInt:
-		return "map_string_int"
-	case NewsIndexMapStringFloat64:
-		return "map_string_float64"
-	case NewsIndexMapStringAny:
-		return "map_string_any"
-	case NewsIndexMapIntString:
-		return "map_int_string"
-	case NewsIndexMapIntInt:
-		return "map_int_int"
-	case NewsIndexMapIntBool:
-		return "map_int_bool"
-	case NewsIndexRenameSQL:
-		return "renameSQL"
-	case NewsIndexRenameGO_OK:
-		return "renameGO"
-	case NewsIndexRenameJS:
-		return "renameJS"
-	case NewsIndexMASTUPPERGO:
-		return "mast_upper_go"
-	case NewsIndexIntToSmallInt:
-		return "intToSmallInt"
-	case NewsIndexSkip:
-		return "skip"
-	case NewsIndexSqlUniqueU11:
-		return "sql_unique_u1_1"
-	case NewsIndexSqlUniqueU12:
-		return "sql_unique_u1_2"
-	case NewsIndexSqlIndex11:
-		return "sql_index1_1"
-	case NewsIndexSqlIndex12:
-		return "sql_index1_2"
-	case NewsIndexSqlIndex13:
-		return "sql_index1_3"
-	case NewsIndexSqlKeys1:
-		return "sql_keys_1"
-	case NewsIndexSqlKeys2:
-		return "sql_keys_2"
-	case NewsIndexSqlKeys3:
-		return "sql_keys_3"
-	case NewsIndexSqlSearch:
-		return "sql_search"
-	case NewsIndexSqlGet:
-		return "sql_get"
-	case NewsIndexSqlUniqueX1:
-		return "sql_unique_x1"
-	case NewsIndexSqlUniqueX2:
-		return "sql_unique_x2"
-	case NewsIndexSqlUniqueX1X2:
-		return "sql_unique_x1_x2"
-	case NewsIndexSqlPrimary:
-		return "sql_primary"
-	case NewsIndexSqlJsonbIndex:
-		return "sql_jsonb_index"
-	case NewsIndexTimeDuration:
-		return "time_duration"
-	case NewsIndexGoTypeIntToStrings:
-		return "go_type_int_to_strings"
-	case NewsIndexPublicField1:
-		return "public_field1"
-	case NewsIndexPublicField2:
-		return "public_field2"
-	case NewsIndexPublicField3:
-		return "public_field3"
-	case NewsIndexPublicFieldMe1:
-		return "public_field_me1"
-	case NewsIndexPublicFieldMe2:
-		return "public_field_me2"
-	case NewsIndexPublicFieldMe3:
-		return "public_field_me3"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a NewsIndexTyped) Type() string {
-	switch a {
-	case NewsIndexInc:
-		return "int"
-	case NewsIndexRole:
-		return "role.Role"
-	case NewsIndexKey:
-		return "uuid.UUID"
-	case NewsIndexT:
-		return "time.Time"
-	case NewsIndexD:
-		return "time.Duration"
-	case NewsIndexInts:
-		return "int"
-	case NewsIndexInts8:
-		return "int8"
-	case NewsIndexInts16:
-		return "int16"
-	case NewsIndexInts32:
-		return "int32"
-	case NewsIndexInts64:
-		return "int64"
-	case NewsIndexUints:
-		return "uint"
-	case NewsIndexUints8:
-		return "uint8"
-	case NewsIndexUints16:
-		return "uint16"
-	case NewsIndexUints32:
-		return "uint32"
-	case NewsIndexUints64:
-		return "uint64"
-	case NewsIndexFloats32:
-		return "float32"
-	case NewsIndexFloats64:
-		return "float64"
-	case NewsIndexBools:
-		return "bool"
-	case NewsIndexByte1:
-		return "byte"
-	case NewsIndexBytes:
-		return "[]byte"
-	case NewsIndexListInts:
-		return "[]int"
-	case NewsIndexListString:
-		return "[]string"
-	case NewsIndexListFloat:
-		return "[]float64"
-	case NewsIndexMapStringString:
-		return "map[string]string"
-	case NewsIndexMapStringBytes:
-		return "map[string][]byte"
-	case NewsIndexMapStringBool:
-		return "map[string]bool"
-	case NewsIndexMapStringInt:
-		return "map[string]int"
-	case NewsIndexMapStringFloat64:
-		return "map[string]float64"
-	case NewsIndexMapStringAny:
-		return "map[string]any"
-	case NewsIndexMapIntString:
-		return "map[int]string"
-	case NewsIndexMapIntInt:
-		return "map[int]int"
-	case NewsIndexMapIntBool:
-		return "map[int]bool"
-	case NewsIndexRenameSQL:
-		return "string"
-	case NewsIndexRenameGO_OK:
-		return "string"
-	case NewsIndexRenameJS:
-		return "string"
-	case NewsIndexMASTUPPERGO:
-		return "string"
-	case NewsIndexIntToSmallInt:
-		return "int"
-	case NewsIndexSkip:
-		return "string"
-	case NewsIndexSqlUniqueU11:
-		return "int"
-	case NewsIndexSqlUniqueU12:
-		return "int"
-	case NewsIndexSqlIndex11:
-		return "int"
-	case NewsIndexSqlIndex12:
-		return "int"
-	case NewsIndexSqlIndex13:
-		return "int"
-	case NewsIndexSqlKeys1:
-		return "int"
-	case NewsIndexSqlKeys2:
-		return "int"
-	case NewsIndexSqlKeys3:
-		return "int"
-	case NewsIndexSqlSearch:
-		return "string"
-	case NewsIndexSqlGet:
-		return "string"
-	case NewsIndexSqlUniqueX1:
-		return "int"
-	case NewsIndexSqlUniqueX2:
-		return "int"
-	case NewsIndexSqlUniqueX1X2:
-		return "int"
-	case NewsIndexSqlPrimary:
-		return "float64"
-	case NewsIndexSqlJsonbIndex:
-		return "map[string]any"
-	case NewsIndexTimeDuration:
-		return "time.Duration"
-	case NewsIndexGoTypeIntToStrings:
-		return "int"
-	case NewsIndexPublicField1:
-		return "int"
-	case NewsIndexPublicField2:
-		return "int"
-	case NewsIndexPublicField3:
-		return "int"
-	case NewsIndexPublicFieldMe1:
-		return "int"
-	case NewsIndexPublicFieldMe2:
-		return "int"
-	case NewsIndexPublicFieldMe3:
-		return "int"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a NewsIndexTyped) Title() string {
-	switch a {
-	case NewsIndexInc:
-		return "Inc"
-	case NewsIndexRole:
-		return "Role"
-	case NewsIndexKey:
-		return "Key"
-	case NewsIndexT:
-		return "T"
-	case NewsIndexD:
-		return "D"
-	case NewsIndexInts:
-		return "Ints"
-	case NewsIndexInts8:
-		return "Ints8"
-	case NewsIndexInts16:
-		return "Ints16"
-	case NewsIndexInts32:
-		return "Ints32"
-	case NewsIndexInts64:
-		return "Ints64"
-	case NewsIndexUints:
-		return "Uints"
-	case NewsIndexUints8:
-		return "Uints8"
-	case NewsIndexUints16:
-		return "Uints16"
-	case NewsIndexUints32:
-		return "Uints32"
-	case NewsIndexUints64:
-		return "Uints64"
-	case NewsIndexFloats32:
-		return "Floats32"
-	case NewsIndexFloats64:
-		return "Floats64"
-	case NewsIndexBools:
-		return "Bools"
-	case NewsIndexByte1:
-		return "Byte1"
-	case NewsIndexBytes:
-		return "Bytes"
-	case NewsIndexListInts:
-		return "ListInts"
-	case NewsIndexListString:
-		return "ListString"
-	case NewsIndexListFloat:
-		return "ListFloat"
-	case NewsIndexMapStringString:
-		return "MapStringString"
-	case NewsIndexMapStringBytes:
-		return "MapStringBytes"
-	case NewsIndexMapStringBool:
-		return "MapStringBool"
-	case NewsIndexMapStringInt:
-		return "MapStringInt"
-	case NewsIndexMapStringFloat64:
-		return "MapStringFloat64"
-	case NewsIndexMapStringAny:
-		return "MapStringAny"
-	case NewsIndexMapIntString:
-		return "MapIntString"
-	case NewsIndexMapIntInt:
-		return "MapIntInt"
-	case NewsIndexMapIntBool:
-		return "MapIntBool"
-	case NewsIndexRenameSQL:
-		return "RenameSQL"
-	case NewsIndexRenameGO_OK:
-		return "RenameGO_OK"
-	case NewsIndexRenameJS:
-		return "RenameJS"
-	case NewsIndexMASTUPPERGO:
-		return "MASTUPPERGO"
-	case NewsIndexIntToSmallInt:
-		return "IntToSmallInt"
-	case NewsIndexSkip:
-		return "Skip"
-	case NewsIndexSqlUniqueU11:
-		return "SqlUniqueU11"
-	case NewsIndexSqlUniqueU12:
-		return "SqlUniqueU12"
-	case NewsIndexSqlIndex11:
-		return "SqlIndex11"
-	case NewsIndexSqlIndex12:
-		return "SqlIndex12"
-	case NewsIndexSqlIndex13:
-		return "SqlIndex13"
-	case NewsIndexSqlKeys1:
-		return "SqlKeys1"
-	case NewsIndexSqlKeys2:
-		return "SqlKeys2"
-	case NewsIndexSqlKeys3:
-		return "SqlKeys3"
-	case NewsIndexSqlSearch:
-		return "SqlSearch"
-	case NewsIndexSqlGet:
-		return "SqlGet"
-	case NewsIndexSqlUniqueX1:
-		return "SqlUniqueX1"
-	case NewsIndexSqlUniqueX2:
-		return "SqlUniqueX2"
-	case NewsIndexSqlUniqueX1X2:
-		return "SqlUniqueX1X2"
-	case NewsIndexSqlPrimary:
-		return "SqlPrimary"
-	case NewsIndexSqlJsonbIndex:
-		return "SqlJsonbIndex"
-	case NewsIndexTimeDuration:
-		return "TimeDuration"
-	case NewsIndexGoTypeIntToStrings:
-		return "GoTypeIntToStrings"
-	case NewsIndexPublicField1:
-		return "PublicField1"
-	case NewsIndexPublicField2:
-		return "PublicField2"
-	case NewsIndexPublicField3:
-		return "PublicField3"
-	case NewsIndexPublicFieldMe1:
-		return "PublicFieldMe1"
-	case NewsIndexPublicFieldMe2:
-		return "PublicFieldMe2"
-	case NewsIndexPublicFieldMe3:
-		return "PublicFieldMe3"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a NewsIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func NewsKeyIndex(key string) NewsIndexTyped {
-	switch key {
-	case "inc":
-		return NewsIndexInc
-	case "role":
-		return NewsIndexRole
-	case "key":
-		return NewsIndexKey
-	case "t":
-		return NewsIndexT
-	case "d":
-		return NewsIndexD
-	case "ints":
-		return NewsIndexInts
-	case "ints8":
-		return NewsIndexInts8
-	case "ints16":
-		return NewsIndexInts16
-	case "ints32":
-		return NewsIndexInts32
-	case "ints64":
-		return NewsIndexInts64
-	case "uints":
-		return NewsIndexUints
-	case "uints8":
-		return NewsIndexUints8
-	case "uints16":
-		return NewsIndexUints16
-	case "uints32":
-		return NewsIndexUints32
-	case "uints64":
-		return NewsIndexUints64
-	case "floats32":
-		return NewsIndexFloats32
-	case "floats64":
-		return NewsIndexFloats64
-	case "bools":
-		return NewsIndexBools
-	case "byte1":
-		return NewsIndexByte1
-	case "bytes":
-		return NewsIndexBytes
-	case "list_ints":
-		return NewsIndexListInts
-	case "list_string":
-		return NewsIndexListString
-	case "list_float":
-		return NewsIndexListFloat
-	case "map_string_string":
-		return NewsIndexMapStringString
-	case "map_string_bytes":
-		return NewsIndexMapStringBytes
-	case "map_string_bool":
-		return NewsIndexMapStringBool
-	case "map_string_int":
-		return NewsIndexMapStringInt
-	case "map_string_float64":
-		return NewsIndexMapStringFloat64
-	case "map_string_any":
-		return NewsIndexMapStringAny
-	case "map_int_string":
-		return NewsIndexMapIntString
-	case "map_int_int":
-		return NewsIndexMapIntInt
-	case "map_int_bool":
-		return NewsIndexMapIntBool
-	case "renameSQL":
-		return NewsIndexRenameSQL
-	case "renameGO":
-		return NewsIndexRenameGO_OK
-	case "renameJS":
-		return NewsIndexRenameJS
-	case "mast_upper_go":
-		return NewsIndexMASTUPPERGO
-	case "intToSmallInt":
-		return NewsIndexIntToSmallInt
-	case "skip":
-		return NewsIndexSkip
-	case "sql_unique_u1_1":
-		return NewsIndexSqlUniqueU11
-	case "sql_unique_u1_2":
-		return NewsIndexSqlUniqueU12
-	case "sql_index1_1":
-		return NewsIndexSqlIndex11
-	case "sql_index1_2":
-		return NewsIndexSqlIndex12
-	case "sql_index1_3":
-		return NewsIndexSqlIndex13
-	case "sql_keys_1":
-		return NewsIndexSqlKeys1
-	case "sql_keys_2":
-		return NewsIndexSqlKeys2
-	case "sql_keys_3":
-		return NewsIndexSqlKeys3
-	case "sql_search":
-		return NewsIndexSqlSearch
-	case "sql_get":
-		return NewsIndexSqlGet
-	case "sql_unique_x1":
-		return NewsIndexSqlUniqueX1
-	case "sql_unique_x2":
-		return NewsIndexSqlUniqueX2
-	case "sql_unique_x1_x2":
-		return NewsIndexSqlUniqueX1X2
-	case "sql_primary":
-		return NewsIndexSqlPrimary
-	case "sql_jsonb_index":
-		return NewsIndexSqlJsonbIndex
-	case "time_duration":
-		return NewsIndexTimeDuration
-	case "go_type_int_to_strings":
-		return NewsIndexGoTypeIntToStrings
-	case "public_field1":
-		return NewsIndexPublicField1
-	case "public_field2":
-		return NewsIndexPublicField2
-	case "public_field3":
-		return NewsIndexPublicField3
-	case "public_field_me1":
-		return NewsIndexPublicFieldMe1
-	case "public_field_me2":
-		return NewsIndexPublicFieldMe2
-	case "public_field_me3":
-		return NewsIndexPublicFieldMe3
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func NewsValidKey(key string) bool {
-	switch key {
-	case "inc", "role", "key", "t", "d", "ints", "ints8", "ints16", "ints32", "ints64", "uints", "uints8", "uints16", "uints32", "uints64", "floats32", "floats64", "bools", "byte1", "bytes", "list_ints", "list_string", "list_float", "map_string_string", "map_string_bytes", "map_string_bool", "map_string_int", "map_string_float64", "map_string_any", "map_int_string", "map_int_int", "map_int_bool", "renameSQL", "renameGO", "renameJS", "mast_upper_go", "intToSmallInt", "skip", "sql_unique_u1_1", "sql_unique_u1_2", "sql_index1_1", "sql_index1_2", "sql_index1_3", "sql_keys_1", "sql_keys_2", "sql_keys_3", "sql_search", "sql_get", "sql_unique_x1", "sql_unique_x2", "sql_unique_x1_x2", "sql_primary", "sql_jsonb_index", "time_duration", "go_type_int_to_strings", "public_field1", "public_field2", "public_field3", "public_field_me1", "public_field_me2", "public_field_me3":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *News) Map() map[string]any {
-	return map[string]any{
-		"inc":                    a.Inc,
-		"role":                   a.Role,
-		"key":                    a.Key,
-		"t":                      a.T,
-		"d":                      a.D,
-		"ints":                   a.Ints,
-		"ints8":                  a.Ints8,
-		"ints16":                 a.Ints16,
-		"ints32":                 a.Ints32,
-		"ints64":                 a.Ints64,
-		"uints":                  a.Uints,
-		"uints8":                 a.Uints8,
-		"uints16":                a.Uints16,
-		"uints32":                a.Uints32,
-		"uints64":                a.Uints64,
-		"floats32":               a.Floats32,
-		"floats64":               a.Floats64,
-		"bools":                  a.Bools,
-		"byte1":                  a.Byte1,
-		"bytes":                  a.Bytes,
-		"list_ints":              a.ListInts,
-		"list_string":            a.ListString,
-		"list_float":             a.ListFloat,
-		"map_string_string":      a.MapStringString,
-		"map_string_bytes":       a.MapStringBytes,
-		"map_string_bool":        a.MapStringBool,
-		"map_string_int":         a.MapStringInt,
-		"map_string_float64":     a.MapStringFloat64,
-		"map_string_any":         a.MapStringAny,
-		"map_int_string":         a.MapIntString,
-		"map_int_int":            a.MapIntInt,
-		"map_int_bool":           a.MapIntBool,
-		"renameSQL":              a.RenameSQL,
-		"renameGO":               a.RenameGO_OK,
-		"renameJS_OK":            a.RenameJS,
-		"mast_upper_go":          a.MASTUPPERGO,
-		"intToSmallInt":          a.IntToSmallInt,
-		"skip":                   a.Skip,
-		"sql_unique_u1_1":        a.SqlUniqueU11,
-		"sql_unique_u1_2":        a.SqlUniqueU12,
-		"sql_index1_1":           a.SqlIndex11,
-		"sql_index1_2":           a.SqlIndex12,
-		"sql_index1_3":           a.SqlIndex13,
-		"sql_keys_1":             a.SqlKeys1,
-		"sql_keys_2":             a.SqlKeys2,
-		"sql_keys_3":             a.SqlKeys3,
-		"sql_search":             a.SqlSearch,
-		"sql_get":                a.SqlGet,
-		"sql_unique_x1":          a.SqlUniqueX1,
-		"sql_unique_x2":          a.SqlUniqueX2,
-		"sql_unique_x1_x2":       a.SqlUniqueX1X2,
-		"sql_primary":            a.SqlPrimary,
-		"sql_jsonb_index":        a.SqlJsonbIndex,
-		"time_duration":          a.TimeDuration,
-		"go_type_int_to_strings": a.GoTypeIntToStrings,
-		"public_field1":          a.PublicField1,
-		"public_field2":          a.PublicField2,
-		"public_field3":          a.PublicField3,
-		"public_field_me1":       a.PublicFieldMe1,
-		"public_field_me2":       a.PublicFieldMe2,
-		"public_field_me3":       a.PublicFieldMe3,
-	}
-}
-
-// struct to map
-func (a *News) Iterate(f func(k NewsIndexTyped, v any)) {
-	for _, x := range NewsIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// gotiny marshal
-func (a *News) MarshalGotiny() []byte {
-	return gotiny.Marshal(&a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
-}
-
-// parse gotiny
-func UnmarshalNewsGotiny(v []byte) (a News) {
-	gotiny.Unmarshal(v, &a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
-	return
-}
-
-// msgp marshal
-func (a *News) MessagePack() []byte {
-	b, _ := msgpack.Marshal(a)
-	return b
-}
-
-// msgp unmarshal
-func ParseNewsMessagePack(v []byte) (a News, err error) {
-	err = msgpack.Unmarshal(v, &a)
-	return
-}
-
-// fast json marshal
-func (a *News) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseNews(v []byte) (a News, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
-}
-
 // newsSQLDB runs queries: pool or transaction
 type newsSQLDB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
@@ -1635,13 +204,14 @@ type NewsSQL struct {
 	db   newsSQLDB // pool, or transaction after TX
 }
 
-// NewNewsSQL creates queries on pool, table and indexes if not exist
-func NewNewsSQL(pool *pgxpool.Pool) (*NewsSQL, error) {
+// NewNewsSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewNewsSQL(pool *pgxpool.Pool) *NewsSQL {
 	a := &NewsSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -3192,6 +1762,1435 @@ func (a *NewsSQL) SetSequence(v int64) error {
 	return err
 }
 
+// field type
+type NewsIndexTyped int
+
+// int index
+const (
+	NewsIndexInc = NewsIndexTyped(iota)
+	NewsIndexRole
+	NewsIndexKey
+	NewsIndexT
+	NewsIndexD
+	NewsIndexInts
+	NewsIndexInts8
+	NewsIndexInts16
+	NewsIndexInts32
+	NewsIndexInts64
+	NewsIndexUints
+	NewsIndexUints8
+	NewsIndexUints16
+	NewsIndexUints32
+	NewsIndexUints64
+	NewsIndexFloats32
+	NewsIndexFloats64
+	NewsIndexBools
+	NewsIndexByte1
+	NewsIndexBytes
+	NewsIndexListInts
+	NewsIndexListString
+	NewsIndexListFloat
+	NewsIndexMapStringString
+	NewsIndexMapStringBytes
+	NewsIndexMapStringBool
+	NewsIndexMapStringInt
+	NewsIndexMapStringFloat64
+	NewsIndexMapStringAny
+	NewsIndexMapIntString
+	NewsIndexMapIntInt
+	NewsIndexMapIntBool
+	NewsIndexRenameSQL
+	NewsIndexRenameGO_OK
+	NewsIndexRenameJS
+	NewsIndexMASTUPPERGO
+	NewsIndexIntToSmallInt
+	NewsIndexSkip
+	NewsIndexSqlUniqueU11
+	NewsIndexSqlUniqueU12
+	NewsIndexSqlIndex11
+	NewsIndexSqlIndex12
+	NewsIndexSqlIndex13
+	NewsIndexSqlKeys1
+	NewsIndexSqlKeys2
+	NewsIndexSqlKeys3
+	NewsIndexSqlSearch
+	NewsIndexSqlGet
+	NewsIndexSqlUniqueX1
+	NewsIndexSqlUniqueX2
+	NewsIndexSqlUniqueX1X2
+	NewsIndexSqlPrimary
+	NewsIndexSqlJsonbIndex
+	NewsIndexTimeDuration
+	NewsIndexGoTypeIntToStrings
+	NewsIndexPublicField1
+	NewsIndexPublicField2
+	NewsIndexPublicField3
+	NewsIndexPublicFieldMe1
+	NewsIndexPublicFieldMe2
+	NewsIndexPublicFieldMe3
+)
+
+// string index
+const (
+	NewsFieldInc                = "inc"                    // int sql{inc}  #readonly
+	NewsFieldRole               = "role"                   // role.Role
+	NewsFieldKey                = "key"                    // uuid.UUID
+	NewsFieldT                  = "t"                      // time.Time
+	NewsFieldD                  = "d"                      // time.Duration
+	NewsFieldInts               = "ints"                   // int
+	NewsFieldInts8              = "ints8"                  // int8
+	NewsFieldInts16             = "ints16"                 // int16
+	NewsFieldInts32             = "ints32"                 // int32
+	NewsFieldInts64             = "ints64"                 // int64
+	NewsFieldUints              = "uints"                  // uint
+	NewsFieldUints8             = "uints8"                 // uint8
+	NewsFieldUints16            = "uints16"                // uint16
+	NewsFieldUints32            = "uints32"                // uint32
+	NewsFieldUints64            = "uints64"                // uint64
+	NewsFieldFloats32           = "floats32"               // float32
+	NewsFieldFloats64           = "floats64"               // float64
+	NewsFieldBools              = "bools"                  // bool
+	NewsFieldByte1              = "byte1"                  // byte
+	NewsFieldBytes              = "bytes"                  // []byte
+	NewsFieldListInts           = "list_ints"              // []int
+	NewsFieldListString         = "list_string"            // []string
+	NewsFieldListFloat          = "list_float"             // []float64
+	NewsFieldMapStringString    = "map_string_string"      // map[string]string
+	NewsFieldMapStringBytes     = "map_string_bytes"       // map[string][]byte
+	NewsFieldMapStringBool      = "map_string_bool"        // map[string]bool
+	NewsFieldMapStringInt       = "map_string_int"         // map[string]int
+	NewsFieldMapStringFloat64   = "map_string_float64"     // map[string]float64
+	NewsFieldMapStringAny       = "map_string_any"         // map[string]any
+	NewsFieldMapIntString       = "map_int_string"         // map[int]string
+	NewsFieldMapIntInt          = "map_int_int"            // map[int]int
+	NewsFieldMapIntBool         = "map_int_bool"           // map[int]bool
+	NewsFieldRenameSQL          = "renameSQL"              // string sql{name="renameSQL_OK"}
+	NewsFieldRenameGO_OK        = "renameGO"               // string go{name="RenameGO_OK"}
+	NewsFieldRenameJS           = "renameJS_OK"            // string js{name="renameJS_OK"}
+	NewsFieldMASTUPPERGO        = "mast_upper_go"          // string go{up}
+	NewsFieldIntToSmallInt      = "intToSmallInt"          // int sql{type="smallint"} rename
+	NewsFieldSkip               = "skip"                   // string sql{skip} swift{skip} js{skip}
+	NewsFieldSqlUniqueU11       = "sql_unique_u1_1"        // int sql{unique="u1"}
+	NewsFieldSqlUniqueU12       = "sql_unique_u1_2"        // int sql{unique="u1"}
+	NewsFieldSqlIndex11         = "sql_index1_1"           // int sql{idx="index1"}
+	NewsFieldSqlIndex12         = "sql_index1_2"           // int sql{idx="index1"}
+	NewsFieldSqlIndex13         = "sql_index1_3"           // int sql{idx="index1"}
+	NewsFieldSqlKeys1           = "sql_keys_1"             // int sql{keys="keys1"}
+	NewsFieldSqlKeys2           = "sql_keys_2"             // int sql{keys="keys1"}
+	NewsFieldSqlKeys3           = "sql_keys_3"             // int sql{keys="keys1"}
+	NewsFieldSqlSearch          = "sql_search"             // string sql{search="search" get}
+	NewsFieldSqlGet             = "sql_get"                // string sql{get}
+	NewsFieldSqlUniqueX1        = "sql_unique_x1"          // int sql{unique="x1"}
+	NewsFieldSqlUniqueX2        = "sql_unique_x2"          // int sql{unique="x2"}
+	NewsFieldSqlUniqueX1X2      = "sql_unique_x1_x2"       // int sql{unique="x1", unique="x2"}
+	NewsFieldSqlPrimary         = "sql_primary"            // float64 sql{primarykey}
+	NewsFieldSqlJsonbIndex      = "sql_jsonb_index"        // map[string]any sql{index}
+	NewsFieldTimeDuration       = "time_duration"          // time.Duration
+	NewsFieldGoTypeIntToStrings = "go_type_int_to_strings" // int go{type="[]string"}
+	NewsFieldPublicField1       = "public_field1"          // int @public
+	NewsFieldPublicField2       = "public_field2"          // int @public
+	NewsFieldPublicField3       = "public_field3"          // int @public
+	NewsFieldPublicFieldMe1     = "public_field_me1"       // int @me
+	NewsFieldPublicFieldMe2     = "public_field_me2"       // int @me
+	NewsFieldPublicFieldMe3     = "public_field_me3"       // int @me
+)
+
+// index func
+func NewsIndexes() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
+
+}
+
+func NewsMeList() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
+}
+
+func NewsPublicList() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3}
+}
+
+func NewsReadonlyList() []NewsIndexTyped {
+	return []NewsIndexTyped{NewsIndexInc}
+}
+
+func (a NewsIndexTyped) Me() bool {
+	switch a {
+	case NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3:
+		return true
+	default:
+		return false
+	}
+}
+func (a NewsIndexTyped) Public() bool {
+	switch a {
+	case NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3:
+		return true
+	default:
+		return false
+	}
+}
+func (a NewsIndexTyped) Readonly() bool {
+	switch a {
+	case NewsIndexInc:
+		return true
+	default:
+		return false
+	}
+}
+
+// key index string
+func (a NewsIndexTyped) String() string {
+	switch a {
+	case NewsIndexInc:
+		return "inc"
+	case NewsIndexRole:
+		return "role"
+	case NewsIndexKey:
+		return "key"
+	case NewsIndexT:
+		return "t"
+	case NewsIndexD:
+		return "d"
+	case NewsIndexInts:
+		return "ints"
+	case NewsIndexInts8:
+		return "ints8"
+	case NewsIndexInts16:
+		return "ints16"
+	case NewsIndexInts32:
+		return "ints32"
+	case NewsIndexInts64:
+		return "ints64"
+	case NewsIndexUints:
+		return "uints"
+	case NewsIndexUints8:
+		return "uints8"
+	case NewsIndexUints16:
+		return "uints16"
+	case NewsIndexUints32:
+		return "uints32"
+	case NewsIndexUints64:
+		return "uints64"
+	case NewsIndexFloats32:
+		return "floats32"
+	case NewsIndexFloats64:
+		return "floats64"
+	case NewsIndexBools:
+		return "bools"
+	case NewsIndexByte1:
+		return "byte1"
+	case NewsIndexBytes:
+		return "bytes"
+	case NewsIndexListInts:
+		return "list_ints"
+	case NewsIndexListString:
+		return "list_string"
+	case NewsIndexListFloat:
+		return "list_float"
+	case NewsIndexMapStringString:
+		return "map_string_string"
+	case NewsIndexMapStringBytes:
+		return "map_string_bytes"
+	case NewsIndexMapStringBool:
+		return "map_string_bool"
+	case NewsIndexMapStringInt:
+		return "map_string_int"
+	case NewsIndexMapStringFloat64:
+		return "map_string_float64"
+	case NewsIndexMapStringAny:
+		return "map_string_any"
+	case NewsIndexMapIntString:
+		return "map_int_string"
+	case NewsIndexMapIntInt:
+		return "map_int_int"
+	case NewsIndexMapIntBool:
+		return "map_int_bool"
+	case NewsIndexRenameSQL:
+		return "renameSQL"
+	case NewsIndexRenameGO_OK:
+		return "renameGO"
+	case NewsIndexRenameJS:
+		return "renameJS"
+	case NewsIndexMASTUPPERGO:
+		return "mast_upper_go"
+	case NewsIndexIntToSmallInt:
+		return "intToSmallInt"
+	case NewsIndexSkip:
+		return "skip"
+	case NewsIndexSqlUniqueU11:
+		return "sql_unique_u1_1"
+	case NewsIndexSqlUniqueU12:
+		return "sql_unique_u1_2"
+	case NewsIndexSqlIndex11:
+		return "sql_index1_1"
+	case NewsIndexSqlIndex12:
+		return "sql_index1_2"
+	case NewsIndexSqlIndex13:
+		return "sql_index1_3"
+	case NewsIndexSqlKeys1:
+		return "sql_keys_1"
+	case NewsIndexSqlKeys2:
+		return "sql_keys_2"
+	case NewsIndexSqlKeys3:
+		return "sql_keys_3"
+	case NewsIndexSqlSearch:
+		return "sql_search"
+	case NewsIndexSqlGet:
+		return "sql_get"
+	case NewsIndexSqlUniqueX1:
+		return "sql_unique_x1"
+	case NewsIndexSqlUniqueX2:
+		return "sql_unique_x2"
+	case NewsIndexSqlUniqueX1X2:
+		return "sql_unique_x1_x2"
+	case NewsIndexSqlPrimary:
+		return "sql_primary"
+	case NewsIndexSqlJsonbIndex:
+		return "sql_jsonb_index"
+	case NewsIndexTimeDuration:
+		return "time_duration"
+	case NewsIndexGoTypeIntToStrings:
+		return "go_type_int_to_strings"
+	case NewsIndexPublicField1:
+		return "public_field1"
+	case NewsIndexPublicField2:
+		return "public_field2"
+	case NewsIndexPublicField3:
+		return "public_field3"
+	case NewsIndexPublicFieldMe1:
+		return "public_field_me1"
+	case NewsIndexPublicFieldMe2:
+		return "public_field_me2"
+	case NewsIndexPublicFieldMe3:
+		return "public_field_me3"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a NewsIndexTyped) SQLName() string {
+	switch a {
+	case NewsIndexInc:
+		return "inc"
+	case NewsIndexRole:
+		return "role"
+	case NewsIndexKey:
+		return "key"
+	case NewsIndexT:
+		return "t"
+	case NewsIndexD:
+		return "d"
+	case NewsIndexInts:
+		return "ints"
+	case NewsIndexInts8:
+		return "ints8"
+	case NewsIndexInts16:
+		return "ints16"
+	case NewsIndexInts32:
+		return "ints32"
+	case NewsIndexInts64:
+		return "ints64"
+	case NewsIndexUints:
+		return "uints"
+	case NewsIndexUints8:
+		return "uints8"
+	case NewsIndexUints16:
+		return "uints16"
+	case NewsIndexUints32:
+		return "uints32"
+	case NewsIndexUints64:
+		return "uints64"
+	case NewsIndexFloats32:
+		return "floats32"
+	case NewsIndexFloats64:
+		return "floats64"
+	case NewsIndexBools:
+		return "bools"
+	case NewsIndexByte1:
+		return "byte1"
+	case NewsIndexBytes:
+		return "bytes"
+	case NewsIndexListInts:
+		return "list_ints"
+	case NewsIndexListString:
+		return "list_string"
+	case NewsIndexListFloat:
+		return "list_float"
+	case NewsIndexMapStringString:
+		return "map_string_string"
+	case NewsIndexMapStringBytes:
+		return "map_string_bytes"
+	case NewsIndexMapStringBool:
+		return "map_string_bool"
+	case NewsIndexMapStringInt:
+		return "map_string_int"
+	case NewsIndexMapStringFloat64:
+		return "map_string_float64"
+	case NewsIndexMapStringAny:
+		return "map_string_any"
+	case NewsIndexMapIntString:
+		return "map_int_string"
+	case NewsIndexMapIntInt:
+		return "map_int_int"
+	case NewsIndexMapIntBool:
+		return "map_int_bool"
+	case NewsIndexRenameSQL:
+		return "renameSQL_OK"
+	case NewsIndexRenameGO_OK:
+		return "renameGO"
+	case NewsIndexRenameJS:
+		return "renameJS"
+	case NewsIndexMASTUPPERGO:
+		return "mast_upper_go"
+	case NewsIndexIntToSmallInt:
+		return "intToSmallInt"
+	case NewsIndexSkip:
+		return "skip"
+	case NewsIndexSqlUniqueU11:
+		return "sql_unique_u1_1"
+	case NewsIndexSqlUniqueU12:
+		return "sql_unique_u1_2"
+	case NewsIndexSqlIndex11:
+		return "sql_index1_1"
+	case NewsIndexSqlIndex12:
+		return "sql_index1_2"
+	case NewsIndexSqlIndex13:
+		return "sql_index1_3"
+	case NewsIndexSqlKeys1:
+		return "sql_keys_1"
+	case NewsIndexSqlKeys2:
+		return "sql_keys_2"
+	case NewsIndexSqlKeys3:
+		return "sql_keys_3"
+	case NewsIndexSqlSearch:
+		return "sql_search"
+	case NewsIndexSqlGet:
+		return "sql_get"
+	case NewsIndexSqlUniqueX1:
+		return "sql_unique_x1"
+	case NewsIndexSqlUniqueX2:
+		return "sql_unique_x2"
+	case NewsIndexSqlUniqueX1X2:
+		return "sql_unique_x1_x2"
+	case NewsIndexSqlPrimary:
+		return "sql_primary"
+	case NewsIndexSqlJsonbIndex:
+		return "sql_jsonb_index"
+	case NewsIndexTimeDuration:
+		return "time_duration"
+	case NewsIndexGoTypeIntToStrings:
+		return "go_type_int_to_strings"
+	case NewsIndexPublicField1:
+		return "public_field1"
+	case NewsIndexPublicField2:
+		return "public_field2"
+	case NewsIndexPublicField3:
+		return "public_field3"
+	case NewsIndexPublicFieldMe1:
+		return "public_field_me1"
+	case NewsIndexPublicFieldMe2:
+		return "public_field_me2"
+	case NewsIndexPublicFieldMe3:
+		return "public_field_me3"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a NewsIndexTyped) ClickhouseName() string {
+	switch a {
+	case NewsIndexInc:
+		return "inc"
+	case NewsIndexRole:
+		return "role"
+	case NewsIndexKey:
+		return "key"
+	case NewsIndexT:
+		return "t"
+	case NewsIndexD:
+		return "d"
+	case NewsIndexInts:
+		return "ints"
+	case NewsIndexInts8:
+		return "ints8"
+	case NewsIndexInts16:
+		return "ints16"
+	case NewsIndexInts32:
+		return "ints32"
+	case NewsIndexInts64:
+		return "ints64"
+	case NewsIndexUints:
+		return "uints"
+	case NewsIndexUints8:
+		return "uints8"
+	case NewsIndexUints16:
+		return "uints16"
+	case NewsIndexUints32:
+		return "uints32"
+	case NewsIndexUints64:
+		return "uints64"
+	case NewsIndexFloats32:
+		return "floats32"
+	case NewsIndexFloats64:
+		return "floats64"
+	case NewsIndexBools:
+		return "bools"
+	case NewsIndexByte1:
+		return "byte1"
+	case NewsIndexBytes:
+		return "bytes"
+	case NewsIndexListInts:
+		return "list_ints"
+	case NewsIndexListString:
+		return "list_string"
+	case NewsIndexListFloat:
+		return "list_float"
+	case NewsIndexMapStringString:
+		return "map_string_string"
+	case NewsIndexMapStringBytes:
+		return "map_string_bytes"
+	case NewsIndexMapStringBool:
+		return "map_string_bool"
+	case NewsIndexMapStringInt:
+		return "map_string_int"
+	case NewsIndexMapStringFloat64:
+		return "map_string_float64"
+	case NewsIndexMapStringAny:
+		return "map_string_any"
+	case NewsIndexMapIntString:
+		return "map_int_string"
+	case NewsIndexMapIntInt:
+		return "map_int_int"
+	case NewsIndexMapIntBool:
+		return "map_int_bool"
+	case NewsIndexRenameSQL:
+		return "renameSQL"
+	case NewsIndexRenameGO_OK:
+		return "renameGO"
+	case NewsIndexRenameJS:
+		return "renameJS"
+	case NewsIndexMASTUPPERGO:
+		return "mast_upper_go"
+	case NewsIndexIntToSmallInt:
+		return "intToSmallInt"
+	case NewsIndexSkip:
+		return "skip"
+	case NewsIndexSqlUniqueU11:
+		return "sql_unique_u1_1"
+	case NewsIndexSqlUniqueU12:
+		return "sql_unique_u1_2"
+	case NewsIndexSqlIndex11:
+		return "sql_index1_1"
+	case NewsIndexSqlIndex12:
+		return "sql_index1_2"
+	case NewsIndexSqlIndex13:
+		return "sql_index1_3"
+	case NewsIndexSqlKeys1:
+		return "sql_keys_1"
+	case NewsIndexSqlKeys2:
+		return "sql_keys_2"
+	case NewsIndexSqlKeys3:
+		return "sql_keys_3"
+	case NewsIndexSqlSearch:
+		return "sql_search"
+	case NewsIndexSqlGet:
+		return "sql_get"
+	case NewsIndexSqlUniqueX1:
+		return "sql_unique_x1"
+	case NewsIndexSqlUniqueX2:
+		return "sql_unique_x2"
+	case NewsIndexSqlUniqueX1X2:
+		return "sql_unique_x1_x2"
+	case NewsIndexSqlPrimary:
+		return "sql_primary"
+	case NewsIndexSqlJsonbIndex:
+		return "sql_jsonb_index"
+	case NewsIndexTimeDuration:
+		return "time_duration"
+	case NewsIndexGoTypeIntToStrings:
+		return "go_type_int_to_strings"
+	case NewsIndexPublicField1:
+		return "public_field1"
+	case NewsIndexPublicField2:
+		return "public_field2"
+	case NewsIndexPublicField3:
+		return "public_field3"
+	case NewsIndexPublicFieldMe1:
+		return "public_field_me1"
+	case NewsIndexPublicFieldMe2:
+		return "public_field_me2"
+	case NewsIndexPublicFieldMe3:
+		return "public_field_me3"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a NewsIndexTyped) Type() string {
+	switch a {
+	case NewsIndexInc:
+		return "int"
+	case NewsIndexRole:
+		return "role.Role"
+	case NewsIndexKey:
+		return "uuid.UUID"
+	case NewsIndexT:
+		return "time.Time"
+	case NewsIndexD:
+		return "time.Duration"
+	case NewsIndexInts:
+		return "int"
+	case NewsIndexInts8:
+		return "int8"
+	case NewsIndexInts16:
+		return "int16"
+	case NewsIndexInts32:
+		return "int32"
+	case NewsIndexInts64:
+		return "int64"
+	case NewsIndexUints:
+		return "uint"
+	case NewsIndexUints8:
+		return "uint8"
+	case NewsIndexUints16:
+		return "uint16"
+	case NewsIndexUints32:
+		return "uint32"
+	case NewsIndexUints64:
+		return "uint64"
+	case NewsIndexFloats32:
+		return "float32"
+	case NewsIndexFloats64:
+		return "float64"
+	case NewsIndexBools:
+		return "bool"
+	case NewsIndexByte1:
+		return "byte"
+	case NewsIndexBytes:
+		return "[]byte"
+	case NewsIndexListInts:
+		return "[]int"
+	case NewsIndexListString:
+		return "[]string"
+	case NewsIndexListFloat:
+		return "[]float64"
+	case NewsIndexMapStringString:
+		return "map[string]string"
+	case NewsIndexMapStringBytes:
+		return "map[string][]byte"
+	case NewsIndexMapStringBool:
+		return "map[string]bool"
+	case NewsIndexMapStringInt:
+		return "map[string]int"
+	case NewsIndexMapStringFloat64:
+		return "map[string]float64"
+	case NewsIndexMapStringAny:
+		return "map[string]any"
+	case NewsIndexMapIntString:
+		return "map[int]string"
+	case NewsIndexMapIntInt:
+		return "map[int]int"
+	case NewsIndexMapIntBool:
+		return "map[int]bool"
+	case NewsIndexRenameSQL:
+		return "string"
+	case NewsIndexRenameGO_OK:
+		return "string"
+	case NewsIndexRenameJS:
+		return "string"
+	case NewsIndexMASTUPPERGO:
+		return "string"
+	case NewsIndexIntToSmallInt:
+		return "int"
+	case NewsIndexSkip:
+		return "string"
+	case NewsIndexSqlUniqueU11:
+		return "int"
+	case NewsIndexSqlUniqueU12:
+		return "int"
+	case NewsIndexSqlIndex11:
+		return "int"
+	case NewsIndexSqlIndex12:
+		return "int"
+	case NewsIndexSqlIndex13:
+		return "int"
+	case NewsIndexSqlKeys1:
+		return "int"
+	case NewsIndexSqlKeys2:
+		return "int"
+	case NewsIndexSqlKeys3:
+		return "int"
+	case NewsIndexSqlSearch:
+		return "string"
+	case NewsIndexSqlGet:
+		return "string"
+	case NewsIndexSqlUniqueX1:
+		return "int"
+	case NewsIndexSqlUniqueX2:
+		return "int"
+	case NewsIndexSqlUniqueX1X2:
+		return "int"
+	case NewsIndexSqlPrimary:
+		return "float64"
+	case NewsIndexSqlJsonbIndex:
+		return "map[string]any"
+	case NewsIndexTimeDuration:
+		return "time.Duration"
+	case NewsIndexGoTypeIntToStrings:
+		return "int"
+	case NewsIndexPublicField1:
+		return "int"
+	case NewsIndexPublicField2:
+		return "int"
+	case NewsIndexPublicField3:
+		return "int"
+	case NewsIndexPublicFieldMe1:
+		return "int"
+	case NewsIndexPublicFieldMe2:
+		return "int"
+	case NewsIndexPublicFieldMe3:
+		return "int"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a NewsIndexTyped) Title() string {
+	switch a {
+	case NewsIndexInc:
+		return "Inc"
+	case NewsIndexRole:
+		return "Role"
+	case NewsIndexKey:
+		return "Key"
+	case NewsIndexT:
+		return "T"
+	case NewsIndexD:
+		return "D"
+	case NewsIndexInts:
+		return "Ints"
+	case NewsIndexInts8:
+		return "Ints8"
+	case NewsIndexInts16:
+		return "Ints16"
+	case NewsIndexInts32:
+		return "Ints32"
+	case NewsIndexInts64:
+		return "Ints64"
+	case NewsIndexUints:
+		return "Uints"
+	case NewsIndexUints8:
+		return "Uints8"
+	case NewsIndexUints16:
+		return "Uints16"
+	case NewsIndexUints32:
+		return "Uints32"
+	case NewsIndexUints64:
+		return "Uints64"
+	case NewsIndexFloats32:
+		return "Floats32"
+	case NewsIndexFloats64:
+		return "Floats64"
+	case NewsIndexBools:
+		return "Bools"
+	case NewsIndexByte1:
+		return "Byte1"
+	case NewsIndexBytes:
+		return "Bytes"
+	case NewsIndexListInts:
+		return "ListInts"
+	case NewsIndexListString:
+		return "ListString"
+	case NewsIndexListFloat:
+		return "ListFloat"
+	case NewsIndexMapStringString:
+		return "MapStringString"
+	case NewsIndexMapStringBytes:
+		return "MapStringBytes"
+	case NewsIndexMapStringBool:
+		return "MapStringBool"
+	case NewsIndexMapStringInt:
+		return "MapStringInt"
+	case NewsIndexMapStringFloat64:
+		return "MapStringFloat64"
+	case NewsIndexMapStringAny:
+		return "MapStringAny"
+	case NewsIndexMapIntString:
+		return "MapIntString"
+	case NewsIndexMapIntInt:
+		return "MapIntInt"
+	case NewsIndexMapIntBool:
+		return "MapIntBool"
+	case NewsIndexRenameSQL:
+		return "RenameSQL"
+	case NewsIndexRenameGO_OK:
+		return "RenameGO_OK"
+	case NewsIndexRenameJS:
+		return "RenameJS"
+	case NewsIndexMASTUPPERGO:
+		return "MASTUPPERGO"
+	case NewsIndexIntToSmallInt:
+		return "IntToSmallInt"
+	case NewsIndexSkip:
+		return "Skip"
+	case NewsIndexSqlUniqueU11:
+		return "SqlUniqueU11"
+	case NewsIndexSqlUniqueU12:
+		return "SqlUniqueU12"
+	case NewsIndexSqlIndex11:
+		return "SqlIndex11"
+	case NewsIndexSqlIndex12:
+		return "SqlIndex12"
+	case NewsIndexSqlIndex13:
+		return "SqlIndex13"
+	case NewsIndexSqlKeys1:
+		return "SqlKeys1"
+	case NewsIndexSqlKeys2:
+		return "SqlKeys2"
+	case NewsIndexSqlKeys3:
+		return "SqlKeys3"
+	case NewsIndexSqlSearch:
+		return "SqlSearch"
+	case NewsIndexSqlGet:
+		return "SqlGet"
+	case NewsIndexSqlUniqueX1:
+		return "SqlUniqueX1"
+	case NewsIndexSqlUniqueX2:
+		return "SqlUniqueX2"
+	case NewsIndexSqlUniqueX1X2:
+		return "SqlUniqueX1X2"
+	case NewsIndexSqlPrimary:
+		return "SqlPrimary"
+	case NewsIndexSqlJsonbIndex:
+		return "SqlJsonbIndex"
+	case NewsIndexTimeDuration:
+		return "TimeDuration"
+	case NewsIndexGoTypeIntToStrings:
+		return "GoTypeIntToStrings"
+	case NewsIndexPublicField1:
+		return "PublicField1"
+	case NewsIndexPublicField2:
+		return "PublicField2"
+	case NewsIndexPublicField3:
+		return "PublicField3"
+	case NewsIndexPublicFieldMe1:
+		return "PublicFieldMe1"
+	case NewsIndexPublicFieldMe2:
+		return "PublicFieldMe2"
+	case NewsIndexPublicFieldMe3:
+		return "PublicFieldMe3"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a NewsIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func NewsKeyIndex(key string) NewsIndexTyped {
+	switch key {
+	case "inc":
+		return NewsIndexInc
+	case "role":
+		return NewsIndexRole
+	case "key":
+		return NewsIndexKey
+	case "t":
+		return NewsIndexT
+	case "d":
+		return NewsIndexD
+	case "ints":
+		return NewsIndexInts
+	case "ints8":
+		return NewsIndexInts8
+	case "ints16":
+		return NewsIndexInts16
+	case "ints32":
+		return NewsIndexInts32
+	case "ints64":
+		return NewsIndexInts64
+	case "uints":
+		return NewsIndexUints
+	case "uints8":
+		return NewsIndexUints8
+	case "uints16":
+		return NewsIndexUints16
+	case "uints32":
+		return NewsIndexUints32
+	case "uints64":
+		return NewsIndexUints64
+	case "floats32":
+		return NewsIndexFloats32
+	case "floats64":
+		return NewsIndexFloats64
+	case "bools":
+		return NewsIndexBools
+	case "byte1":
+		return NewsIndexByte1
+	case "bytes":
+		return NewsIndexBytes
+	case "list_ints":
+		return NewsIndexListInts
+	case "list_string":
+		return NewsIndexListString
+	case "list_float":
+		return NewsIndexListFloat
+	case "map_string_string":
+		return NewsIndexMapStringString
+	case "map_string_bytes":
+		return NewsIndexMapStringBytes
+	case "map_string_bool":
+		return NewsIndexMapStringBool
+	case "map_string_int":
+		return NewsIndexMapStringInt
+	case "map_string_float64":
+		return NewsIndexMapStringFloat64
+	case "map_string_any":
+		return NewsIndexMapStringAny
+	case "map_int_string":
+		return NewsIndexMapIntString
+	case "map_int_int":
+		return NewsIndexMapIntInt
+	case "map_int_bool":
+		return NewsIndexMapIntBool
+	case "renameSQL":
+		return NewsIndexRenameSQL
+	case "renameGO":
+		return NewsIndexRenameGO_OK
+	case "renameJS":
+		return NewsIndexRenameJS
+	case "mast_upper_go":
+		return NewsIndexMASTUPPERGO
+	case "intToSmallInt":
+		return NewsIndexIntToSmallInt
+	case "skip":
+		return NewsIndexSkip
+	case "sql_unique_u1_1":
+		return NewsIndexSqlUniqueU11
+	case "sql_unique_u1_2":
+		return NewsIndexSqlUniqueU12
+	case "sql_index1_1":
+		return NewsIndexSqlIndex11
+	case "sql_index1_2":
+		return NewsIndexSqlIndex12
+	case "sql_index1_3":
+		return NewsIndexSqlIndex13
+	case "sql_keys_1":
+		return NewsIndexSqlKeys1
+	case "sql_keys_2":
+		return NewsIndexSqlKeys2
+	case "sql_keys_3":
+		return NewsIndexSqlKeys3
+	case "sql_search":
+		return NewsIndexSqlSearch
+	case "sql_get":
+		return NewsIndexSqlGet
+	case "sql_unique_x1":
+		return NewsIndexSqlUniqueX1
+	case "sql_unique_x2":
+		return NewsIndexSqlUniqueX2
+	case "sql_unique_x1_x2":
+		return NewsIndexSqlUniqueX1X2
+	case "sql_primary":
+		return NewsIndexSqlPrimary
+	case "sql_jsonb_index":
+		return NewsIndexSqlJsonbIndex
+	case "time_duration":
+		return NewsIndexTimeDuration
+	case "go_type_int_to_strings":
+		return NewsIndexGoTypeIntToStrings
+	case "public_field1":
+		return NewsIndexPublicField1
+	case "public_field2":
+		return NewsIndexPublicField2
+	case "public_field3":
+		return NewsIndexPublicField3
+	case "public_field_me1":
+		return NewsIndexPublicFieldMe1
+	case "public_field_me2":
+		return NewsIndexPublicFieldMe2
+	case "public_field_me3":
+		return NewsIndexPublicFieldMe3
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func NewsValidKey(key string) bool {
+	switch key {
+	case "inc", "role", "key", "t", "d", "ints", "ints8", "ints16", "ints32", "ints64", "uints", "uints8", "uints16", "uints32", "uints64", "floats32", "floats64", "bools", "byte1", "bytes", "list_ints", "list_string", "list_float", "map_string_string", "map_string_bytes", "map_string_bool", "map_string_int", "map_string_float64", "map_string_any", "map_int_string", "map_int_int", "map_int_bool", "renameSQL", "renameGO", "renameJS", "mast_upper_go", "intToSmallInt", "skip", "sql_unique_u1_1", "sql_unique_u1_2", "sql_index1_1", "sql_index1_2", "sql_index1_3", "sql_keys_1", "sql_keys_2", "sql_keys_3", "sql_search", "sql_get", "sql_unique_x1", "sql_unique_x2", "sql_unique_x1_x2", "sql_primary", "sql_jsonb_index", "time_duration", "go_type_int_to_strings", "public_field1", "public_field2", "public_field3", "public_field_me1", "public_field_me2", "public_field_me3":
+		return true
+	default:
+		return false
+	}
+}
+
+type NewsMe struct {
+	PublicFieldMe1 int `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"` // @me
+	PublicFieldMe2 int `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"` // @me
+	PublicFieldMe3 int `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"` // @me
+}
+
+func (a *News) NewsMe() (res *NewsMe) {
+	return &NewsMe{
+		PublicFieldMe1: a.PublicFieldMe1,
+		PublicFieldMe2: a.PublicFieldMe2,
+		PublicFieldMe3: a.PublicFieldMe3,
+	}
+}
+
+func (a *NewsMe) News() (res *News) {
+	return &News{
+		PublicFieldMe1: a.PublicFieldMe1,
+		PublicFieldMe2: a.PublicFieldMe2,
+		PublicFieldMe3: a.PublicFieldMe3,
+	}
+}
+
+func (a *NewsMe) Pack() (res []byte) {
+	res, _ = gojson.Marshal(a)
+	return
+}
+
+type NewsPublic struct {
+	PublicField1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
+	PublicField2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
+	PublicField3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
+}
+
+func (a *News) NewsPublic() (res *NewsPublic) {
+	return &NewsPublic{
+		PublicField1: a.PublicField1,
+		PublicField2: a.PublicField2,
+		PublicField3: a.PublicField3,
+	}
+}
+
+func (a *NewsPublic) News() (res *News) {
+	return &News{
+		PublicField1: a.PublicField1,
+		PublicField2: a.PublicField2,
+		PublicField3: a.PublicField3,
+	}
+}
+
+func (a *NewsPublic) Pack() (res []byte) {
+	res, _ = gojson.Marshal(a)
+	return
+}
+
+// Tuple create an array from struct
+func (a *News) Tuple() (r []any) {
+	return []any{a.Inc, a.Role, a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, a.MapStringInt, a.MapStringFloat64, a.MapStringAny, a.MapIntString, a.MapIntInt, a.MapIntBool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
+}
+
+// get struct value with function
+func (a *News) Get(k string) (v any) {
+	switch k {
+	case "inc":
+		return a.Inc //int
+	case "role":
+		return a.Role //role.Role
+	case "key":
+		return a.Key //uuid.UUID
+	case "t":
+		return a.T //time.Time
+	case "d":
+		return a.D //time.Duration
+	case "ints":
+		return a.Ints //int
+	case "ints8":
+		return a.Ints8 //int8
+	case "ints16":
+		return a.Ints16 //int16
+	case "ints32":
+		return a.Ints32 //int32
+	case "ints64":
+		return a.Ints64 //int64
+	case "uints":
+		return a.Uints //uint
+	case "uints8":
+		return a.Uints8 //uint8
+	case "uints16":
+		return a.Uints16 //uint16
+	case "uints32":
+		return a.Uints32 //uint32
+	case "uints64":
+		return a.Uints64 //uint64
+	case "floats32":
+		return a.Floats32 //float32
+	case "floats64":
+		return a.Floats64 //float64
+	case "bools":
+		return a.Bools //bool
+	case "byte1":
+		return a.Byte1 //byte
+	case "bytes":
+		return a.Bytes //[]byte
+	case "list_ints":
+		return a.ListInts //[]int
+	case "list_string":
+		return a.ListString //[]string
+	case "list_float":
+		return a.ListFloat //[]float64
+	case "map_string_string":
+		return a.MapStringString //map[string]string
+	case "map_string_bytes":
+		return a.MapStringBytes //map[string][]byte
+	case "map_string_bool":
+		return a.MapStringBool //map[string]bool
+	case "map_string_int":
+		return a.MapStringInt //map[string]int
+	case "map_string_float64":
+		return a.MapStringFloat64 //map[string]float64
+	case "map_string_any":
+		return a.MapStringAny //map[string]any
+	case "map_int_string":
+		return a.MapIntString //map[int]string
+	case "map_int_int":
+		return a.MapIntInt //map[int]int
+	case "map_int_bool":
+		return a.MapIntBool //map[int]bool
+	case "renameSQL":
+		return a.RenameSQL //string
+	case "renameGO":
+		return a.RenameGO_OK //string
+	case "renameJS":
+		return a.RenameJS //string
+	case "mast_upper_go":
+		return a.MASTUPPERGO //string
+	case "intToSmallInt":
+		return a.IntToSmallInt //int
+	case "skip":
+		return a.Skip //string
+	case "sql_unique_u1_1":
+		return a.SqlUniqueU11 //int
+	case "sql_unique_u1_2":
+		return a.SqlUniqueU12 //int
+	case "sql_index1_1":
+		return a.SqlIndex11 //int
+	case "sql_index1_2":
+		return a.SqlIndex12 //int
+	case "sql_index1_3":
+		return a.SqlIndex13 //int
+	case "sql_keys_1":
+		return a.SqlKeys1 //int
+	case "sql_keys_2":
+		return a.SqlKeys2 //int
+	case "sql_keys_3":
+		return a.SqlKeys3 //int
+	case "sql_search":
+		return a.SqlSearch //string
+	case "sql_get":
+		return a.SqlGet //string
+	case "sql_unique_x1":
+		return a.SqlUniqueX1 //int
+	case "sql_unique_x2":
+		return a.SqlUniqueX2 //int
+	case "sql_unique_x1_x2":
+		return a.SqlUniqueX1X2 //int
+	case "sql_primary":
+		return a.SqlPrimary //float64
+	case "sql_jsonb_index":
+		return a.SqlJsonbIndex //map[string]any
+	case "time_duration":
+		return a.TimeDuration //time.Duration
+	case "go_type_int_to_strings":
+		return a.GoTypeIntToStrings //int
+	case "public_field1":
+		return a.PublicField1 //int
+	case "public_field2":
+		return a.PublicField2 //int
+	case "public_field3":
+		return a.PublicField3 //int
+	case "public_field_me1":
+		return a.PublicFieldMe1 //int
+	case "public_field_me2":
+		return a.PublicFieldMe2 //int
+	case "public_field_me3":
+		return a.PublicFieldMe3 //int
+	}
+	return
+}
+
+// get any struct value as string
+func (a *News) String(k string) (v string) {
+	switch k {
+	case "inc":
+		return fmt.Sprint(a.Inc) //int
+	case "role":
+		return fmt.Sprint(a.Role) //role.Role
+	case "key":
+		return fmt.Sprint(a.Key) //uuid.UUID
+	case "t":
+		return fmt.Sprint(a.T) //time.Time
+	case "d":
+		return fmt.Sprint(a.D) //time.Duration
+	case "ints":
+		return fmt.Sprint(a.Ints) //int
+	case "ints8":
+		return fmt.Sprint(a.Ints8) //int8
+	case "ints16":
+		return fmt.Sprint(a.Ints16) //int16
+	case "ints32":
+		return fmt.Sprint(a.Ints32) //int32
+	case "ints64":
+		return fmt.Sprint(a.Ints64) //int64
+	case "uints":
+		return fmt.Sprint(a.Uints) //uint
+	case "uints8":
+		return fmt.Sprint(a.Uints8) //uint8
+	case "uints16":
+		return fmt.Sprint(a.Uints16) //uint16
+	case "uints32":
+		return fmt.Sprint(a.Uints32) //uint32
+	case "uints64":
+		return fmt.Sprint(a.Uints64) //uint64
+	case "floats32":
+		return fmt.Sprint(a.Floats32) //float32
+	case "floats64":
+		return fmt.Sprint(a.Floats64) //float64
+	case "bools":
+		return fmt.Sprint(a.Bools) //bool
+	case "byte1":
+		return fmt.Sprint(a.Byte1) //byte
+	case "bytes":
+		return fmt.Sprint(a.Bytes) //[]byte
+	case "list_ints":
+		return fmt.Sprint(a.ListInts) //[]int
+	case "list_string":
+		return fmt.Sprint(a.ListString) //[]string
+	case "list_float":
+		return fmt.Sprint(a.ListFloat) //[]float64
+	case "map_string_string":
+		return fmt.Sprint(a.MapStringString) //map[string]string
+	case "map_string_bytes":
+		return fmt.Sprint(a.MapStringBytes) //map[string][]byte
+	case "map_string_bool":
+		return fmt.Sprint(a.MapStringBool) //map[string]bool
+	case "map_string_int":
+		return fmt.Sprint(a.MapStringInt) //map[string]int
+	case "map_string_float64":
+		return fmt.Sprint(a.MapStringFloat64) //map[string]float64
+	case "map_string_any":
+		return fmt.Sprint(a.MapStringAny) //map[string]any
+	case "map_int_string":
+		return fmt.Sprint(a.MapIntString) //map[int]string
+	case "map_int_int":
+		return fmt.Sprint(a.MapIntInt) //map[int]int
+	case "map_int_bool":
+		return fmt.Sprint(a.MapIntBool) //map[int]bool
+	case "renameSQL":
+		return fmt.Sprint(a.RenameSQL) //string
+	case "renameGO":
+		return fmt.Sprint(a.RenameGO_OK) //string
+	case "renameJS":
+		return fmt.Sprint(a.RenameJS) //string
+	case "mast_upper_go":
+		return fmt.Sprint(a.MASTUPPERGO) //string
+	case "intToSmallInt":
+		return fmt.Sprint(a.IntToSmallInt) //int
+	case "skip":
+		return fmt.Sprint(a.Skip) //string
+	case "sql_unique_u1_1":
+		return fmt.Sprint(a.SqlUniqueU11) //int
+	case "sql_unique_u1_2":
+		return fmt.Sprint(a.SqlUniqueU12) //int
+	case "sql_index1_1":
+		return fmt.Sprint(a.SqlIndex11) //int
+	case "sql_index1_2":
+		return fmt.Sprint(a.SqlIndex12) //int
+	case "sql_index1_3":
+		return fmt.Sprint(a.SqlIndex13) //int
+	case "sql_keys_1":
+		return fmt.Sprint(a.SqlKeys1) //int
+	case "sql_keys_2":
+		return fmt.Sprint(a.SqlKeys2) //int
+	case "sql_keys_3":
+		return fmt.Sprint(a.SqlKeys3) //int
+	case "sql_search":
+		return fmt.Sprint(a.SqlSearch) //string
+	case "sql_get":
+		return fmt.Sprint(a.SqlGet) //string
+	case "sql_unique_x1":
+		return fmt.Sprint(a.SqlUniqueX1) //int
+	case "sql_unique_x2":
+		return fmt.Sprint(a.SqlUniqueX2) //int
+	case "sql_unique_x1_x2":
+		return fmt.Sprint(a.SqlUniqueX1X2) //int
+	case "sql_primary":
+		return fmt.Sprint(a.SqlPrimary) //float64
+	case "sql_jsonb_index":
+		return fmt.Sprint(a.SqlJsonbIndex) //map[string]any
+	case "time_duration":
+		return fmt.Sprint(a.TimeDuration) //time.Duration
+	case "go_type_int_to_strings":
+		return fmt.Sprint(a.GoTypeIntToStrings) //int
+	case "public_field1":
+		return fmt.Sprint(a.PublicField1) //int
+	case "public_field2":
+		return fmt.Sprint(a.PublicField2) //int
+	case "public_field3":
+		return fmt.Sprint(a.PublicField3) //int
+	case "public_field_me1":
+		return fmt.Sprint(a.PublicFieldMe1) //int
+	case "public_field_me2":
+		return fmt.Sprint(a.PublicFieldMe2) //int
+	case "public_field_me3":
+		return fmt.Sprint(a.PublicFieldMe3) //int
+	}
+	return
+}
+
+// struct to map
+func (a *News) Map() map[string]any {
+	return map[string]any{
+		"inc":                    a.Inc,
+		"role":                   a.Role,
+		"key":                    a.Key,
+		"t":                      a.T,
+		"d":                      a.D,
+		"ints":                   a.Ints,
+		"ints8":                  a.Ints8,
+		"ints16":                 a.Ints16,
+		"ints32":                 a.Ints32,
+		"ints64":                 a.Ints64,
+		"uints":                  a.Uints,
+		"uints8":                 a.Uints8,
+		"uints16":                a.Uints16,
+		"uints32":                a.Uints32,
+		"uints64":                a.Uints64,
+		"floats32":               a.Floats32,
+		"floats64":               a.Floats64,
+		"bools":                  a.Bools,
+		"byte1":                  a.Byte1,
+		"bytes":                  a.Bytes,
+		"list_ints":              a.ListInts,
+		"list_string":            a.ListString,
+		"list_float":             a.ListFloat,
+		"map_string_string":      a.MapStringString,
+		"map_string_bytes":       a.MapStringBytes,
+		"map_string_bool":        a.MapStringBool,
+		"map_string_int":         a.MapStringInt,
+		"map_string_float64":     a.MapStringFloat64,
+		"map_string_any":         a.MapStringAny,
+		"map_int_string":         a.MapIntString,
+		"map_int_int":            a.MapIntInt,
+		"map_int_bool":           a.MapIntBool,
+		"renameSQL":              a.RenameSQL,
+		"renameGO":               a.RenameGO_OK,
+		"renameJS_OK":            a.RenameJS,
+		"mast_upper_go":          a.MASTUPPERGO,
+		"intToSmallInt":          a.IntToSmallInt,
+		"skip":                   a.Skip,
+		"sql_unique_u1_1":        a.SqlUniqueU11,
+		"sql_unique_u1_2":        a.SqlUniqueU12,
+		"sql_index1_1":           a.SqlIndex11,
+		"sql_index1_2":           a.SqlIndex12,
+		"sql_index1_3":           a.SqlIndex13,
+		"sql_keys_1":             a.SqlKeys1,
+		"sql_keys_2":             a.SqlKeys2,
+		"sql_keys_3":             a.SqlKeys3,
+		"sql_search":             a.SqlSearch,
+		"sql_get":                a.SqlGet,
+		"sql_unique_x1":          a.SqlUniqueX1,
+		"sql_unique_x2":          a.SqlUniqueX2,
+		"sql_unique_x1_x2":       a.SqlUniqueX1X2,
+		"sql_primary":            a.SqlPrimary,
+		"sql_jsonb_index":        a.SqlJsonbIndex,
+		"time_duration":          a.TimeDuration,
+		"go_type_int_to_strings": a.GoTypeIntToStrings,
+		"public_field1":          a.PublicField1,
+		"public_field2":          a.PublicField2,
+		"public_field3":          a.PublicField3,
+		"public_field_me1":       a.PublicFieldMe1,
+		"public_field_me2":       a.PublicFieldMe2,
+		"public_field_me3":       a.PublicFieldMe3,
+	}
+}
+
+// struct to map
+func (a *News) Iterate(f func(k NewsIndexTyped, v any)) {
+	for _, x := range NewsIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *News) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseNews(v []byte) (a News, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
+}
+
+// gotiny marshal
+func (a *News) MarshalGotiny() []byte {
+	return gotiny.Marshal(&a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
+}
+
+// parse gotiny
+func UnmarshalNewsGotiny(v []byte) (a News) {
+	gotiny.Unmarshal(v, &a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
+	return
+}
+
+// msgp marshal
+func (a *News) MessagePack() []byte {
+	b, _ := msgpack.Marshal(a)
+	return b
+}
+
+// msgp unmarshal
+func ParseNewsMessagePack(v []byte) (a News, err error) {
+	err = msgpack.Unmarshal(v, &a)
+	return
+}
+
+// Tuple create an array from struct for clickhouse
+func (a *News) clickhouseTuple() (r []any) {
+	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, func() map[string]int64 {
+		r := make(map[string]int64, len(a.MapStringInt))
+		for k, v := range a.MapStringInt {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}(), a.MapStringFloat64, a.MapStringAny, func() map[int64]string {
+		r := make(map[int64]string, len(a.MapIntString))
+		for k, v := range a.MapIntString {
+			r[int64(k)] = string(v)
+		}
+		return r
+	}(), func() map[int64]int64 {
+		r := make(map[int64]int64, len(a.MapIntInt))
+		for k, v := range a.MapIntInt {
+			r[int64(k)] = int64(v)
+		}
+		return r
+	}(), func() map[int64]bool {
+		r := make(map[int64]bool, len(a.MapIntBool))
+		for k, v := range a.MapIntBool {
+			r[int64(k)] = bool(v)
+		}
+		return r
+	}(), a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
+}
+
 // NewsCQL clickhouse queries of table news
 //
 // Rules:
@@ -3199,7 +3198,7 @@ func (a *NewsSQL) SetSequence(v int64) error {
 //   - not found row is sql.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
-//   - updates and deletes are mutations: they wait until the data is changed
+//   - rows are only inserted, selected and deleted
 type NewsCQL struct {
 	conn driver.Conn
 	mu   sync.Mutex
@@ -3207,14 +3206,13 @@ type NewsCQL struct {
 }
 
 // NewNewsCQL creates queries on connection and table if not exists.
-// Rows of Add are written every 10 minutes and by Push
-func NewNewsCQL(conn driver.Conn) (*NewsCQL, error) {
+// Rows of Add are written every 10 minutes and by Push.
+// Error of table is not returned: call CreateTable to see it
+func NewNewsCQL(conn driver.Conn) *NewsCQL {
 	a := &NewsCQL{conn: conn}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
-	}
+	_ = a.CreateTable()
 	go a.flush()
-	return a, nil
+	return a
 }
 
 // Conn returns connection, for own queries
@@ -3331,24 +3329,6 @@ func newsCHSelect(fields []NewsIndexTyped) (string, []NewsIndexTyped, error) {
 		list = append(list, col)
 	}
 	return strings.Join(list, ", "), fields, nil
-}
-
-// newsCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func newsCHSet(v map[NewsIndexTyped]any, start int) (string, []any, error) {
-	if len(v) == 0 {
-		return "", nil, errors.New("news: no values")
-	}
-	list := make([]string, 0, len(v))
-	args := make([]any, 0, len(v))
-	for i, f := range slices.Sorted(maps.Keys(v)) {
-		col, err := newsCHColumn(f)
-		if err != nil {
-			return "", nil, err
-		}
-		list = append(list, col+" = $"+strconv.Itoa(start+i))
-		args = append(args, v[f])
-	}
-	return strings.Join(list, ", "), args, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3557,169 +3537,12 @@ func (a *NewsCQL) Stat(field NewsIndexTyped) (map[string]int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// update, delete: mutations
+// delete: mutations, they wait until the data is removed
 // ---------------------------------------------------------------------------
-
-// Update sets field of row
-func (a *NewsCQL) Update(id int, field NewsIndexTyped, v any) error {
-	col, err := newsCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table news update "+col+" = $1 where inc = $2"+newsCHSync, v, id)
-}
-
-// Updates sets fields of row
-func (a *NewsCQL) Updates(id int, v map[NewsIndexTyped]any) error {
-	set, args, err := newsCHSet(v, 1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table news update "+set+" where inc = $"+strconv.Itoa(len(args)+1)+newsCHSync, append(args, id)...)
-}
-
-// Inc adds v to number field: views = views + 1
-func (a *NewsCQL) Inc(id int, field NewsIndexTyped, v any) error {
-	col, err := newsCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table news update "+col+" = "+col+" + $1 where inc = $2"+newsCHSync, v, id)
-}
 
 // Delete removes row by inc
 func (a *NewsCQL) Delete(id int) error {
 	return a.conn.Exec(context.Background(), "alter table news delete where inc = $1"+newsCHSync, id)
-}
-
-// AppendListInts adds values to array list_ints
-func (a *NewsCQL) AppendListInts(id int, v ...int) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_ints = arrayConcat(list_ints, $1) where inc = $2"+newsCHSync, v, id)
-}
-
-// RemoveListInts removes all entries of v from array list_ints
-func (a *NewsCQL) RemoveListInts(id int, v int) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_ints = arrayFilter(x -> x != $1, list_ints) where inc = $2"+newsCHSync, v, id)
-}
-
-// AppendListString adds values to array list_string
-func (a *NewsCQL) AppendListString(id int, v ...string) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_string = arrayConcat(list_string, $1) where inc = $2"+newsCHSync, v, id)
-}
-
-// RemoveListString removes all entries of v from array list_string
-func (a *NewsCQL) RemoveListString(id int, v string) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_string = arrayFilter(x -> x != $1, list_string) where inc = $2"+newsCHSync, v, id)
-}
-
-// AppendListFloat adds values to array list_float
-func (a *NewsCQL) AppendListFloat(id int, v ...float64) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_float = arrayConcat(list_float, $1) where inc = $2"+newsCHSync, v, id)
-}
-
-// RemoveListFloat removes all entries of v from array list_float
-func (a *NewsCQL) RemoveListFloat(id int, v float64) error {
-	return a.conn.Exec(context.Background(), "alter table news update list_float = arrayFilter(x -> x != $1, list_float) where inc = $2"+newsCHSync, v, id)
-}
-
-// UpdateMapStringString sets key of map map_string_string
-func (a *NewsCQL) UpdateMapStringString(id int, k string, v string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_string = mapUpdate(map_string_string, cast(map($1, $2), 'Map(String, String)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapStringString removes key of map map_string_string
-func (a *NewsCQL) DeleteMapStringString(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_string = mapFilter((k, v) -> k != $1, map_string_string) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapStringBool sets key of map map_string_bool
-func (a *NewsCQL) UpdateMapStringBool(id int, k string, v bool) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_bool = mapUpdate(map_string_bool, cast(map($1, $2), 'Map(String, Bool)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapStringBool removes key of map map_string_bool
-func (a *NewsCQL) DeleteMapStringBool(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_bool = mapFilter((k, v) -> k != $1, map_string_bool) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapStringInt sets key of map map_string_int
-func (a *NewsCQL) UpdateMapStringInt(id int, k string, v int) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_int = mapUpdate(map_string_int, cast(map($1, $2), 'Map(String, Int64)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapStringInt removes key of map map_string_int
-func (a *NewsCQL) DeleteMapStringInt(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_int = mapFilter((k, v) -> k != $1, map_string_int) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapStringFloat64 sets key of map map_string_float64
-func (a *NewsCQL) UpdateMapStringFloat64(id int, k string, v float64) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_float64 = mapUpdate(map_string_float64, cast(map($1, $2), 'Map(String, Float64)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapStringFloat64 removes key of map map_string_float64
-func (a *NewsCQL) DeleteMapStringFloat64(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_string_float64 = mapFilter((k, v) -> k != $1, map_string_float64) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapIntString sets key of map map_int_string
-func (a *NewsCQL) UpdateMapIntString(id int, k int, v string) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_string = mapUpdate(map_int_string, cast(map($1, $2), 'Map(Int64, String)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapIntString removes key of map map_int_string
-func (a *NewsCQL) DeleteMapIntString(id int, k int) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_string = mapFilter((k, v) -> k != $1, map_int_string) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapIntInt sets key of map map_int_int
-func (a *NewsCQL) UpdateMapIntInt(id int, k int, v int) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_int = mapUpdate(map_int_int, cast(map($1, $2), 'Map(Int64, Int64)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapIntInt removes key of map map_int_int
-func (a *NewsCQL) DeleteMapIntInt(id int, k int) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_int = mapFilter((k, v) -> k != $1, map_int_int) where inc = $2"+newsCHSync, k, id)
-}
-
-// UpdateMapIntBool sets key of map map_int_bool
-func (a *NewsCQL) UpdateMapIntBool(id int, k int, v bool) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_bool = mapUpdate(map_int_bool, cast(map($1, $2), 'Map(Int64, Bool)')) where inc = $3"+newsCHSync, k, v, id)
-}
-
-// DeleteMapIntBool removes key of map map_int_bool
-func (a *NewsCQL) DeleteMapIntBool(id int, k int) error {
-	return a.conn.Exec(context.Background(), "alter table news update map_int_bool = mapFilter((k, v) -> k != $1, map_int_bool) where inc = $2"+newsCHSync, k, id)
-}
-
-// AppendGoTypeIntToStrings adds values to array go_type_int_to_strings
-func (a *NewsCQL) AppendGoTypeIntToStrings(id int, v ...string) error {
-	return a.conn.Exec(context.Background(), "alter table news update go_type_int_to_strings = arrayConcat(go_type_int_to_strings, $1) where inc = $2"+newsCHSync, v, id)
-}
-
-// RemoveGoTypeIntToStrings removes all entries of v from array go_type_int_to_strings
-func (a *NewsCQL) RemoveGoTypeIntToStrings(id int, v string) error {
-	return a.conn.Exec(context.Background(), "alter table news update go_type_int_to_strings = arrayFilter(x -> x != $1, go_type_int_to_strings) where inc = $2"+newsCHSync, v, id)
-}
-
-// UpdateWhere sets field of rows by condition
-//
-//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
-func (a *NewsCQL) UpdateWhere(field NewsIndexTyped, v any, where string, args ...any) error {
-	col, err := newsCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table news update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+newsCHSync, append(slices.Clone(args), v)...)
-}
-
-// UpdatesWhere sets fields of rows by condition
-func (a *NewsCQL) UpdatesWhere(v map[NewsIndexTyped]any, where string, args ...any) error {
-	set, vals, err := newsCHSet(v, len(args)+1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table news update "+set+" where "+where+newsCHSync, append(slices.Clone(args), vals...)...)
 }
 
 // DeleteWhere removes rows by condition

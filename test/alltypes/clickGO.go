@@ -93,202 +93,11 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type ClickIndexTyped int
-
-// int index
-const (
-	ClickIndexID = ClickIndexTyped(iota)
-	ClickIndexLink
-	ClickIndexTags
-)
-
-// string index
-const (
-	ClickFieldID   = "id"   // int sql{inc} ch{primary}
-	ClickFieldLink = "link" // string
-	ClickFieldTags = "tags" // []string
-)
-
-// index func
-func ClickIndexes() []ClickIndexTyped {
-	return []ClickIndexTyped{ClickIndexID, ClickIndexLink, ClickIndexTags}
-
-}
-
 // 32 bytes (go padding)
-//
-//easyjson:json
 type Click struct {
 	ID   int      `json:"id,omitempty"`   // sql{inc} ch{primary}
 	Link string   `json:"link,omitempty"` //
 	Tags []string `json:"tags,omitempty"` //
-}
-
-// Tuple create an array from struct
-func (a *Click) Tuple() (r []any) {
-	return []any{a.ID, a.Link, a.Tags}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Click) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Link, a.Tags}
-}
-
-// get struct value with function
-func (a *Click) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "link":
-		return a.Link //string
-	case "tags":
-		return a.Tags //[]string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Click) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "link":
-		return fmt.Sprint(a.Link) //string
-	case "tags":
-		return fmt.Sprint(a.Tags) //[]string
-	}
-	return
-}
-
-// key index string
-func (a ClickIndexTyped) String() string {
-	switch a {
-	case ClickIndexID:
-		return "id"
-	case ClickIndexLink:
-		return "link"
-	case ClickIndexTags:
-		return "tags"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a ClickIndexTyped) SQLName() string {
-	switch a {
-	case ClickIndexID:
-		return "id"
-	case ClickIndexLink:
-		return "link"
-	case ClickIndexTags:
-		return "tags"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a ClickIndexTyped) ClickhouseName() string {
-	switch a {
-	case ClickIndexID:
-		return "id"
-	case ClickIndexLink:
-		return "link"
-	case ClickIndexTags:
-		return "tags"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a ClickIndexTyped) Type() string {
-	switch a {
-	case ClickIndexID:
-		return "int"
-	case ClickIndexLink:
-		return "string"
-	case ClickIndexTags:
-		return "[]string"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a ClickIndexTyped) Title() string {
-	switch a {
-	case ClickIndexID:
-		return "ID"
-	case ClickIndexLink:
-		return "Link"
-	case ClickIndexTags:
-		return "Tags"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a ClickIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func ClickKeyIndex(key string) ClickIndexTyped {
-	switch key {
-	case "id":
-		return ClickIndexID
-	case "link":
-		return ClickIndexLink
-	case "tags":
-		return ClickIndexTags
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func ClickValidKey(key string) bool {
-	switch key {
-	case "id", "link", "tags":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Click) Map() map[string]any {
-	return map[string]any{
-		"id":   a.ID,
-		"link": a.Link,
-		"tags": a.Tags,
-	}
-}
-
-// struct to map
-func (a *Click) Iterate(f func(k ClickIndexTyped, v any)) {
-	for _, x := range ClickIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Click) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseClick(v []byte) (a Click, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // clickSQLDB runs queries: pool or transaction
@@ -313,13 +122,14 @@ type ClickSQL struct {
 	db   clickSQLDB // pool, or transaction after TX
 }
 
-// NewClickSQL creates queries on pool, table and indexes if not exist
-func NewClickSQL(pool *pgxpool.Pool) (*ClickSQL, errors.E) {
+// NewClickSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewClickSQL(pool *pgxpool.Pool) *ClickSQL {
 	a := &ClickSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1159,6 +969,195 @@ func (a *ClickSQL) SetSequence(v int64) errors.E {
 	return clickSQLErr(a.stdSetSequence(v))
 }
 
+// field type
+type ClickIndexTyped int
+
+// int index
+const (
+	ClickIndexID = ClickIndexTyped(iota)
+	ClickIndexLink
+	ClickIndexTags
+)
+
+// string index
+const (
+	ClickFieldID   = "id"   // int sql{inc} ch{primary}
+	ClickFieldLink = "link" // string
+	ClickFieldTags = "tags" // []string
+)
+
+// index func
+func ClickIndexes() []ClickIndexTyped {
+	return []ClickIndexTyped{ClickIndexID, ClickIndexLink, ClickIndexTags}
+
+}
+
+// key index string
+func (a ClickIndexTyped) String() string {
+	switch a {
+	case ClickIndexID:
+		return "id"
+	case ClickIndexLink:
+		return "link"
+	case ClickIndexTags:
+		return "tags"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a ClickIndexTyped) SQLName() string {
+	switch a {
+	case ClickIndexID:
+		return "id"
+	case ClickIndexLink:
+		return "link"
+	case ClickIndexTags:
+		return "tags"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a ClickIndexTyped) ClickhouseName() string {
+	switch a {
+	case ClickIndexID:
+		return "id"
+	case ClickIndexLink:
+		return "link"
+	case ClickIndexTags:
+		return "tags"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a ClickIndexTyped) Type() string {
+	switch a {
+	case ClickIndexID:
+		return "int"
+	case ClickIndexLink:
+		return "string"
+	case ClickIndexTags:
+		return "[]string"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a ClickIndexTyped) Title() string {
+	switch a {
+	case ClickIndexID:
+		return "ID"
+	case ClickIndexLink:
+		return "Link"
+	case ClickIndexTags:
+		return "Tags"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a ClickIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func ClickKeyIndex(key string) ClickIndexTyped {
+	switch key {
+	case "id":
+		return ClickIndexID
+	case "link":
+		return ClickIndexLink
+	case "tags":
+		return ClickIndexTags
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func ClickValidKey(key string) bool {
+	switch key {
+	case "id", "link", "tags":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Click) Tuple() (r []any) {
+	return []any{a.ID, a.Link, a.Tags}
+}
+
+// get struct value with function
+func (a *Click) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "link":
+		return a.Link //string
+	case "tags":
+		return a.Tags //[]string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Click) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "link":
+		return fmt.Sprint(a.Link) //string
+	case "tags":
+		return fmt.Sprint(a.Tags) //[]string
+	}
+	return
+}
+
+// struct to map
+func (a *Click) Map() map[string]any {
+	return map[string]any{
+		"id":   a.ID,
+		"link": a.Link,
+		"tags": a.Tags,
+	}
+}
+
+// struct to map
+func (a *Click) Iterate(f func(k ClickIndexTyped, v any)) {
+	for _, x := range ClickIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Click) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseClick(v []byte) (a Click, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
+}
+
+// Tuple create an array from struct for clickhouse
+func (a *Click) clickhouseTuple() (r []any) {
+	return []any{a.ID, a.Link, a.Tags}
+}
+
 // ClickCQL clickhouse queries of table clicks
 //
 // Rules:
@@ -1166,7 +1165,7 @@ func (a *ClickSQL) SetSequence(v int64) errors.E {
 //   - not found row is sql.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
-//   - updates and deletes are mutations: they wait until the data is changed
+//   - rows are only inserted, selected and deleted
 type ClickCQL struct {
 	conn driver.Conn
 	mu   sync.Mutex
@@ -1174,14 +1173,13 @@ type ClickCQL struct {
 }
 
 // NewClickCQL creates queries on connection and table if not exists.
-// Rows of Add are written every 10 minutes and by Push
-func NewClickCQL(conn driver.Conn) (*ClickCQL, errors.E) {
+// Rows of Add are written every 10 minutes and by Push.
+// Error of table is not returned: call CreateTable to see it
+func NewClickCQL(conn driver.Conn) *ClickCQL {
 	a := &ClickCQL{conn: conn}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
-	}
+	_ = a.CreateTable()
 	go a.flush()
-	return a, nil
+	return a
 }
 
 // Conn returns connection, for own queries
@@ -1240,24 +1238,6 @@ func clickCHSelect(fields []ClickIndexTyped) (string, []ClickIndexTyped, error) 
 		list = append(list, col)
 	}
 	return strings.Join(list, ", "), fields, nil
-}
-
-// clickCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func clickCHSet(v map[ClickIndexTyped]any, start int) (string, []any, error) {
-	if len(v) == 0 {
-		return "", nil, stderrors.New("clicks: no values")
-	}
-	list := make([]string, 0, len(v))
-	args := make([]any, 0, len(v))
-	for i, f := range slices.Sorted(maps.Keys(v)) {
-		col, err := clickCHColumn(f)
-		if err != nil {
-			return "", nil, err
-		}
-		list = append(list, col+" = $"+strconv.Itoa(start+i))
-		args = append(args, v[f])
-	}
-	return strings.Join(list, ", "), args, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1449,59 +1429,11 @@ func (a *ClickCQL) stdStat(field ClickIndexTyped) (map[string]int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// update, delete: mutations
+// delete: mutations, they wait until the data is removed
 // ---------------------------------------------------------------------------
-
-func (a *ClickCQL) stdUpdate(id int, field ClickIndexTyped, v any) error {
-	col, err := clickCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table clicks update "+col+" = $1 where id = $2"+clickCHSync, v, id)
-}
-
-func (a *ClickCQL) stdUpdates(id int, v map[ClickIndexTyped]any) error {
-	set, args, err := clickCHSet(v, 1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table clicks update "+set+" where id = $"+strconv.Itoa(len(args)+1)+clickCHSync, append(args, id)...)
-}
-
-func (a *ClickCQL) stdInc(id int, field ClickIndexTyped, v any) error {
-	col, err := clickCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table clicks update "+col+" = "+col+" + $1 where id = $2"+clickCHSync, v, id)
-}
 
 func (a *ClickCQL) stdDelete(id int) error {
 	return a.conn.Exec(context.Background(), "alter table clicks delete where id = $1"+clickCHSync, id)
-}
-
-func (a *ClickCQL) stdAppendTags(id int, v ...string) error {
-	return a.conn.Exec(context.Background(), "alter table clicks update tags = arrayConcat(tags, $1) where id = $2"+clickCHSync, v, id)
-}
-
-func (a *ClickCQL) stdRemoveTags(id int, v string) error {
-	return a.conn.Exec(context.Background(), "alter table clicks update tags = arrayFilter(x -> x != $1, tags) where id = $2"+clickCHSync, v, id)
-}
-
-func (a *ClickCQL) stdUpdateWhere(field ClickIndexTyped, v any, where string, args ...any) error {
-	col, err := clickCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table clicks update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+clickCHSync, append(slices.Clone(args), v)...)
-}
-
-func (a *ClickCQL) stdUpdatesWhere(v map[ClickIndexTyped]any, where string, args ...any) error {
-	set, vals, err := clickCHSet(v, len(args)+1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table clicks update "+set+" where "+where+clickCHSync, append(slices.Clone(args), vals...)...)
 }
 
 func (a *ClickCQL) stdDeleteWhere(where string, args ...any) error {
@@ -1723,46 +1655,9 @@ func (a *ClickCQL) Stat(field ClickIndexTyped) (map[string]int, errors.E) {
 	return res, clickCHErr(err)
 }
 
-// Update sets field of row
-func (a *ClickCQL) Update(id int, field ClickIndexTyped, v any) errors.E {
-	return clickCHErr(a.stdUpdate(id, field, v))
-}
-
-// Updates sets fields of row
-func (a *ClickCQL) Updates(id int, v map[ClickIndexTyped]any) errors.E {
-	return clickCHErr(a.stdUpdates(id, v))
-}
-
-// Inc adds v to number field: views = views + 1
-func (a *ClickCQL) Inc(id int, field ClickIndexTyped, v any) errors.E {
-	return clickCHErr(a.stdInc(id, field, v))
-}
-
 // Delete removes row by id
 func (a *ClickCQL) Delete(id int) errors.E {
 	return clickCHErr(a.stdDelete(id))
-}
-
-// AppendTags adds values to array tags
-func (a *ClickCQL) AppendTags(id int, v ...string) errors.E {
-	return clickCHErr(a.stdAppendTags(id, v...))
-}
-
-// RemoveTags removes all entries of v from array tags
-func (a *ClickCQL) RemoveTags(id int, v string) errors.E {
-	return clickCHErr(a.stdRemoveTags(id, v))
-}
-
-// UpdateWhere sets field of rows by condition
-//
-//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
-func (a *ClickCQL) UpdateWhere(field ClickIndexTyped, v any, where string, args ...any) errors.E {
-	return clickCHErr(a.stdUpdateWhere(field, v, where, args...))
-}
-
-// UpdatesWhere sets fields of rows by condition
-func (a *ClickCQL) UpdatesWhere(v map[ClickIndexTyped]any, where string, args ...any) errors.E {
-	return clickCHErr(a.stdUpdatesWhere(v, where, args...))
 }
 
 // DeleteWhere removes rows by condition

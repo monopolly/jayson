@@ -3,9 +3,7 @@ package examples
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"reflect"
 	"slices"
@@ -90,6 +88,15 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
+// 64 bytes (go padding)
+type Event struct {
+	ID      uint64   `json:"id,omitempty"`      // ch{primary}
+	Country string   `json:"country,omitempty"` // ch{low}
+	IP      string   `json:"ip,omitempty"`      // ch{type=ip}
+	Path    string   `json:"path,omitempty"`    //
+	Tags    []string `json:"tags,omitempty"`    //
+}
+
 // field type
 type EventIndexTyped int
 
@@ -115,61 +122,6 @@ const (
 func EventIndexes() []EventIndexTyped {
 	return []EventIndexTyped{EventIndexID, EventIndexCountry, EventIndexIP, EventIndexPath, EventIndexTags}
 
-}
-
-// 64 bytes (go padding)
-//
-//easyjson:json
-type Event struct {
-	ID      uint64   `json:"id,omitempty"`      // ch{primary}
-	Country string   `json:"country,omitempty"` // ch{low}
-	IP      string   `json:"ip,omitempty"`      // ch{type=ip}
-	Path    string   `json:"path,omitempty"`    //
-	Tags    []string `json:"tags,omitempty"`    //
-}
-
-// Tuple create an array from struct
-func (a *Event) Tuple() (r []any) {
-	return []any{a.ID, a.Country, a.IP, a.Path, a.Tags}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Event) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Country, net.ParseIP(a.IP), a.Path, a.Tags}
-}
-
-// get struct value with function
-func (a *Event) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //uint64
-	case "country":
-		return a.Country //string
-	case "ip":
-		return a.IP //string
-	case "path":
-		return a.Path //string
-	case "tags":
-		return a.Tags //[]string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Event) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //uint64
-	case "country":
-		return fmt.Sprint(a.Country) //string
-	case "ip":
-		return fmt.Sprint(a.IP) //string
-	case "path":
-		return fmt.Sprint(a.Path) //string
-	case "tags":
-		return fmt.Sprint(a.Tags) //[]string
-	}
-	return
 }
 
 // key index string
@@ -298,6 +250,45 @@ func EventValidKey(key string) bool {
 	}
 }
 
+// Tuple create an array from struct
+func (a *Event) Tuple() (r []any) {
+	return []any{a.ID, a.Country, a.IP, a.Path, a.Tags}
+}
+
+// get struct value with function
+func (a *Event) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //uint64
+	case "country":
+		return a.Country //string
+	case "ip":
+		return a.IP //string
+	case "path":
+		return a.Path //string
+	case "tags":
+		return a.Tags //[]string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Event) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //uint64
+	case "country":
+		return fmt.Sprint(a.Country) //string
+	case "ip":
+		return fmt.Sprint(a.IP) //string
+	case "path":
+		return fmt.Sprint(a.Path) //string
+	case "tags":
+		return fmt.Sprint(a.Tags) //[]string
+	}
+	return
+}
+
 // struct to map
 func (a *Event) Map() map[string]any {
 	return map[string]any{
@@ -328,6 +319,11 @@ func ParseEvent(v []byte) (a Event, err error) {
 	return
 }
 
+// Tuple create an array from struct for clickhouse
+func (a *Event) clickhouseTuple() (r []any) {
+	return []any{a.ID, a.Country, net.ParseIP(a.IP), a.Path, a.Tags}
+}
+
 // EventCQL clickhouse queries of table events
 //
 // Rules:
@@ -335,7 +331,7 @@ func ParseEvent(v []byte) (a Event, err error) {
 //   - not found row is sql.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
-//   - updates and deletes are mutations: they wait until the data is changed
+//   - rows are only inserted, selected and deleted
 type EventCQL struct {
 	conn driver.Conn
 	mu   sync.Mutex
@@ -343,14 +339,13 @@ type EventCQL struct {
 }
 
 // NewEventCQL creates queries on connection and table if not exists.
-// Rows of Add are written every 10 minutes and by Push
-func NewEventCQL(conn driver.Conn) (*EventCQL, error) {
+// Rows of Add are written every 10 minutes and by Push.
+// Error of table is not returned: call CreateTable to see it
+func NewEventCQL(conn driver.Conn) *EventCQL {
 	a := &EventCQL{conn: conn}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
-	}
+	_ = a.CreateTable()
 	go a.flush()
-	return a, nil
+	return a
 }
 
 // Conn returns connection, for own queries
@@ -411,24 +406,6 @@ func eventCHSelect(fields []EventIndexTyped) (string, []EventIndexTyped, error) 
 		list = append(list, col)
 	}
 	return strings.Join(list, ", "), fields, nil
-}
-
-// eventCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func eventCHSet(v map[EventIndexTyped]any, start int) (string, []any, error) {
-	if len(v) == 0 {
-		return "", nil, errors.New("events: no values")
-	}
-	list := make([]string, 0, len(v))
-	args := make([]any, 0, len(v))
-	for i, f := range slices.Sorted(maps.Keys(v)) {
-		col, err := eventCHColumn(f)
-		if err != nil {
-			return "", nil, err
-		}
-		list = append(list, col+" = $"+strconv.Itoa(start+i))
-		args = append(args, v[f])
-	}
-	return strings.Join(list, ", "), args, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -637,69 +614,12 @@ func (a *EventCQL) Stat(field EventIndexTyped) (map[string]int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// update, delete: mutations
+// delete: mutations, they wait until the data is removed
 // ---------------------------------------------------------------------------
-
-// Update sets field of row
-func (a *EventCQL) Update(id uint64, field EventIndexTyped, v any) error {
-	col, err := eventCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table events update "+col+" = $1 where id = $2"+eventCHSync, v, id)
-}
-
-// Updates sets fields of row
-func (a *EventCQL) Updates(id uint64, v map[EventIndexTyped]any) error {
-	set, args, err := eventCHSet(v, 1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table events update "+set+" where id = $"+strconv.Itoa(len(args)+1)+eventCHSync, append(args, id)...)
-}
-
-// Inc adds v to number field: views = views + 1
-func (a *EventCQL) Inc(id uint64, field EventIndexTyped, v any) error {
-	col, err := eventCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table events update "+col+" = "+col+" + $1 where id = $2"+eventCHSync, v, id)
-}
 
 // Delete removes row by id
 func (a *EventCQL) Delete(id uint64) error {
 	return a.conn.Exec(context.Background(), "alter table events delete where id = $1"+eventCHSync, id)
-}
-
-// AppendTags adds values to array tags
-func (a *EventCQL) AppendTags(id uint64, v ...string) error {
-	return a.conn.Exec(context.Background(), "alter table events update tags = arrayConcat(tags, $1) where id = $2"+eventCHSync, v, id)
-}
-
-// RemoveTags removes all entries of v from array tags
-func (a *EventCQL) RemoveTags(id uint64, v string) error {
-	return a.conn.Exec(context.Background(), "alter table events update tags = arrayFilter(x -> x != $1, tags) where id = $2"+eventCHSync, v, id)
-}
-
-// UpdateWhere sets field of rows by condition
-//
-//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
-func (a *EventCQL) UpdateWhere(field EventIndexTyped, v any, where string, args ...any) error {
-	col, err := eventCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table events update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+eventCHSync, append(slices.Clone(args), v)...)
-}
-
-// UpdatesWhere sets fields of rows by condition
-func (a *EventCQL) UpdatesWhere(v map[EventIndexTyped]any, where string, args ...any) error {
-	set, vals, err := eventCHSet(v, len(args)+1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table events update "+set+" where "+where+eventCHSync, append(slices.Clone(args), vals...)...)
 }
 
 // DeleteWhere removes rows by condition

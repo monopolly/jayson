@@ -85,6 +85,13 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
+// 32 bytes (go padding)
+type Stat struct {
+	ID     int      `json:"id,omitempty" msg:"id,omitempty"`         //
+	Name   string   `json:"name,omitempty" msg:"name,omitempty"`     //
+	Values []uint64 `json:"values,omitempty" msg:"values,omitempty"` //
+}
+
 // field type
 type StatIndexTyped int
 
@@ -106,51 +113,6 @@ const (
 func StatIndexes() []StatIndexTyped {
 	return []StatIndexTyped{StatIndexID, StatIndexName, StatIndexValues}
 
-}
-
-// 32 bytes (go padding)
-//
-//easyjson:json
-type Stat struct {
-	ID     int      `json:"id,omitempty" msg:"id,omitempty"`         //
-	Name   string   `json:"name,omitempty" msg:"name,omitempty"`     //
-	Values []uint64 `json:"values,omitempty" msg:"values,omitempty"` //
-}
-
-// Tuple create an array from struct
-func (a *Stat) Tuple() (r []any) {
-	return []any{a.ID, a.Name, a.Values}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Stat) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Name, a.Values}
-}
-
-// get struct value with function
-func (a *Stat) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "name":
-		return a.Name //string
-	case "values":
-		return a.Values //[]uint64
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Stat) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "name":
-		return fmt.Sprint(a.Name) //string
-	case "values":
-		return fmt.Sprint(a.Values) //[]uint64
-	}
-	return
 }
 
 // key index string
@@ -255,6 +217,37 @@ func StatValidKey(key string) bool {
 	}
 }
 
+// Tuple create an array from struct
+func (a *Stat) Tuple() (r []any) {
+	return []any{a.ID, a.Name, a.Values}
+}
+
+// get struct value with function
+func (a *Stat) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "name":
+		return a.Name //string
+	case "values":
+		return a.Values //[]uint64
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Stat) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "name":
+		return fmt.Sprint(a.Name) //string
+	case "values":
+		return fmt.Sprint(a.Values) //[]uint64
+	}
+	return
+}
+
 // struct to map
 func (a *Stat) Map() map[string]any {
 	return map[string]any{
@@ -269,6 +262,18 @@ func (a *Stat) Iterate(f func(k StatIndexTyped, v any)) {
 	for _, x := range StatIndexes() {
 		f(x, a.Get(x.String()))
 	}
+}
+
+// fast json marshal
+func (a *Stat) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseStat(v []byte) (a Stat, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }
 
 // gotiny marshal
@@ -291,18 +296,6 @@ func (a *Stat) MessagePack() []byte {
 // msgp unmarshal
 func ParseStatMessagePack(v []byte) (a Stat, err error) {
 	err = msgpack.Unmarshal(v, &a)
-	return
-}
-
-// fast json marshal
-func (a *Stat) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseStat(v []byte) (a Stat, err error) {
-	err = gojson.Unmarshal(v, &a)
 	return
 }
 

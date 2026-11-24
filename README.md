@@ -29,10 +29,10 @@ jayson account.go
 ```
 
 ```go
-db, err := NewAccountSQL(pool) // creates the table and indexes if they do not exist
+db := NewAccountSQL(pool) // creates the table and indexes if they do not exist
 
 acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
-err = db.Insert(&acc)                        // sets acc.ID
+err := db.Insert(&acc)                       // sets acc.ID
 err = db.Inc(acc.ID, AccountIndexBalance, 50) // balance = balance + 50
 err = db.AppendTags(acc.ID, "vip")           // tags = tags || '{vip}'
 err = db.UpdateMeta(acc.ID, "lang", "en")    // jsonb_set(meta, '{lang}', '"en"')
@@ -57,7 +57,7 @@ rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
 - **Transactions across models** in one function.
 - **Fast JSON.** `Pack` and `Parse` use [goccy/go-json](https://github.com/goccy/go-json).
 - **Tested against real databases.** The generated code is covered by tests on PostgreSQL and ClickHouse:
-  every supported type, `NULL` handling, transactions, mutations and parallel use under the race detector.
+  every supported type, `NULL` handling, transactions and parallel use under the race detector.
 
 ## Install
 
@@ -95,11 +95,11 @@ The models and generated files of these examples are in [examples/](examples/).
 
 ```go
 pool, _ := pgxpool.New(ctx, dsn)
-db, err := NewAccountSQL(pool)
+db := NewAccountSQL(pool)
 
 // insert
 acc := Account{Email: "kate@example.com", Name: "Kate"}
-err = db.Insert(&acc)                 // acc.ID is set
+err := db.Insert(&acc)                // acc.ID is set
 ok, err := db.InsertNoConflict(&acc)  // false when the row exists
 err = db.Upsert(&acc)                 // insert or update by primary key
 n, err := db.InsertMany(list)         // COPY protocol, for bulk loads
@@ -294,26 +294,27 @@ type eventCQL interface {
 ```
 
 ```go
-ch, err := NewEventCQL(conn) // creates the table if it does not exist
+ch := NewEventCQL(conn) // creates the table if it does not exist
 
-// buffer: written every 10 minutes and by Push
+// batch insert through the buffer: written every 10 minutes and by Push
 ch.Add(Event{ID: 1, Country: "DE", IP: "10.0.0.1", Path: "/"})
-err = ch.Push()
-err = ch.Insert(Event{ID: 2, Country: "US"}) // write now, without the buffer
+err := ch.Push()
+
+// batch insert now, without the buffer
+err = ch.Insert(list...)
 
 ev, err := ch.Get(1)
-list, err := ch.Select(nil, "country = $1 order by id limit 10", "DE")
+found, err := ch.Select(nil, "country = $1 order by id limit 10", "DE")
 n, err := ch.CountWhere("country = $1", "DE")
 stats, err := ch.Stat(EventIndexCountry) // map[string]int{"DE": 425, "US": 134}
 top, err := ch.Top("DE")                 // own query
 
-err = ch.Update(1, EventIndexPath, "/new")
-err = ch.AppendTags(1, "promo")
 err = ch.Delete(1)
 ```
 
-Updates and deletes are ClickHouse mutations (`alter table ... update`); the methods wait until the data is changed.
-A missing row is `sql.ErrNoRows`. Own queries live in the interface `<struct>CQL` and follow the rules of example 3.
+ClickHouse is an insert and select database: there are no update methods. `Delete` is a mutation and waits
+until the data is removed. A missing row is `sql.ErrNoRows`. Own queries live in the interface `<struct>CQL`
+and follow the rules of example 3.
 
 ### 9. JSON, binary formats and protobuf
 
@@ -464,6 +465,8 @@ A field named as a reserved SQL word keeps its Go name and gets the prefix `i` i
 | Delete | `Delete`, `DeleteWhere` |
 | Table | `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
 
+`NewAccountSQL` creates the table and indexes and never fails. To see an error of creation call `CreateTable()` or `CreateIndexes()`.
+
 Methods by id need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
 `Update`, `Updates`, `Save`, `Inc` and the field methods return `pgx.ErrNoRows` when the row does not exist.
 
@@ -474,9 +477,7 @@ Methods by id need a row id: `sql{inc}`, a single `sql{primary}` or a field name
 | Handle | `NewAccountCQL(conn)`, `Conn()`, `TableName()`, `Fields()` |
 | Insert | `Add`, `Len`, `Push`, `Insert` |
 | Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Count`, `CountWhere`, `Stat` |
-| Update | `Update`, `Updates`, `Inc`, `UpdateWhere`, `UpdatesWhere` |
 | Delete | `Delete`, `DeleteWhere` |
-| Fields | `AppendTags`, `RemoveTags` for arrays, `UpdateAttrs`, `DeleteAttrs` for `Map` columns |
 | Table | `CreateTable` |
 
 The row id is `ch{primary}`, `sql{inc}` or a field named `id`.

@@ -87,44 +87,15 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type AccountIndexTyped int
-
-// int index
-const (
-	AccountIndexID = AccountIndexTyped(iota)
-	AccountIndexEmail
-	AccountIndexName
-	AccountIndexBalance
-	AccountIndexTags
-	AccountIndexScores
-	AccountIndexMeta
-	AccountIndexSettings
-	AccountIndexItems
-)
-
-// string index
-const (
-	AccountFieldID       = "id"       // int sql{inc}
-	AccountFieldEmail    = "email"    // string sql{unique="email"}
-	AccountFieldName     = "name"     // string sql{index}
-	AccountFieldBalance  = "balance"  // int64
-	AccountFieldTags     = "tags"     // []string
-	AccountFieldScores   = "scores"   // []int
-	AccountFieldMeta     = "meta"     // map[string]string
-	AccountFieldSettings = "settings" // map[string]int
-	AccountFieldItems    = "items"    // []Item
-)
-
-// index func
-func AccountIndexes() []AccountIndexTyped {
-	return []AccountIndexTyped{AccountIndexID, AccountIndexEmail, AccountIndexName, AccountIndexBalance, AccountIndexTags, AccountIndexScores, AccountIndexMeta, AccountIndexSettings, AccountIndexItems}
-
+// init struct
+func NewAccount() (a *Account) {
+	a = new(Account)
+	a.Meta = make(map[string]string)
+	a.Settings = make(map[string]int)
+	return
 }
 
 // 88 bytes (go padding)
-//
-//easyjson:json
 type Account struct {
 	ID       int               `json:"id,omitempty"`       // sql{inc}
 	Email    string            `json:"email,omitempty"`    // sql{unique="email"}
@@ -135,288 +106,6 @@ type Account struct {
 	Meta     map[string]string `json:"meta,omitempty"`     //
 	Settings map[string]int    `json:"settings,omitempty"` //
 	Items    []Item            `json:"items,omitempty"`    //
-}
-
-// init struct
-func NewAccount() (a *Account) {
-	a = new(Account)
-	a.Meta = make(map[string]string)
-	a.Settings = make(map[string]int)
-	return
-}
-
-// Tuple create an array from struct
-func (a *Account) Tuple() (r []any) {
-	return []any{a.ID, a.Email, a.Name, a.Balance, a.Tags, a.Scores, a.Meta, a.Settings, a.Items}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Account) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Email, a.Name, a.Balance, a.Tags, a.Scores, a.Meta, func() map[string]int64 {
-		r := make(map[string]int64, len(a.Settings))
-		for k, v := range a.Settings {
-			r[string(k)] = int64(v)
-		}
-		return r
-	}(), a.Items}
-}
-
-// get struct value with function
-func (a *Account) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "email":
-		return a.Email //string
-	case "name":
-		return a.Name //string
-	case "balance":
-		return a.Balance //int64
-	case "tags":
-		return a.Tags //[]string
-	case "scores":
-		return a.Scores //[]int
-	case "meta":
-		return a.Meta //map[string]string
-	case "settings":
-		return a.Settings //map[string]int
-	case "items":
-		return a.Items //[]Item
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Account) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "email":
-		return fmt.Sprint(a.Email) //string
-	case "name":
-		return fmt.Sprint(a.Name) //string
-	case "balance":
-		return fmt.Sprint(a.Balance) //int64
-	case "tags":
-		return fmt.Sprint(a.Tags) //[]string
-	case "scores":
-		return fmt.Sprint(a.Scores) //[]int
-	case "meta":
-		return fmt.Sprint(a.Meta) //map[string]string
-	case "settings":
-		return fmt.Sprint(a.Settings) //map[string]int
-	case "items":
-		return fmt.Sprint(a.Items) //[]Item
-	}
-	return
-}
-
-// key index string
-func (a AccountIndexTyped) String() string {
-	switch a {
-	case AccountIndexID:
-		return "id"
-	case AccountIndexEmail:
-		return "email"
-	case AccountIndexName:
-		return "name"
-	case AccountIndexBalance:
-		return "balance"
-	case AccountIndexTags:
-		return "tags"
-	case AccountIndexScores:
-		return "scores"
-	case AccountIndexMeta:
-		return "meta"
-	case AccountIndexSettings:
-		return "settings"
-	case AccountIndexItems:
-		return "items"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a AccountIndexTyped) SQLName() string {
-	switch a {
-	case AccountIndexID:
-		return "id"
-	case AccountIndexEmail:
-		return "email"
-	case AccountIndexName:
-		return "name"
-	case AccountIndexBalance:
-		return "balance"
-	case AccountIndexTags:
-		return "tags"
-	case AccountIndexScores:
-		return "scores"
-	case AccountIndexMeta:
-		return "meta"
-	case AccountIndexSettings:
-		return "settings"
-	case AccountIndexItems:
-		return "items"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a AccountIndexTyped) ClickhouseName() string {
-	switch a {
-	case AccountIndexID:
-		return "id"
-	case AccountIndexEmail:
-		return "email"
-	case AccountIndexName:
-		return "name"
-	case AccountIndexBalance:
-		return "balance"
-	case AccountIndexTags:
-		return "tags"
-	case AccountIndexScores:
-		return "scores"
-	case AccountIndexMeta:
-		return "meta"
-	case AccountIndexSettings:
-		return "settings"
-	case AccountIndexItems:
-		return "items"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a AccountIndexTyped) Type() string {
-	switch a {
-	case AccountIndexID:
-		return "int"
-	case AccountIndexEmail:
-		return "string"
-	case AccountIndexName:
-		return "string"
-	case AccountIndexBalance:
-		return "int64"
-	case AccountIndexTags:
-		return "[]string"
-	case AccountIndexScores:
-		return "[]int"
-	case AccountIndexMeta:
-		return "map[string]string"
-	case AccountIndexSettings:
-		return "map[string]int"
-	case AccountIndexItems:
-		return "[]Item"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a AccountIndexTyped) Title() string {
-	switch a {
-	case AccountIndexID:
-		return "ID"
-	case AccountIndexEmail:
-		return "Email"
-	case AccountIndexName:
-		return "Name"
-	case AccountIndexBalance:
-		return "Balance"
-	case AccountIndexTags:
-		return "Tags"
-	case AccountIndexScores:
-		return "Scores"
-	case AccountIndexMeta:
-		return "Meta"
-	case AccountIndexSettings:
-		return "Settings"
-	case AccountIndexItems:
-		return "Items"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a AccountIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func AccountKeyIndex(key string) AccountIndexTyped {
-	switch key {
-	case "id":
-		return AccountIndexID
-	case "email":
-		return AccountIndexEmail
-	case "name":
-		return AccountIndexName
-	case "balance":
-		return AccountIndexBalance
-	case "tags":
-		return AccountIndexTags
-	case "scores":
-		return AccountIndexScores
-	case "meta":
-		return AccountIndexMeta
-	case "settings":
-		return AccountIndexSettings
-	case "items":
-		return AccountIndexItems
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func AccountValidKey(key string) bool {
-	switch key {
-	case "id", "email", "name", "balance", "tags", "scores", "meta", "settings", "items":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Account) Map() map[string]any {
-	return map[string]any{
-		"id":       a.ID,
-		"email":    a.Email,
-		"name":     a.Name,
-		"balance":  a.Balance,
-		"tags":     a.Tags,
-		"scores":   a.Scores,
-		"meta":     a.Meta,
-		"settings": a.Settings,
-		"items":    a.Items,
-	}
-}
-
-// struct to map
-func (a *Account) Iterate(f func(k AccountIndexTyped, v any)) {
-	for _, x := range AccountIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Account) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseAccount(v []byte) (a Account, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // accountSQLDB runs queries: pool or transaction
@@ -441,13 +130,14 @@ type AccountSQL struct {
 	db   accountSQLDB // pool, or transaction after TX
 }
 
-// NewAccountSQL creates queries on pool, table and indexes if not exist
-func NewAccountSQL(pool *pgxpool.Pool) (*AccountSQL, error) {
+// NewAccountSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewAccountSQL(pool *pgxpool.Pool) *AccountSQL {
 	a := &AccountSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1316,4 +1006,302 @@ func (a *AccountSQL) ResetSequence(add ...int64) error {
 func (a *AccountSQL) SetSequence(v int64) error {
 	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('account', 'id'), $1, false)", v)
 	return err
+}
+
+// field type
+type AccountIndexTyped int
+
+// int index
+const (
+	AccountIndexID = AccountIndexTyped(iota)
+	AccountIndexEmail
+	AccountIndexName
+	AccountIndexBalance
+	AccountIndexTags
+	AccountIndexScores
+	AccountIndexMeta
+	AccountIndexSettings
+	AccountIndexItems
+)
+
+// string index
+const (
+	AccountFieldID       = "id"       // int sql{inc}
+	AccountFieldEmail    = "email"    // string sql{unique="email"}
+	AccountFieldName     = "name"     // string sql{index}
+	AccountFieldBalance  = "balance"  // int64
+	AccountFieldTags     = "tags"     // []string
+	AccountFieldScores   = "scores"   // []int
+	AccountFieldMeta     = "meta"     // map[string]string
+	AccountFieldSettings = "settings" // map[string]int
+	AccountFieldItems    = "items"    // []Item
+)
+
+// index func
+func AccountIndexes() []AccountIndexTyped {
+	return []AccountIndexTyped{AccountIndexID, AccountIndexEmail, AccountIndexName, AccountIndexBalance, AccountIndexTags, AccountIndexScores, AccountIndexMeta, AccountIndexSettings, AccountIndexItems}
+
+}
+
+// key index string
+func (a AccountIndexTyped) String() string {
+	switch a {
+	case AccountIndexID:
+		return "id"
+	case AccountIndexEmail:
+		return "email"
+	case AccountIndexName:
+		return "name"
+	case AccountIndexBalance:
+		return "balance"
+	case AccountIndexTags:
+		return "tags"
+	case AccountIndexScores:
+		return "scores"
+	case AccountIndexMeta:
+		return "meta"
+	case AccountIndexSettings:
+		return "settings"
+	case AccountIndexItems:
+		return "items"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a AccountIndexTyped) SQLName() string {
+	switch a {
+	case AccountIndexID:
+		return "id"
+	case AccountIndexEmail:
+		return "email"
+	case AccountIndexName:
+		return "name"
+	case AccountIndexBalance:
+		return "balance"
+	case AccountIndexTags:
+		return "tags"
+	case AccountIndexScores:
+		return "scores"
+	case AccountIndexMeta:
+		return "meta"
+	case AccountIndexSettings:
+		return "settings"
+	case AccountIndexItems:
+		return "items"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a AccountIndexTyped) ClickhouseName() string {
+	switch a {
+	case AccountIndexID:
+		return "id"
+	case AccountIndexEmail:
+		return "email"
+	case AccountIndexName:
+		return "name"
+	case AccountIndexBalance:
+		return "balance"
+	case AccountIndexTags:
+		return "tags"
+	case AccountIndexScores:
+		return "scores"
+	case AccountIndexMeta:
+		return "meta"
+	case AccountIndexSettings:
+		return "settings"
+	case AccountIndexItems:
+		return "items"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a AccountIndexTyped) Type() string {
+	switch a {
+	case AccountIndexID:
+		return "int"
+	case AccountIndexEmail:
+		return "string"
+	case AccountIndexName:
+		return "string"
+	case AccountIndexBalance:
+		return "int64"
+	case AccountIndexTags:
+		return "[]string"
+	case AccountIndexScores:
+		return "[]int"
+	case AccountIndexMeta:
+		return "map[string]string"
+	case AccountIndexSettings:
+		return "map[string]int"
+	case AccountIndexItems:
+		return "[]Item"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a AccountIndexTyped) Title() string {
+	switch a {
+	case AccountIndexID:
+		return "ID"
+	case AccountIndexEmail:
+		return "Email"
+	case AccountIndexName:
+		return "Name"
+	case AccountIndexBalance:
+		return "Balance"
+	case AccountIndexTags:
+		return "Tags"
+	case AccountIndexScores:
+		return "Scores"
+	case AccountIndexMeta:
+		return "Meta"
+	case AccountIndexSettings:
+		return "Settings"
+	case AccountIndexItems:
+		return "Items"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a AccountIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func AccountKeyIndex(key string) AccountIndexTyped {
+	switch key {
+	case "id":
+		return AccountIndexID
+	case "email":
+		return AccountIndexEmail
+	case "name":
+		return AccountIndexName
+	case "balance":
+		return AccountIndexBalance
+	case "tags":
+		return AccountIndexTags
+	case "scores":
+		return AccountIndexScores
+	case "meta":
+		return AccountIndexMeta
+	case "settings":
+		return AccountIndexSettings
+	case "items":
+		return AccountIndexItems
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func AccountValidKey(key string) bool {
+	switch key {
+	case "id", "email", "name", "balance", "tags", "scores", "meta", "settings", "items":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Account) Tuple() (r []any) {
+	return []any{a.ID, a.Email, a.Name, a.Balance, a.Tags, a.Scores, a.Meta, a.Settings, a.Items}
+}
+
+// get struct value with function
+func (a *Account) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "email":
+		return a.Email //string
+	case "name":
+		return a.Name //string
+	case "balance":
+		return a.Balance //int64
+	case "tags":
+		return a.Tags //[]string
+	case "scores":
+		return a.Scores //[]int
+	case "meta":
+		return a.Meta //map[string]string
+	case "settings":
+		return a.Settings //map[string]int
+	case "items":
+		return a.Items //[]Item
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Account) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "email":
+		return fmt.Sprint(a.Email) //string
+	case "name":
+		return fmt.Sprint(a.Name) //string
+	case "balance":
+		return fmt.Sprint(a.Balance) //int64
+	case "tags":
+		return fmt.Sprint(a.Tags) //[]string
+	case "scores":
+		return fmt.Sprint(a.Scores) //[]int
+	case "meta":
+		return fmt.Sprint(a.Meta) //map[string]string
+	case "settings":
+		return fmt.Sprint(a.Settings) //map[string]int
+	case "items":
+		return fmt.Sprint(a.Items) //[]Item
+	}
+	return
+}
+
+// struct to map
+func (a *Account) Map() map[string]any {
+	return map[string]any{
+		"id":       a.ID,
+		"email":    a.Email,
+		"name":     a.Name,
+		"balance":  a.Balance,
+		"tags":     a.Tags,
+		"scores":   a.Scores,
+		"meta":     a.Meta,
+		"settings": a.Settings,
+		"items":    a.Items,
+	}
+}
+
+// struct to map
+func (a *Account) Iterate(f func(k AccountIndexTyped, v any)) {
+	for _, x := range AccountIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Account) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseAccount(v []byte) (a Account, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

@@ -14,7 +14,6 @@ func (a *Golang) Struct() []byte {
 	// struct
 	list = append(list, "\n")
 	list = append(list, fmt.Sprintf("//%s", strings.Join(append(structComments, fmt.Sprintf("%d bytes (go padding)", settings.StructSize)), " ")))
-	list = append(list, "//easyjson:json")
 	list = append(list, fmt.Sprintf(`type %s struct {`, settings.Go.StructName))
 
 	for _, x := range fields {

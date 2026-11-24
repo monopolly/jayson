@@ -39,9 +39,9 @@ func testDB(t *testing.T) (*AllSQL, context.Context) {
 	if _, err := pool.Exec(ctx, "drop table if exists alltypes"); err != nil {
 		t.Fatal(err)
 	}
-	db, err := NewAllSQL(pool)
-	if err != nil {
-		t.Fatal("new:", err)
+	db := NewAllSQL(pool)
+	if err := db.CreateTable(); err != nil {
+		t.Fatal("table:", err)
 	}
 	return db, ctx
 }
@@ -339,8 +339,8 @@ func TestTx(t *testing.T) {
 	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
 		t.Fatal(err)
 	}
-	tags, e := NewTagSQL(db.Pool())
-	if e != nil {
+	tags := NewTagSQL(db.Pool())
+	if e := tags.CreateTable(); e != nil {
 		t.Fatal(e)
 	}
 
@@ -460,7 +460,8 @@ func TestFuncs(t *testing.T) {
 	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
 		t.Fatal(err)
 	}
-	tags, err := NewTagSQL(db.Pool())
+	tags := NewTagSQL(db.Pool())
+	err := tags.CreateTable()
 	if err != nil {
 		t.Fatal(err)
 	}

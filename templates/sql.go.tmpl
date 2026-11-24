@@ -20,13 +20,14 @@ type {{.Class}} struct {
 	db   {{.DB}} // pool, or transaction after TX
 }
 
-// New{{.Class}} creates queries on pool, table and indexes if not exist
-func New{{.Class}}(pool *pgxpool.Pool) (*{{.Class}}, {{if .EE}}errors.E{{else}}error{{end}}) {
+// New{{.Class}} creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func New{{.Class}}(pool *pgxpool.Pool) *{{.Class}} {
 	a := &{{.Class}}{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool

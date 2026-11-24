@@ -6,7 +6,7 @@
 //   - not found row is sql.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
-//   - updates and deletes are mutations: they wait until the data is changed
+//   - rows are only inserted, selected and deleted
 type {{.Class}} struct {
 	conn driver.Conn
 	mu   sync.Mutex
@@ -14,14 +14,13 @@ type {{.Class}} struct {
 }
 
 // New{{.Class}} creates queries on connection and table if not exists.
-// Rows of Add are written every 10 minutes and by Push
-func New{{.Class}}(conn driver.Conn) (*{{.Class}}, {{if .EE}}errors.E{{else}}error{{end}}) {
+// Rows of Add are written every 10 minutes and by Push.
+// Error of table is not returned: call CreateTable to see it
+func New{{.Class}}(conn driver.Conn) *{{.Class}} {
 	a := &{{.Class}}{conn: conn}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
-	}
+	_ = a.CreateTable()
 	go a.flush()
-	return a, nil
+	return a
 }
 
 // Conn returns connection, for own queries
@@ -80,24 +79,6 @@ func {{.Priv}}Select(fields []{{.Index}}) (string, []{{.Index}}, error) {
 		list = append(list, col)
 	}
 	return strings.Join(list, ", "), fields, nil
-}
-
-// {{.Priv}}Set returns "a = $1, b = $2" in stable order, placeholders from $start
-func {{.Priv}}Set(v map[{{.Index}}]any, start int) (string, []any, error) {
-	if len(v) == 0 {
-		return "", nil, errors.New("{{.Table}}: no values")
-	}
-	list := make([]string, 0, len(v))
-	args := make([]any, 0, len(v))
-	for i, f := range slices.Sorted(maps.Keys(v)) {
-		col, err := {{.Priv}}Column(f)
-		if err != nil {
-			return "", nil, err
-		}
-		list = append(list, col+" = $"+strconv.Itoa(start+i))
-		args = append(args, v[f])
-	}
-	return strings.Join(list, ", "), args, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -306,81 +287,14 @@ func (a *{{.Class}}) Stat(field {{.Index}}) (map[string]int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// update, delete: mutations
+// delete: mutations, they wait until the data is removed
 // ---------------------------------------------------------------------------
 {{if .Key}}
-// Update sets field of row
-func (a *{{.Class}}) Update(id {{.Key.GoType}}, field {{.Index}}, v any) error {
-	col, err := {{.Priv}}Column(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = $1 where {{.Key.Name}} = $2"+{{.Priv}}Sync, v, id)
-}
-
-// Updates sets fields of row
-func (a *{{.Class}}) Updates(id {{.Key.GoType}}, v map[{{.Index}}]any) error {
-	set, args, err := {{.Priv}}Set(v, 1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+set+" where {{.Key.Name}} = $"+strconv.Itoa(len(args)+1)+{{.Priv}}Sync, append(args, id)...)
-}
-
-// Inc adds v to number field: views = views + 1
-func (a *{{.Class}}) Inc(id {{.Key.GoType}}, field {{.Index}}, v any) error {
-	col, err := {{.Priv}}Column(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = "+col+" + $1 where {{.Key.Name}} = $2"+{{.Priv}}Sync, v, id)
-}
-
 // Delete removes row by {{.Key.Name}}
 func (a *{{.Class}}) Delete(id {{.Key.GoType}}) error {
 	return a.conn.Exec(context.Background(), "alter table {{.Table}} delete where {{.Key.Name}} = $1"+{{.Priv}}Sync, id)
 }
-{{range .Columns}}{{if .ElemGo}}
-// Append{{.GoName}} adds values to array {{.Name}}
-func (a *{{$.Class}}) Append{{.GoName}}(id {{$.Key.GoType}}, v ...{{.ElemGo}}) error {
-	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = arrayConcat({{.Name}}, $1) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, v, id)
-}
-
-// Remove{{.GoName}} removes all entries of v from array {{.Name}}
-func (a *{{$.Class}}) Remove{{.GoName}}(id {{$.Key.GoType}}, v {{.ElemGo}}) error {
-	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = arrayFilter(x -> x != $1, {{.Name}}) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, v, id)
-}
-{{end}}{{if .MapKey}}
-// Update{{.GoName}} sets key of map {{.Name}}
-func (a *{{$.Class}}) Update{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}, v {{.MapValue}}) error {
-	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = mapUpdate({{.Name}}, cast(map($1, $2), '{{.Type}}')) where {{$.Key.Name}} = $3"+{{$.Priv}}Sync, k, v, id)
-}
-
-// Delete{{.GoName}} removes key of map {{.Name}}
-func (a *{{$.Class}}) Delete{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}) error {
-	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = mapFilter((k, v) -> k != $1, {{.Name}}) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, k, id)
-}
-{{end}}{{end}}{{end}}
-// UpdateWhere sets field of rows by condition
-//
-//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
-func (a *{{.Class}}) UpdateWhere(field {{.Index}}, v any, where string, args ...any) error {
-	col, err := {{.Priv}}Column(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+{{.Priv}}Sync, append(slices.Clone(args), v)...)
-}
-
-// UpdatesWhere sets fields of rows by condition
-func (a *{{.Class}}) UpdatesWhere(v map[{{.Index}}]any, where string, args ...any) error {
-	set, vals, err := {{.Priv}}Set(v, len(args)+1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+set+" where "+where+{{.Priv}}Sync, append(slices.Clone(args), vals...)...)
-}
-
+{{end}}
 // DeleteWhere removes rows by condition
 func (a *{{.Class}}) DeleteWhere(where string, args ...any) error {
 	return a.conn.Exec(context.Background(), "alter table {{.Table}} delete where "+where+{{.Priv}}Sync, args...)

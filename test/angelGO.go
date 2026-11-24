@@ -91,46 +91,15 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type AngelIndexTyped int
-
-// int index
-const (
-	AngelIndexID = AngelIndexTyped(iota)
-	AngelIndexRole
-	AngelIndexKey
-	AngelIndexCreated
-	AngelIndexSmalls
-	AngelIndexName
-	AngelIndexAbout
-	AngelIndexMusic
-	AngelIndexLinks
-	AngelIndexStats
-)
-
-// string index
-const (
-	AngelFieldID      = "id"      // int sql{primary}  #readonly
-	AngelFieldRole    = "role"    // role.Role sql{unique="css"}
-	AngelFieldKey     = "key"     // uuid.UUID sql{unique="css"}
-	AngelFieldCreated = "created" // time.Time
-	AngelFieldSmalls  = "smalls"  // uint8
-	AngelFieldName    = "name"    // string
-	AngelFieldAbout   = "about"   // []string
-	AngelFieldMusic   = "music"   // []int
-	AngelFieldLinks   = "links"   // map[string]string
-	AngelFieldStats   = "stats"   // map[string]int
-)
-
-// index func
-func AngelIndexes() []AngelIndexTyped {
-	return []AngelIndexTyped{AngelIndexID, AngelIndexRole, AngelIndexKey, AngelIndexCreated, AngelIndexSmalls, AngelIndexName, AngelIndexAbout, AngelIndexMusic, AngelIndexLinks, AngelIndexStats}
-
+// init struct
+func NewAngel() (a *Angel) {
+	a = new(Angel)
+	a.Links = make(map[string]string)
+	a.Stats = make(map[string]int)
+	return
 }
 
 // 88 bytes (go padding)
-//
-//easyjson:json
 type Angel struct {
 	ID      int               `json:"id,omitempty"`      // sql{primary}  #readonly
 	Role    role.Role         `json:"role,omitempty"`    // sql{unique="css"}
@@ -142,318 +111,6 @@ type Angel struct {
 	Music   []int             `json:"music,omitempty"`   //
 	Links   map[string]string `json:"links,omitempty"`   //
 	Stats   map[string]int    `json:"stats,omitempty"`   //
-}
-
-// init struct
-func NewAngel() (a *Angel) {
-	a = new(Angel)
-	a.Links = make(map[string]string)
-	a.Stats = make(map[string]int)
-	return
-}
-
-// Tuple create an array from struct
-func (a *Angel) Tuple() (r []any) {
-	return []any{a.ID, a.Role, a.Key, a.Created, a.Smalls, a.Name, a.About, a.Music, a.Links, a.Stats}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Angel) clickhouseTuple() (r []any) {
-	return []any{a.ID, int(a.Role), a.Key, a.Created, a.Smalls, a.Name, a.About, a.Music, a.Links, func() map[string]int64 {
-		r := make(map[string]int64, len(a.Stats))
-		for k, v := range a.Stats {
-			r[string(k)] = int64(v)
-		}
-		return r
-	}()}
-}
-
-// get struct value with function
-func (a *Angel) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "role":
-		return a.Role //role.Role
-	case "key":
-		return a.Key //uuid.UUID
-	case "created":
-		return a.Created //time.Time
-	case "smalls":
-		return a.Smalls //uint8
-	case "name":
-		return a.Name //string
-	case "about":
-		return a.About //[]string
-	case "music":
-		return a.Music //[]int
-	case "links":
-		return a.Links //map[string]string
-	case "stats":
-		return a.Stats //map[string]int
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Angel) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "role":
-		return fmt.Sprint(a.Role) //role.Role
-	case "key":
-		return fmt.Sprint(a.Key) //uuid.UUID
-	case "created":
-		return fmt.Sprint(a.Created) //time.Time
-	case "smalls":
-		return fmt.Sprint(a.Smalls) //uint8
-	case "name":
-		return fmt.Sprint(a.Name) //string
-	case "about":
-		return fmt.Sprint(a.About) //[]string
-	case "music":
-		return fmt.Sprint(a.Music) //[]int
-	case "links":
-		return fmt.Sprint(a.Links) //map[string]string
-	case "stats":
-		return fmt.Sprint(a.Stats) //map[string]int
-	}
-	return
-}
-
-func AngelReadonlyList() []AngelIndexTyped {
-	return []AngelIndexTyped{AngelIndexID}
-}
-
-func (a AngelIndexTyped) Readonly() bool {
-	switch a {
-	case AngelIndexID:
-		return true
-	default:
-		return false
-	}
-}
-
-// key index string
-func (a AngelIndexTyped) String() string {
-	switch a {
-	case AngelIndexID:
-		return "id"
-	case AngelIndexRole:
-		return "role"
-	case AngelIndexKey:
-		return "key"
-	case AngelIndexCreated:
-		return "created"
-	case AngelIndexSmalls:
-		return "smalls"
-	case AngelIndexName:
-		return "name"
-	case AngelIndexAbout:
-		return "about"
-	case AngelIndexMusic:
-		return "music"
-	case AngelIndexLinks:
-		return "links"
-	case AngelIndexStats:
-		return "stats"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a AngelIndexTyped) SQLName() string {
-	switch a {
-	case AngelIndexID:
-		return "id"
-	case AngelIndexRole:
-		return "role"
-	case AngelIndexKey:
-		return "key"
-	case AngelIndexCreated:
-		return "created"
-	case AngelIndexSmalls:
-		return "smalls"
-	case AngelIndexName:
-		return "name"
-	case AngelIndexAbout:
-		return "about"
-	case AngelIndexMusic:
-		return "music"
-	case AngelIndexLinks:
-		return "links"
-	case AngelIndexStats:
-		return "stats"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a AngelIndexTyped) ClickhouseName() string {
-	switch a {
-	case AngelIndexID:
-		return "id"
-	case AngelIndexRole:
-		return "role"
-	case AngelIndexKey:
-		return "key"
-	case AngelIndexCreated:
-		return "created"
-	case AngelIndexSmalls:
-		return "smalls"
-	case AngelIndexName:
-		return "name"
-	case AngelIndexAbout:
-		return "about"
-	case AngelIndexMusic:
-		return "music"
-	case AngelIndexLinks:
-		return "links"
-	case AngelIndexStats:
-		return "stats"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a AngelIndexTyped) Type() string {
-	switch a {
-	case AngelIndexID:
-		return "int"
-	case AngelIndexRole:
-		return "role.Role"
-	case AngelIndexKey:
-		return "uuid.UUID"
-	case AngelIndexCreated:
-		return "time.Time"
-	case AngelIndexSmalls:
-		return "uint8"
-	case AngelIndexName:
-		return "string"
-	case AngelIndexAbout:
-		return "[]string"
-	case AngelIndexMusic:
-		return "[]int"
-	case AngelIndexLinks:
-		return "map[string]string"
-	case AngelIndexStats:
-		return "map[string]int"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a AngelIndexTyped) Title() string {
-	switch a {
-	case AngelIndexID:
-		return "ID"
-	case AngelIndexRole:
-		return "Role"
-	case AngelIndexKey:
-		return "Key"
-	case AngelIndexCreated:
-		return "Created"
-	case AngelIndexSmalls:
-		return "Smalls"
-	case AngelIndexName:
-		return "Name"
-	case AngelIndexAbout:
-		return "About"
-	case AngelIndexMusic:
-		return "Music"
-	case AngelIndexLinks:
-		return "Links"
-	case AngelIndexStats:
-		return "Stats"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a AngelIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func AngelKeyIndex(key string) AngelIndexTyped {
-	switch key {
-	case "id":
-		return AngelIndexID
-	case "role":
-		return AngelIndexRole
-	case "key":
-		return AngelIndexKey
-	case "created":
-		return AngelIndexCreated
-	case "smalls":
-		return AngelIndexSmalls
-	case "name":
-		return AngelIndexName
-	case "about":
-		return AngelIndexAbout
-	case "music":
-		return AngelIndexMusic
-	case "links":
-		return AngelIndexLinks
-	case "stats":
-		return AngelIndexStats
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func AngelValidKey(key string) bool {
-	switch key {
-	case "id", "role", "key", "created", "smalls", "name", "about", "music", "links", "stats":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Angel) Map() map[string]any {
-	return map[string]any{
-		"id":      a.ID,
-		"role":    a.Role,
-		"key":     a.Key,
-		"created": a.Created,
-		"smalls":  a.Smalls,
-		"name":    a.Name,
-		"about":   a.About,
-		"music":   a.Music,
-		"links":   a.Links,
-		"stats":   a.Stats,
-	}
-}
-
-// struct to map
-func (a *Angel) Iterate(f func(k AngelIndexTyped, v any)) {
-	for _, x := range AngelIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Angel) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseAngel(v []byte) (a Angel, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // angelSQLDB runs queries: pool or transaction
@@ -478,13 +135,14 @@ type AngelSQL struct {
 	db   angelSQLDB // pool, or transaction after TX
 }
 
-// NewAngelSQL creates queries on pool, table and indexes if not exist
-func NewAngelSQL(pool *pgxpool.Pool) (*AngelSQL, errors.E) {
+// NewAngelSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewAngelSQL(pool *pgxpool.Pool) *AngelSQL {
 	a := &AngelSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1533,4 +1191,334 @@ func (a *AngelSQL) CreateTable() errors.E {
 // CreateIndexes creates indexes if not exist
 func (a *AngelSQL) CreateIndexes() errors.E {
 	return angelSQLErr(a.stdCreateIndexes())
+}
+
+// field type
+type AngelIndexTyped int
+
+// int index
+const (
+	AngelIndexID = AngelIndexTyped(iota)
+	AngelIndexRole
+	AngelIndexKey
+	AngelIndexCreated
+	AngelIndexSmalls
+	AngelIndexName
+	AngelIndexAbout
+	AngelIndexMusic
+	AngelIndexLinks
+	AngelIndexStats
+)
+
+// string index
+const (
+	AngelFieldID      = "id"      // int sql{primary}  #readonly
+	AngelFieldRole    = "role"    // role.Role sql{unique="css"}
+	AngelFieldKey     = "key"     // uuid.UUID sql{unique="css"}
+	AngelFieldCreated = "created" // time.Time
+	AngelFieldSmalls  = "smalls"  // uint8
+	AngelFieldName    = "name"    // string
+	AngelFieldAbout   = "about"   // []string
+	AngelFieldMusic   = "music"   // []int
+	AngelFieldLinks   = "links"   // map[string]string
+	AngelFieldStats   = "stats"   // map[string]int
+)
+
+// index func
+func AngelIndexes() []AngelIndexTyped {
+	return []AngelIndexTyped{AngelIndexID, AngelIndexRole, AngelIndexKey, AngelIndexCreated, AngelIndexSmalls, AngelIndexName, AngelIndexAbout, AngelIndexMusic, AngelIndexLinks, AngelIndexStats}
+
+}
+
+func AngelReadonlyList() []AngelIndexTyped {
+	return []AngelIndexTyped{AngelIndexID}
+}
+
+func (a AngelIndexTyped) Readonly() bool {
+	switch a {
+	case AngelIndexID:
+		return true
+	default:
+		return false
+	}
+}
+
+// key index string
+func (a AngelIndexTyped) String() string {
+	switch a {
+	case AngelIndexID:
+		return "id"
+	case AngelIndexRole:
+		return "role"
+	case AngelIndexKey:
+		return "key"
+	case AngelIndexCreated:
+		return "created"
+	case AngelIndexSmalls:
+		return "smalls"
+	case AngelIndexName:
+		return "name"
+	case AngelIndexAbout:
+		return "about"
+	case AngelIndexMusic:
+		return "music"
+	case AngelIndexLinks:
+		return "links"
+	case AngelIndexStats:
+		return "stats"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a AngelIndexTyped) SQLName() string {
+	switch a {
+	case AngelIndexID:
+		return "id"
+	case AngelIndexRole:
+		return "role"
+	case AngelIndexKey:
+		return "key"
+	case AngelIndexCreated:
+		return "created"
+	case AngelIndexSmalls:
+		return "smalls"
+	case AngelIndexName:
+		return "name"
+	case AngelIndexAbout:
+		return "about"
+	case AngelIndexMusic:
+		return "music"
+	case AngelIndexLinks:
+		return "links"
+	case AngelIndexStats:
+		return "stats"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a AngelIndexTyped) ClickhouseName() string {
+	switch a {
+	case AngelIndexID:
+		return "id"
+	case AngelIndexRole:
+		return "role"
+	case AngelIndexKey:
+		return "key"
+	case AngelIndexCreated:
+		return "created"
+	case AngelIndexSmalls:
+		return "smalls"
+	case AngelIndexName:
+		return "name"
+	case AngelIndexAbout:
+		return "about"
+	case AngelIndexMusic:
+		return "music"
+	case AngelIndexLinks:
+		return "links"
+	case AngelIndexStats:
+		return "stats"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a AngelIndexTyped) Type() string {
+	switch a {
+	case AngelIndexID:
+		return "int"
+	case AngelIndexRole:
+		return "role.Role"
+	case AngelIndexKey:
+		return "uuid.UUID"
+	case AngelIndexCreated:
+		return "time.Time"
+	case AngelIndexSmalls:
+		return "uint8"
+	case AngelIndexName:
+		return "string"
+	case AngelIndexAbout:
+		return "[]string"
+	case AngelIndexMusic:
+		return "[]int"
+	case AngelIndexLinks:
+		return "map[string]string"
+	case AngelIndexStats:
+		return "map[string]int"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a AngelIndexTyped) Title() string {
+	switch a {
+	case AngelIndexID:
+		return "ID"
+	case AngelIndexRole:
+		return "Role"
+	case AngelIndexKey:
+		return "Key"
+	case AngelIndexCreated:
+		return "Created"
+	case AngelIndexSmalls:
+		return "Smalls"
+	case AngelIndexName:
+		return "Name"
+	case AngelIndexAbout:
+		return "About"
+	case AngelIndexMusic:
+		return "Music"
+	case AngelIndexLinks:
+		return "Links"
+	case AngelIndexStats:
+		return "Stats"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a AngelIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func AngelKeyIndex(key string) AngelIndexTyped {
+	switch key {
+	case "id":
+		return AngelIndexID
+	case "role":
+		return AngelIndexRole
+	case "key":
+		return AngelIndexKey
+	case "created":
+		return AngelIndexCreated
+	case "smalls":
+		return AngelIndexSmalls
+	case "name":
+		return AngelIndexName
+	case "about":
+		return AngelIndexAbout
+	case "music":
+		return AngelIndexMusic
+	case "links":
+		return AngelIndexLinks
+	case "stats":
+		return AngelIndexStats
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func AngelValidKey(key string) bool {
+	switch key {
+	case "id", "role", "key", "created", "smalls", "name", "about", "music", "links", "stats":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Angel) Tuple() (r []any) {
+	return []any{a.ID, a.Role, a.Key, a.Created, a.Smalls, a.Name, a.About, a.Music, a.Links, a.Stats}
+}
+
+// get struct value with function
+func (a *Angel) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "role":
+		return a.Role //role.Role
+	case "key":
+		return a.Key //uuid.UUID
+	case "created":
+		return a.Created //time.Time
+	case "smalls":
+		return a.Smalls //uint8
+	case "name":
+		return a.Name //string
+	case "about":
+		return a.About //[]string
+	case "music":
+		return a.Music //[]int
+	case "links":
+		return a.Links //map[string]string
+	case "stats":
+		return a.Stats //map[string]int
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Angel) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "role":
+		return fmt.Sprint(a.Role) //role.Role
+	case "key":
+		return fmt.Sprint(a.Key) //uuid.UUID
+	case "created":
+		return fmt.Sprint(a.Created) //time.Time
+	case "smalls":
+		return fmt.Sprint(a.Smalls) //uint8
+	case "name":
+		return fmt.Sprint(a.Name) //string
+	case "about":
+		return fmt.Sprint(a.About) //[]string
+	case "music":
+		return fmt.Sprint(a.Music) //[]int
+	case "links":
+		return fmt.Sprint(a.Links) //map[string]string
+	case "stats":
+		return fmt.Sprint(a.Stats) //map[string]int
+	}
+	return
+}
+
+// struct to map
+func (a *Angel) Map() map[string]any {
+	return map[string]any{
+		"id":      a.ID,
+		"role":    a.Role,
+		"key":     a.Key,
+		"created": a.Created,
+		"smalls":  a.Smalls,
+		"name":    a.Name,
+		"about":   a.About,
+		"music":   a.Music,
+		"links":   a.Links,
+		"stats":   a.Stats,
+	}
+}
+
+// struct to map
+func (a *Angel) Iterate(f func(k AngelIndexTyped, v any)) {
+	for _, x := range AngelIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Angel) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseAngel(v []byte) (a Angel, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

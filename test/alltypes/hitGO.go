@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"reflect"
 	"slices"
@@ -90,6 +89,32 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
+// init struct
+func NewHit() (a *Hit) {
+	a = new(Hit)
+	a.Attrs = make(map[string]string)
+	a.Counts = make(map[string]int)
+	return
+}
+
+// 144 bytes (go padding)
+type Hit struct {
+	ID      int               `json:"id,omitempty"`      // ch{primary}
+	User    int               `json:"user,omitempty"`    //
+	Country string            `json:"country,omitempty"` // ch{low}
+	IP      string            `json:"ip,omitempty"`      //
+	Path    string            `json:"path,omitempty"`    //
+	Ok      bool              `json:"ok,omitempty"`      //
+	Views   int64             `json:"views,omitempty"`   //
+	Created time.Time         `json:"created,omitempty"` //
+	Tags    []string          `json:"tags,omitempty"`    //
+	Codes   []int             `json:"codes,omitempty"`   //
+	Sizes   []uint            `json:"sizes,omitempty"`   //
+	Attrs   map[string]string `json:"attrs,omitempty"`   //
+	Counts  map[string]int    `json:"counts,omitempty"`  //
+	From    string            `json:"from,omitempty"`    // reserved word: column ifrom
+}
+
 // field type
 type HitIndexTyped int
 
@@ -133,120 +158,6 @@ const (
 func HitIndexes() []HitIndexTyped {
 	return []HitIndexTyped{HitIndexID, HitIndexUser, HitIndexCountry, HitIndexIP, HitIndexPath, HitIndexOk, HitIndexViews, HitIndexCreated, HitIndexTags, HitIndexCodes, HitIndexSizes, HitIndexAttrs, HitIndexCounts, HitIndexFrom}
 
-}
-
-// 144 bytes (go padding)
-//
-//easyjson:json
-type Hit struct {
-	ID      int               `json:"id,omitempty"`      // ch{primary}
-	User    int               `json:"user,omitempty"`    //
-	Country string            `json:"country,omitempty"` // ch{low}
-	IP      string            `json:"ip,omitempty"`      //
-	Path    string            `json:"path,omitempty"`    //
-	Ok      bool              `json:"ok,omitempty"`      //
-	Views   int64             `json:"views,omitempty"`   //
-	Created time.Time         `json:"created,omitempty"` //
-	Tags    []string          `json:"tags,omitempty"`    //
-	Codes   []int             `json:"codes,omitempty"`   //
-	Sizes   []uint            `json:"sizes,omitempty"`   //
-	Attrs   map[string]string `json:"attrs,omitempty"`   //
-	Counts  map[string]int    `json:"counts,omitempty"`  //
-	From    string            `json:"from,omitempty"`    // reserved word: column ifrom
-}
-
-// init struct
-func NewHit() (a *Hit) {
-	a = new(Hit)
-	a.Attrs = make(map[string]string)
-	a.Counts = make(map[string]int)
-	return
-}
-
-// Tuple create an array from struct
-func (a *Hit) Tuple() (r []any) {
-	return []any{a.ID, a.User, a.Country, a.IP, a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, a.Counts, a.From}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Hit) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.User, a.Country, net.ParseIP(a.IP), a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, func() map[string]int64 {
-		r := make(map[string]int64, len(a.Counts))
-		for k, v := range a.Counts {
-			r[string(k)] = int64(v)
-		}
-		return r
-	}(), a.From}
-}
-
-// get struct value with function
-func (a *Hit) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "user":
-		return a.User //int
-	case "country":
-		return a.Country //string
-	case "ip":
-		return a.IP //string
-	case "path":
-		return a.Path //string
-	case "ok":
-		return a.Ok //bool
-	case "views":
-		return a.Views //int64
-	case "created":
-		return a.Created //time.Time
-	case "tags":
-		return a.Tags //[]string
-	case "codes":
-		return a.Codes //[]int
-	case "sizes":
-		return a.Sizes //[]uint
-	case "attrs":
-		return a.Attrs //map[string]string
-	case "counts":
-		return a.Counts //map[string]int
-	case "from":
-		return a.From //string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Hit) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "user":
-		return fmt.Sprint(a.User) //int
-	case "country":
-		return fmt.Sprint(a.Country) //string
-	case "ip":
-		return fmt.Sprint(a.IP) //string
-	case "path":
-		return fmt.Sprint(a.Path) //string
-	case "ok":
-		return fmt.Sprint(a.Ok) //bool
-	case "views":
-		return fmt.Sprint(a.Views) //int64
-	case "created":
-		return fmt.Sprint(a.Created) //time.Time
-	case "tags":
-		return fmt.Sprint(a.Tags) //[]string
-	case "codes":
-		return fmt.Sprint(a.Codes) //[]int
-	case "sizes":
-		return fmt.Sprint(a.Sizes) //[]uint
-	case "attrs":
-		return fmt.Sprint(a.Attrs) //map[string]string
-	case "counts":
-		return fmt.Sprint(a.Counts) //map[string]int
-	case "from":
-		return fmt.Sprint(a.From) //string
-	}
-	return
 }
 
 // key index string
@@ -483,6 +394,81 @@ func HitValidKey(key string) bool {
 	}
 }
 
+// Tuple create an array from struct
+func (a *Hit) Tuple() (r []any) {
+	return []any{a.ID, a.User, a.Country, a.IP, a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, a.Counts, a.From}
+}
+
+// get struct value with function
+func (a *Hit) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "user":
+		return a.User //int
+	case "country":
+		return a.Country //string
+	case "ip":
+		return a.IP //string
+	case "path":
+		return a.Path //string
+	case "ok":
+		return a.Ok //bool
+	case "views":
+		return a.Views //int64
+	case "created":
+		return a.Created //time.Time
+	case "tags":
+		return a.Tags //[]string
+	case "codes":
+		return a.Codes //[]int
+	case "sizes":
+		return a.Sizes //[]uint
+	case "attrs":
+		return a.Attrs //map[string]string
+	case "counts":
+		return a.Counts //map[string]int
+	case "from":
+		return a.From //string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Hit) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "user":
+		return fmt.Sprint(a.User) //int
+	case "country":
+		return fmt.Sprint(a.Country) //string
+	case "ip":
+		return fmt.Sprint(a.IP) //string
+	case "path":
+		return fmt.Sprint(a.Path) //string
+	case "ok":
+		return fmt.Sprint(a.Ok) //bool
+	case "views":
+		return fmt.Sprint(a.Views) //int64
+	case "created":
+		return fmt.Sprint(a.Created) //time.Time
+	case "tags":
+		return fmt.Sprint(a.Tags) //[]string
+	case "codes":
+		return fmt.Sprint(a.Codes) //[]int
+	case "sizes":
+		return fmt.Sprint(a.Sizes) //[]uint
+	case "attrs":
+		return fmt.Sprint(a.Attrs) //map[string]string
+	case "counts":
+		return fmt.Sprint(a.Counts) //map[string]int
+	case "from":
+		return fmt.Sprint(a.From) //string
+	}
+	return
+}
+
 // struct to map
 func (a *Hit) Map() map[string]any {
 	return map[string]any{
@@ -522,6 +508,17 @@ func ParseHit(v []byte) (a Hit, err error) {
 	return
 }
 
+// Tuple create an array from struct for clickhouse
+func (a *Hit) clickhouseTuple() (r []any) {
+	return []any{a.ID, a.User, a.Country, net.ParseIP(a.IP), a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, func() map[string]int64 {
+		r := make(map[string]int64, len(a.Counts))
+		for k, v := range a.Counts {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}(), a.From}
+}
+
 // HitCQL clickhouse queries of table hits
 //
 // Rules:
@@ -529,7 +526,7 @@ func ParseHit(v []byte) (a Hit, err error) {
 //   - not found row is sql.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
-//   - updates and deletes are mutations: they wait until the data is changed
+//   - rows are only inserted, selected and deleted
 type HitCQL struct {
 	conn driver.Conn
 	mu   sync.Mutex
@@ -537,14 +534,13 @@ type HitCQL struct {
 }
 
 // NewHitCQL creates queries on connection and table if not exists.
-// Rows of Add are written every 10 minutes and by Push
-func NewHitCQL(conn driver.Conn) (*HitCQL, error) {
+// Rows of Add are written every 10 minutes and by Push.
+// Error of table is not returned: call CreateTable to see it
+func NewHitCQL(conn driver.Conn) *HitCQL {
 	a := &HitCQL{conn: conn}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
-	}
+	_ = a.CreateTable()
 	go a.flush()
-	return a, nil
+	return a
 }
 
 // Conn returns connection, for own queries
@@ -614,24 +610,6 @@ func hitCHSelect(fields []HitIndexTyped) (string, []HitIndexTyped, error) {
 		list = append(list, col)
 	}
 	return strings.Join(list, ", "), fields, nil
-}
-
-// hitCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func hitCHSet(v map[HitIndexTyped]any, start int) (string, []any, error) {
-	if len(v) == 0 {
-		return "", nil, errors.New("hits: no values")
-	}
-	list := make([]string, 0, len(v))
-	args := make([]any, 0, len(v))
-	for i, f := range slices.Sorted(maps.Keys(v)) {
-		col, err := hitCHColumn(f)
-		if err != nil {
-			return "", nil, err
-		}
-		list = append(list, col+" = $"+strconv.Itoa(start+i))
-		args = append(args, v[f])
-	}
-	return strings.Join(list, ", "), args, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -840,109 +818,12 @@ func (a *HitCQL) Stat(field HitIndexTyped) (map[string]int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// update, delete: mutations
+// delete: mutations, they wait until the data is removed
 // ---------------------------------------------------------------------------
-
-// Update sets field of row
-func (a *HitCQL) Update(id int, field HitIndexTyped, v any) error {
-	col, err := hitCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table hits update "+col+" = $1 where id = $2"+hitCHSync, v, id)
-}
-
-// Updates sets fields of row
-func (a *HitCQL) Updates(id int, v map[HitIndexTyped]any) error {
-	set, args, err := hitCHSet(v, 1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table hits update "+set+" where id = $"+strconv.Itoa(len(args)+1)+hitCHSync, append(args, id)...)
-}
-
-// Inc adds v to number field: views = views + 1
-func (a *HitCQL) Inc(id int, field HitIndexTyped, v any) error {
-	col, err := hitCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table hits update "+col+" = "+col+" + $1 where id = $2"+hitCHSync, v, id)
-}
 
 // Delete removes row by id
 func (a *HitCQL) Delete(id int) error {
 	return a.conn.Exec(context.Background(), "alter table hits delete where id = $1"+hitCHSync, id)
-}
-
-// AppendTags adds values to array tags
-func (a *HitCQL) AppendTags(id int, v ...string) error {
-	return a.conn.Exec(context.Background(), "alter table hits update tags = arrayConcat(tags, $1) where id = $2"+hitCHSync, v, id)
-}
-
-// RemoveTags removes all entries of v from array tags
-func (a *HitCQL) RemoveTags(id int, v string) error {
-	return a.conn.Exec(context.Background(), "alter table hits update tags = arrayFilter(x -> x != $1, tags) where id = $2"+hitCHSync, v, id)
-}
-
-// AppendCodes adds values to array codes
-func (a *HitCQL) AppendCodes(id int, v ...int) error {
-	return a.conn.Exec(context.Background(), "alter table hits update codes = arrayConcat(codes, $1) where id = $2"+hitCHSync, v, id)
-}
-
-// RemoveCodes removes all entries of v from array codes
-func (a *HitCQL) RemoveCodes(id int, v int) error {
-	return a.conn.Exec(context.Background(), "alter table hits update codes = arrayFilter(x -> x != $1, codes) where id = $2"+hitCHSync, v, id)
-}
-
-// AppendSizes adds values to array sizes
-func (a *HitCQL) AppendSizes(id int, v ...uint) error {
-	return a.conn.Exec(context.Background(), "alter table hits update sizes = arrayConcat(sizes, $1) where id = $2"+hitCHSync, v, id)
-}
-
-// RemoveSizes removes all entries of v from array sizes
-func (a *HitCQL) RemoveSizes(id int, v uint) error {
-	return a.conn.Exec(context.Background(), "alter table hits update sizes = arrayFilter(x -> x != $1, sizes) where id = $2"+hitCHSync, v, id)
-}
-
-// UpdateAttrs sets key of map attrs
-func (a *HitCQL) UpdateAttrs(id int, k string, v string) error {
-	return a.conn.Exec(context.Background(), "alter table hits update attrs = mapUpdate(attrs, cast(map($1, $2), 'Map(String, String)')) where id = $3"+hitCHSync, k, v, id)
-}
-
-// DeleteAttrs removes key of map attrs
-func (a *HitCQL) DeleteAttrs(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table hits update attrs = mapFilter((k, v) -> k != $1, attrs) where id = $2"+hitCHSync, k, id)
-}
-
-// UpdateCounts sets key of map counts
-func (a *HitCQL) UpdateCounts(id int, k string, v int) error {
-	return a.conn.Exec(context.Background(), "alter table hits update counts = mapUpdate(counts, cast(map($1, $2), 'Map(String, Int64)')) where id = $3"+hitCHSync, k, v, id)
-}
-
-// DeleteCounts removes key of map counts
-func (a *HitCQL) DeleteCounts(id int, k string) error {
-	return a.conn.Exec(context.Background(), "alter table hits update counts = mapFilter((k, v) -> k != $1, counts) where id = $2"+hitCHSync, k, id)
-}
-
-// UpdateWhere sets field of rows by condition
-//
-//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
-func (a *HitCQL) UpdateWhere(field HitIndexTyped, v any, where string, args ...any) error {
-	col, err := hitCHColumn(field)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table hits update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+hitCHSync, append(slices.Clone(args), v)...)
-}
-
-// UpdatesWhere sets fields of rows by condition
-func (a *HitCQL) UpdatesWhere(v map[HitIndexTyped]any, where string, args ...any) error {
-	set, vals, err := hitCHSet(v, len(args)+1)
-	if err != nil {
-		return err
-	}
-	return a.conn.Exec(context.Background(), "alter table hits update "+set+" where "+where+hitCHSync, append(slices.Clone(args), vals...)...)
 }
 
 // DeleteWhere removes rows by condition

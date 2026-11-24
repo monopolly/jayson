@@ -13,7 +13,8 @@ import (
 
 // every snippet of README.md: it must compile
 func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from, to, id int) {
-	db, err := NewAccountSQL(pool)
+	db := NewAccountSQL(pool)
+	var err error
 	acc := Account{Email: "kate@example.com", Name: "Kate", Tags: []string{"new"}}
 	err = db.Insert(&acc)
 	err = db.Inc(acc.ID, AccountIndexBalance, 50)
@@ -56,7 +57,7 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	err = db.Drop(id)
 
 	accounts := db
-	orders, _ := NewOrderSQL(pool)
+	orders := NewOrderSQL(pool)
 	err = accounts.Begin(func(tx pgx.Tx) error {
 		if err := accounts.TX(tx).Inc(from, AccountIndexBalance, -50); err != nil {
 			return err
@@ -73,16 +74,16 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	json.Unmarshal(body, &q)
 	rich, err = db.Search(&q)
 
-	articles, _ := NewArticleSQL(pool)
+	articles := NewArticleSQL(pool)
 	found, err := articles.FullTextText("postgres index -mysql", 20)
 
-	users, _ := NewUserSQL(pool)
+	users := NewUserSQL(pool)
 	pub, err := users.GetPublic(id)
 	u, _ := users.Get(id)
 	view := u.UserPublic()
 	fields := UserReadonlyList()
 
-	ch, err := NewEventCQL(conn)
+	ch := NewEventCQL(conn)
 	ch.Add(Event{ID: 1, Country: "DE", IP: "10.0.0.1", Path: "/"})
 	err = ch.Push()
 	err = ch.Insert(Event{ID: 2, Country: "US"})
@@ -90,8 +91,6 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	events, err := ch.Select(nil, "country = $1 order by id limit 10", "DE")
 	cnt, err := ch.CountWhere("country = $1", "DE")
 	stats, err := ch.Stat(EventIndexCountry)
-	err = ch.Update(1, EventIndexPath, "/new")
-	err = ch.AppendTags(1, "promo")
 	err = ch.Delete(1)
 	top, err := ch.Top("DE")
 	_, _, _ = ev, cnt, top

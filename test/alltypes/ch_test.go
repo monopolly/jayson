@@ -31,9 +31,9 @@ func TestClickhouse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db, err := NewHitCQL(conn)
-	if err != nil {
-		t.Fatal("new:", err)
+	db := NewHitCQL(conn)
+	if err := db.CreateTable(); err != nil {
+		t.Fatal("table:", err)
 	}
 	check := func(err error) {
 		t.Helper()
@@ -105,35 +105,6 @@ func TestClickhouse(t *testing.T) {
 		t.Fatal(st, err)
 	}
 
-	// mutations
-	check(db.Update(1, HitIndexPath, "/new"))
-	check(db.Updates(1, map[HitIndexTyped]any{HitIndexViews: 20, HitIndexOk: false}))
-	check(db.Inc(1, HitIndexViews, 5))
-	check(db.AppendTags(1, "c", "d"))
-	check(db.RemoveTags(1, "a"))
-	check(db.AppendCodes(1, 3))
-	check(db.RemoveCodes(1, 1))
-	check(db.UpdateAttrs(1, "x", "y"))
-	check(db.DeleteAttrs(1, "k"))
-	check(db.UpdateCounts(1, "m", 5))
-	check(db.UpdateWhere(HitIndexFrom, "direct", "country = $1", "US"))
-	check(db.UpdatesWhere(map[HitIndexTyped]any{HitIndexViews: 1}, "id = $1", 3))
-
-	got, err = db.Get(1)
-	check(err)
-	if got.Path != "/new" || got.Views != 25 || got.Ok {
-		t.Error(got.Path, got.Views, got.Ok)
-	}
-	if !reflect.DeepEqual(got.Tags, []string{"b", "c", "d"}) || !reflect.DeepEqual(got.Codes, []int{2, 3}) {
-		t.Error(got.Tags, got.Codes)
-	}
-	if !reflect.DeepEqual(got.Attrs, map[string]string{"x": "y"}) || !reflect.DeepEqual(got.Counts, map[string]int{"n": 1, "m": 5}) {
-		t.Error(got.Attrs, got.Counts)
-	}
-	if v, _ := db.Get(2, HitIndexFrom); v.From != "direct" {
-		t.Error(v.From)
-	}
-
 	// own functions of interface hitCQL
 	if list, err := db.ByCountry("DE"); err != nil || len(list) != 2 {
 		t.Fatal(list, err)
@@ -153,7 +124,7 @@ func TestClickhouse(t *testing.T) {
 	if ids, err := db.IDs("DE"); err != nil || !reflect.DeepEqual(ids, []int64{1, 3}) {
 		t.Fatal(ids, err)
 	}
-	if tags, err := db.Tags(1); err != nil || len(tags) != 3 {
+	if tags, err := db.Tags(1); err != nil || len(tags) != 2 {
 		t.Fatal(tags, err)
 	}
 
@@ -180,8 +151,8 @@ func TestClickhouseErrors(t *testing.T) {
 	defer conn.Close()
 	_ = conn.Exec(context.Background(), "drop table if exists clicks")
 
-	db, e := NewClickCQL(conn)
-	if e != nil {
+	db := NewClickCQL(conn)
+	if e := db.CreateTable(); e != nil {
 		t.Fatal(e)
 	}
 	if e := db.Insert(Click{ID: 1, Link: "a", Tags: []string{"x"}}); e != nil {
@@ -196,7 +167,7 @@ func TestClickhouseErrors(t *testing.T) {
 	if _, e := db.Select(nil, "nocolumn = 1"); e == nil {
 		t.Fatal("error expected")
 	}
-	if e := db.AppendTags(1, "y"); e != nil {
+	if e := db.Delete(1); e != nil {
 		t.Fatal(e)
 	}
 }

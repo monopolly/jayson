@@ -93,47 +93,6 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type TagIndexTyped int
-
-// int index
-const (
-	TagIndexID = TagIndexTyped(iota)
-	TagIndexName
-	TagIndexOwner
-	TagIndexMeta
-	TagIndexFrom
-	TagIndexTo
-)
-
-// string index
-const (
-	TagFieldID    = "id"    // int sql{inc}
-	TagFieldName  = "name"  // string
-	TagFieldOwner = "owner" // int
-	TagFieldMeta  = "meta"  // map[string]int
-	TagFieldFrom  = "from"  // int reserved sql word: column ifrom
-	TagFieldTo    = "to"    // int reserved sql word: column ito
-)
-
-// index func
-func TagIndexes() []TagIndexTyped {
-	return []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta, TagIndexFrom, TagIndexTo}
-
-}
-
-// 56 bytes (go padding)
-//
-//easyjson:json
-type Tag struct {
-	ID    int            `json:"id,omitempty"`    // sql{inc}
-	Name  string         `json:"name,omitempty"`  //
-	Owner int            `json:"owner,omitempty"` //
-	Meta  map[string]int `json:"meta,omitempty"`  //
-	From  int            `json:"from,omitempty"`  // reserved sql word: column ifrom
-	To    int            `json:"to,omitempty"`    // reserved sql word: column ito
-}
-
 // init struct
 func NewTag() (a *Tag) {
 	a = new(Tag)
@@ -141,227 +100,14 @@ func NewTag() (a *Tag) {
 	return
 }
 
-// Tuple create an array from struct
-func (a *Tag) Tuple() (r []any) {
-	return []any{a.ID, a.Name, a.Owner, a.Meta, a.From, a.To}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Tag) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Name, a.Owner, func() map[string]int64 {
-		r := make(map[string]int64, len(a.Meta))
-		for k, v := range a.Meta {
-			r[string(k)] = int64(v)
-		}
-		return r
-	}(), a.From, a.To}
-}
-
-// get struct value with function
-func (a *Tag) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "name":
-		return a.Name //string
-	case "owner":
-		return a.Owner //int
-	case "meta":
-		return a.Meta //map[string]int
-	case "from":
-		return a.From //int
-	case "to":
-		return a.To //int
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Tag) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "name":
-		return fmt.Sprint(a.Name) //string
-	case "owner":
-		return fmt.Sprint(a.Owner) //int
-	case "meta":
-		return fmt.Sprint(a.Meta) //map[string]int
-	case "from":
-		return fmt.Sprint(a.From) //int
-	case "to":
-		return fmt.Sprint(a.To) //int
-	}
-	return
-}
-
-// key index string
-func (a TagIndexTyped) String() string {
-	switch a {
-	case TagIndexID:
-		return "id"
-	case TagIndexName:
-		return "name"
-	case TagIndexOwner:
-		return "owner"
-	case TagIndexMeta:
-		return "meta"
-	case TagIndexFrom:
-		return "from"
-	case TagIndexTo:
-		return "to"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a TagIndexTyped) SQLName() string {
-	switch a {
-	case TagIndexID:
-		return "id"
-	case TagIndexName:
-		return "name"
-	case TagIndexOwner:
-		return "owner"
-	case TagIndexMeta:
-		return "meta"
-	case TagIndexFrom:
-		return "ifrom"
-	case TagIndexTo:
-		return "ito"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a TagIndexTyped) ClickhouseName() string {
-	switch a {
-	case TagIndexID:
-		return "id"
-	case TagIndexName:
-		return "name"
-	case TagIndexOwner:
-		return "owner"
-	case TagIndexMeta:
-		return "meta"
-	case TagIndexFrom:
-		return "from"
-	case TagIndexTo:
-		return "to"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a TagIndexTyped) Type() string {
-	switch a {
-	case TagIndexID:
-		return "int"
-	case TagIndexName:
-		return "string"
-	case TagIndexOwner:
-		return "int"
-	case TagIndexMeta:
-		return "map[string]int"
-	case TagIndexFrom:
-		return "int"
-	case TagIndexTo:
-		return "int"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a TagIndexTyped) Title() string {
-	switch a {
-	case TagIndexID:
-		return "ID"
-	case TagIndexName:
-		return "Name"
-	case TagIndexOwner:
-		return "Owner"
-	case TagIndexMeta:
-		return "Meta"
-	case TagIndexFrom:
-		return "From"
-	case TagIndexTo:
-		return "To"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a TagIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func TagKeyIndex(key string) TagIndexTyped {
-	switch key {
-	case "id":
-		return TagIndexID
-	case "name":
-		return TagIndexName
-	case "owner":
-		return TagIndexOwner
-	case "meta":
-		return TagIndexMeta
-	case "from":
-		return TagIndexFrom
-	case "to":
-		return TagIndexTo
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func TagValidKey(key string) bool {
-	switch key {
-	case "id", "name", "owner", "meta", "from", "to":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Tag) Map() map[string]any {
-	return map[string]any{
-		"id":    a.ID,
-		"name":  a.Name,
-		"owner": a.Owner,
-		"meta":  a.Meta,
-		"from":  a.From,
-		"to":    a.To,
-	}
-}
-
-// struct to map
-func (a *Tag) Iterate(f func(k TagIndexTyped, v any)) {
-	for _, x := range TagIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Tag) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseTag(v []byte) (a Tag, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
+// 56 bytes (go padding)
+type Tag struct {
+	ID    int            `json:"id,omitempty"`    // sql{inc}
+	Name  string         `json:"name,omitempty"`  //
+	Owner int            `json:"owner,omitempty"` //
+	Meta  map[string]int `json:"meta,omitempty"`  //
+	From  int            `json:"from,omitempty"`  // reserved sql word: column ifrom
+	To    int            `json:"to,omitempty"`    // reserved sql word: column ito
 }
 
 // tagSQLDB runs queries: pool or transaction
@@ -386,13 +132,14 @@ type TagSQL struct {
 	db   tagSQLDB // pool, or transaction after TX
 }
 
-// NewTagSQL creates queries on pool, table and indexes if not exist
-func NewTagSQL(pool *pgxpool.Pool) (*TagSQL, errors.E) {
+// NewTagSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewTagSQL(pool *pgxpool.Pool) *TagSQL {
 	a := &TagSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1394,6 +1141,247 @@ func (a *TagSQL) ResetSequence(add ...int64) errors.E {
 // SetSequence sets next id
 func (a *TagSQL) SetSequence(v int64) errors.E {
 	return tagSQLErr(a.stdSetSequence(v))
+}
+
+// field type
+type TagIndexTyped int
+
+// int index
+const (
+	TagIndexID = TagIndexTyped(iota)
+	TagIndexName
+	TagIndexOwner
+	TagIndexMeta
+	TagIndexFrom
+	TagIndexTo
+)
+
+// string index
+const (
+	TagFieldID    = "id"    // int sql{inc}
+	TagFieldName  = "name"  // string
+	TagFieldOwner = "owner" // int
+	TagFieldMeta  = "meta"  // map[string]int
+	TagFieldFrom  = "from"  // int reserved sql word: column ifrom
+	TagFieldTo    = "to"    // int reserved sql word: column ito
+)
+
+// index func
+func TagIndexes() []TagIndexTyped {
+	return []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta, TagIndexFrom, TagIndexTo}
+
+}
+
+// key index string
+func (a TagIndexTyped) String() string {
+	switch a {
+	case TagIndexID:
+		return "id"
+	case TagIndexName:
+		return "name"
+	case TagIndexOwner:
+		return "owner"
+	case TagIndexMeta:
+		return "meta"
+	case TagIndexFrom:
+		return "from"
+	case TagIndexTo:
+		return "to"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a TagIndexTyped) SQLName() string {
+	switch a {
+	case TagIndexID:
+		return "id"
+	case TagIndexName:
+		return "name"
+	case TagIndexOwner:
+		return "owner"
+	case TagIndexMeta:
+		return "meta"
+	case TagIndexFrom:
+		return "ifrom"
+	case TagIndexTo:
+		return "ito"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a TagIndexTyped) ClickhouseName() string {
+	switch a {
+	case TagIndexID:
+		return "id"
+	case TagIndexName:
+		return "name"
+	case TagIndexOwner:
+		return "owner"
+	case TagIndexMeta:
+		return "meta"
+	case TagIndexFrom:
+		return "from"
+	case TagIndexTo:
+		return "to"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a TagIndexTyped) Type() string {
+	switch a {
+	case TagIndexID:
+		return "int"
+	case TagIndexName:
+		return "string"
+	case TagIndexOwner:
+		return "int"
+	case TagIndexMeta:
+		return "map[string]int"
+	case TagIndexFrom:
+		return "int"
+	case TagIndexTo:
+		return "int"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a TagIndexTyped) Title() string {
+	switch a {
+	case TagIndexID:
+		return "ID"
+	case TagIndexName:
+		return "Name"
+	case TagIndexOwner:
+		return "Owner"
+	case TagIndexMeta:
+		return "Meta"
+	case TagIndexFrom:
+		return "From"
+	case TagIndexTo:
+		return "To"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a TagIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func TagKeyIndex(key string) TagIndexTyped {
+	switch key {
+	case "id":
+		return TagIndexID
+	case "name":
+		return TagIndexName
+	case "owner":
+		return TagIndexOwner
+	case "meta":
+		return TagIndexMeta
+	case "from":
+		return TagIndexFrom
+	case "to":
+		return TagIndexTo
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func TagValidKey(key string) bool {
+	switch key {
+	case "id", "name", "owner", "meta", "from", "to":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Tag) Tuple() (r []any) {
+	return []any{a.ID, a.Name, a.Owner, a.Meta, a.From, a.To}
+}
+
+// get struct value with function
+func (a *Tag) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "name":
+		return a.Name //string
+	case "owner":
+		return a.Owner //int
+	case "meta":
+		return a.Meta //map[string]int
+	case "from":
+		return a.From //int
+	case "to":
+		return a.To //int
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Tag) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "name":
+		return fmt.Sprint(a.Name) //string
+	case "owner":
+		return fmt.Sprint(a.Owner) //int
+	case "meta":
+		return fmt.Sprint(a.Meta) //map[string]int
+	case "from":
+		return fmt.Sprint(a.From) //int
+	case "to":
+		return fmt.Sprint(a.To) //int
+	}
+	return
+}
+
+// struct to map
+func (a *Tag) Map() map[string]any {
+	return map[string]any{
+		"id":    a.ID,
+		"name":  a.Name,
+		"owner": a.Owner,
+		"meta":  a.Meta,
+		"from":  a.From,
+		"to":    a.To,
+	}
+}
+
+// struct to map
+func (a *Tag) Iterate(f func(k TagIndexTyped, v any)) {
+	for _, x := range TagIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Tag) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseTag(v []byte) (a Tag, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }
 
 const (

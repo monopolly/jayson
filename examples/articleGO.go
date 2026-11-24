@@ -87,202 +87,11 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type ArticleIndexTyped int
-
-// int index
-const (
-	ArticleIndexID = ArticleIndexTyped(iota)
-	ArticleIndexTitle
-	ArticleIndexBody
-)
-
-// string index
-const (
-	ArticleFieldID    = "id"    // int sql{inc}
-	ArticleFieldTitle = "title" // string sql{search="text"}
-	ArticleFieldBody  = "body"  // string sql{search="text"}
-)
-
-// index func
-func ArticleIndexes() []ArticleIndexTyped {
-	return []ArticleIndexTyped{ArticleIndexID, ArticleIndexTitle, ArticleIndexBody}
-
-}
-
 // 40 bytes (go padding)
-//
-//easyjson:json
 type Article struct {
 	ID    int    `json:"id,omitempty"`    // sql{inc}
 	Title string `json:"title,omitempty"` // sql{search="text"}
 	Body  string `json:"body,omitempty"`  // sql{search="text"}
-}
-
-// Tuple create an array from struct
-func (a *Article) Tuple() (r []any) {
-	return []any{a.ID, a.Title, a.Body}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Article) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Title, a.Body}
-}
-
-// get struct value with function
-func (a *Article) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "title":
-		return a.Title //string
-	case "body":
-		return a.Body //string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Article) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "title":
-		return fmt.Sprint(a.Title) //string
-	case "body":
-		return fmt.Sprint(a.Body) //string
-	}
-	return
-}
-
-// key index string
-func (a ArticleIndexTyped) String() string {
-	switch a {
-	case ArticleIndexID:
-		return "id"
-	case ArticleIndexTitle:
-		return "title"
-	case ArticleIndexBody:
-		return "body"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a ArticleIndexTyped) SQLName() string {
-	switch a {
-	case ArticleIndexID:
-		return "id"
-	case ArticleIndexTitle:
-		return "title"
-	case ArticleIndexBody:
-		return "body"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a ArticleIndexTyped) ClickhouseName() string {
-	switch a {
-	case ArticleIndexID:
-		return "id"
-	case ArticleIndexTitle:
-		return "title"
-	case ArticleIndexBody:
-		return "body"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a ArticleIndexTyped) Type() string {
-	switch a {
-	case ArticleIndexID:
-		return "int"
-	case ArticleIndexTitle:
-		return "string"
-	case ArticleIndexBody:
-		return "string"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a ArticleIndexTyped) Title() string {
-	switch a {
-	case ArticleIndexID:
-		return "ID"
-	case ArticleIndexTitle:
-		return "Title"
-	case ArticleIndexBody:
-		return "Body"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a ArticleIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func ArticleKeyIndex(key string) ArticleIndexTyped {
-	switch key {
-	case "id":
-		return ArticleIndexID
-	case "title":
-		return ArticleIndexTitle
-	case "body":
-		return ArticleIndexBody
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func ArticleValidKey(key string) bool {
-	switch key {
-	case "id", "title", "body":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Article) Map() map[string]any {
-	return map[string]any{
-		"id":    a.ID,
-		"title": a.Title,
-		"body":  a.Body,
-	}
-}
-
-// struct to map
-func (a *Article) Iterate(f func(k ArticleIndexTyped, v any)) {
-	for _, x := range ArticleIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Article) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseArticle(v []byte) (a Article, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // articleSQLDB runs queries: pool or transaction
@@ -307,13 +116,14 @@ type ArticleSQL struct {
 	db   articleSQLDB // pool, or transaction after TX
 }
 
-// NewArticleSQL creates queries on pool, table and indexes if not exist
-func NewArticleSQL(pool *pgxpool.Pool) (*ArticleSQL, error) {
+// NewArticleSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewArticleSQL(pool *pgxpool.Pool) *ArticleSQL {
 	a := &ArticleSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -991,4 +801,188 @@ func (a *ArticleSQL) ResetSequence(add ...int64) error {
 func (a *ArticleSQL) SetSequence(v int64) error {
 	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('article', 'id'), $1, false)", v)
 	return err
+}
+
+// field type
+type ArticleIndexTyped int
+
+// int index
+const (
+	ArticleIndexID = ArticleIndexTyped(iota)
+	ArticleIndexTitle
+	ArticleIndexBody
+)
+
+// string index
+const (
+	ArticleFieldID    = "id"    // int sql{inc}
+	ArticleFieldTitle = "title" // string sql{search="text"}
+	ArticleFieldBody  = "body"  // string sql{search="text"}
+)
+
+// index func
+func ArticleIndexes() []ArticleIndexTyped {
+	return []ArticleIndexTyped{ArticleIndexID, ArticleIndexTitle, ArticleIndexBody}
+
+}
+
+// key index string
+func (a ArticleIndexTyped) String() string {
+	switch a {
+	case ArticleIndexID:
+		return "id"
+	case ArticleIndexTitle:
+		return "title"
+	case ArticleIndexBody:
+		return "body"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a ArticleIndexTyped) SQLName() string {
+	switch a {
+	case ArticleIndexID:
+		return "id"
+	case ArticleIndexTitle:
+		return "title"
+	case ArticleIndexBody:
+		return "body"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a ArticleIndexTyped) ClickhouseName() string {
+	switch a {
+	case ArticleIndexID:
+		return "id"
+	case ArticleIndexTitle:
+		return "title"
+	case ArticleIndexBody:
+		return "body"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a ArticleIndexTyped) Type() string {
+	switch a {
+	case ArticleIndexID:
+		return "int"
+	case ArticleIndexTitle:
+		return "string"
+	case ArticleIndexBody:
+		return "string"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a ArticleIndexTyped) Title() string {
+	switch a {
+	case ArticleIndexID:
+		return "ID"
+	case ArticleIndexTitle:
+		return "Title"
+	case ArticleIndexBody:
+		return "Body"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a ArticleIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func ArticleKeyIndex(key string) ArticleIndexTyped {
+	switch key {
+	case "id":
+		return ArticleIndexID
+	case "title":
+		return ArticleIndexTitle
+	case "body":
+		return ArticleIndexBody
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func ArticleValidKey(key string) bool {
+	switch key {
+	case "id", "title", "body":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Article) Tuple() (r []any) {
+	return []any{a.ID, a.Title, a.Body}
+}
+
+// get struct value with function
+func (a *Article) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "title":
+		return a.Title //string
+	case "body":
+		return a.Body //string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Article) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "title":
+		return fmt.Sprint(a.Title) //string
+	case "body":
+		return fmt.Sprint(a.Body) //string
+	}
+	return
+}
+
+// struct to map
+func (a *Article) Map() map[string]any {
+	return map[string]any{
+		"id":    a.ID,
+		"title": a.Title,
+		"body":  a.Body,
+	}
+}
+
+// struct to map
+func (a *Article) Iterate(f func(k ArticleIndexTyped, v any)) {
+	for _, x := range ArticleIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Article) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseArticle(v []byte) (a Article, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

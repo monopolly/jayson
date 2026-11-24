@@ -88,222 +88,12 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type OrderIndexTyped int
-
-// int index
-const (
-	OrderIndexID = OrderIndexTyped(iota)
-	OrderIndexSender
-	OrderIndexReceiver
-	OrderIndexSum
-)
-
-// string index
-const (
-	OrderFieldID       = "id"       // int sql{inc}
-	OrderFieldSender   = "sender"   // int
-	OrderFieldReceiver = "receiver" // int
-	OrderFieldSum      = "sum"      // int64
-)
-
-// index func
-func OrderIndexes() []OrderIndexTyped {
-	return []OrderIndexTyped{OrderIndexID, OrderIndexSender, OrderIndexReceiver, OrderIndexSum}
-
-}
-
 // 32 bytes (go padding)
-//
-//easyjson:json
 type Order struct {
 	ID       int   `json:"id,omitempty"`       // sql{inc}
 	Sender   int   `json:"sender,omitempty"`   //
 	Receiver int   `json:"receiver,omitempty"` //
 	Sum      int64 `json:"sum,omitempty"`      //
-}
-
-// Tuple create an array from struct
-func (a *Order) Tuple() (r []any) {
-	return []any{a.ID, a.Sender, a.Receiver, a.Sum}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *Order) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Sender, a.Receiver, a.Sum}
-}
-
-// get struct value with function
-func (a *Order) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "sender":
-		return a.Sender //int
-	case "receiver":
-		return a.Receiver //int
-	case "sum":
-		return a.Sum //int64
-	}
-	return
-}
-
-// get any struct value as string
-func (a *Order) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "sender":
-		return fmt.Sprint(a.Sender) //int
-	case "receiver":
-		return fmt.Sprint(a.Receiver) //int
-	case "sum":
-		return fmt.Sprint(a.Sum) //int64
-	}
-	return
-}
-
-// key index string
-func (a OrderIndexTyped) String() string {
-	switch a {
-	case OrderIndexID:
-		return "id"
-	case OrderIndexSender:
-		return "sender"
-	case OrderIndexReceiver:
-		return "receiver"
-	case OrderIndexSum:
-		return "sum"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a OrderIndexTyped) SQLName() string {
-	switch a {
-	case OrderIndexID:
-		return "id"
-	case OrderIndexSender:
-		return "sender"
-	case OrderIndexReceiver:
-		return "receiver"
-	case OrderIndexSum:
-		return "sum"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a OrderIndexTyped) ClickhouseName() string {
-	switch a {
-	case OrderIndexID:
-		return "id"
-	case OrderIndexSender:
-		return "sender"
-	case OrderIndexReceiver:
-		return "receiver"
-	case OrderIndexSum:
-		return "sum"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a OrderIndexTyped) Type() string {
-	switch a {
-	case OrderIndexID:
-		return "int"
-	case OrderIndexSender:
-		return "int"
-	case OrderIndexReceiver:
-		return "int"
-	case OrderIndexSum:
-		return "int64"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a OrderIndexTyped) Title() string {
-	switch a {
-	case OrderIndexID:
-		return "ID"
-	case OrderIndexSender:
-		return "Sender"
-	case OrderIndexReceiver:
-		return "Receiver"
-	case OrderIndexSum:
-		return "Sum"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a OrderIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func OrderKeyIndex(key string) OrderIndexTyped {
-	switch key {
-	case "id":
-		return OrderIndexID
-	case "sender":
-		return OrderIndexSender
-	case "receiver":
-		return OrderIndexReceiver
-	case "sum":
-		return OrderIndexSum
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func OrderValidKey(key string) bool {
-	switch key {
-	case "id", "sender", "receiver", "sum":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *Order) Map() map[string]any {
-	return map[string]any{
-		"id":       a.ID,
-		"sender":   a.Sender,
-		"receiver": a.Receiver,
-		"sum":      a.Sum,
-	}
-}
-
-// struct to map
-func (a *Order) Iterate(f func(k OrderIndexTyped, v any)) {
-	for _, x := range OrderIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *Order) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseOrder(v []byte) (a Order, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // orderSQLDB runs queries: pool or transaction
@@ -328,13 +118,14 @@ type OrderSQL struct {
 	db   orderSQLDB // pool, or transaction after TX
 }
 
-// NewOrderSQL creates queries on pool, table and indexes if not exist
-func NewOrderSQL(pool *pgxpool.Pool) (*OrderSQL, errors.E) {
+// NewOrderSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewOrderSQL(pool *pgxpool.Pool) *OrderSQL {
 	a := &OrderSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1164,4 +955,207 @@ func (a *OrderSQL) ResetSequence(add ...int64) errors.E {
 // SetSequence sets next id
 func (a *OrderSQL) SetSequence(v int64) errors.E {
 	return orderSQLErr(a.stdSetSequence(v))
+}
+
+// field type
+type OrderIndexTyped int
+
+// int index
+const (
+	OrderIndexID = OrderIndexTyped(iota)
+	OrderIndexSender
+	OrderIndexReceiver
+	OrderIndexSum
+)
+
+// string index
+const (
+	OrderFieldID       = "id"       // int sql{inc}
+	OrderFieldSender   = "sender"   // int
+	OrderFieldReceiver = "receiver" // int
+	OrderFieldSum      = "sum"      // int64
+)
+
+// index func
+func OrderIndexes() []OrderIndexTyped {
+	return []OrderIndexTyped{OrderIndexID, OrderIndexSender, OrderIndexReceiver, OrderIndexSum}
+
+}
+
+// key index string
+func (a OrderIndexTyped) String() string {
+	switch a {
+	case OrderIndexID:
+		return "id"
+	case OrderIndexSender:
+		return "sender"
+	case OrderIndexReceiver:
+		return "receiver"
+	case OrderIndexSum:
+		return "sum"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a OrderIndexTyped) SQLName() string {
+	switch a {
+	case OrderIndexID:
+		return "id"
+	case OrderIndexSender:
+		return "sender"
+	case OrderIndexReceiver:
+		return "receiver"
+	case OrderIndexSum:
+		return "sum"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a OrderIndexTyped) ClickhouseName() string {
+	switch a {
+	case OrderIndexID:
+		return "id"
+	case OrderIndexSender:
+		return "sender"
+	case OrderIndexReceiver:
+		return "receiver"
+	case OrderIndexSum:
+		return "sum"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a OrderIndexTyped) Type() string {
+	switch a {
+	case OrderIndexID:
+		return "int"
+	case OrderIndexSender:
+		return "int"
+	case OrderIndexReceiver:
+		return "int"
+	case OrderIndexSum:
+		return "int64"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a OrderIndexTyped) Title() string {
+	switch a {
+	case OrderIndexID:
+		return "ID"
+	case OrderIndexSender:
+		return "Sender"
+	case OrderIndexReceiver:
+		return "Receiver"
+	case OrderIndexSum:
+		return "Sum"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a OrderIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func OrderKeyIndex(key string) OrderIndexTyped {
+	switch key {
+	case "id":
+		return OrderIndexID
+	case "sender":
+		return OrderIndexSender
+	case "receiver":
+		return OrderIndexReceiver
+	case "sum":
+		return OrderIndexSum
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func OrderValidKey(key string) bool {
+	switch key {
+	case "id", "sender", "receiver", "sum":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *Order) Tuple() (r []any) {
+	return []any{a.ID, a.Sender, a.Receiver, a.Sum}
+}
+
+// get struct value with function
+func (a *Order) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "sender":
+		return a.Sender //int
+	case "receiver":
+		return a.Receiver //int
+	case "sum":
+		return a.Sum //int64
+	}
+	return
+}
+
+// get any struct value as string
+func (a *Order) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "sender":
+		return fmt.Sprint(a.Sender) //int
+	case "receiver":
+		return fmt.Sprint(a.Receiver) //int
+	case "sum":
+		return fmt.Sprint(a.Sum) //int64
+	}
+	return
+}
+
+// struct to map
+func (a *Order) Map() map[string]any {
+	return map[string]any{
+		"id":       a.ID,
+		"sender":   a.Sender,
+		"receiver": a.Receiver,
+		"sum":      a.Sum,
+	}
+}
+
+// struct to map
+func (a *Order) Iterate(f func(k OrderIndexTyped, v any)) {
+	for _, x := range OrderIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *Order) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseOrder(v []byte) (a Order, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

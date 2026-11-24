@@ -96,184 +96,15 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type AllIndexTyped int
-
-// int index
-const (
-	AllIndexID = AllIndexTyped(iota)
-	AllIndexB
-	AllIndexS
-	AllIndexI
-	AllIndexI8
-	AllIndexI16
-	AllIndexI32
-	AllIndexI64
-	AllIndexU
-	AllIndexU8
-	AllIndexU16
-	AllIndexU32
-	AllIndexU64
-	AllIndexF32
-	AllIndexF64
-	AllIndexR
-	AllIndexBy
-	AllIndexBytes
-	AllIndexFixed
-	AllIndexUID
-	AllIndexPuid
-	AllIndexRaw
-	AllIndexMapany
-	AllIndexMaps
-	AllIndexConf
-	AllIndexConfs
-	AllIndexAnyv
-	AllIndexT
-	AllIndexDur
-	AllIndexDate
-	AllIndexPd
-	AllIndexPts
-	AllIndexPiv
-	AllIndexLb
-	AllIndexLs
-	AllIndexLi
-	AllIndexLi8
-	AllIndexLi16
-	AllIndexLi32
-	AllIndexLu16
-	AllIndexLu32
-	AllIndexLu64
-	AllIndexLf32
-	AllIndexLt
-	AllIndexLu
-	AllIndexLs2
-	AllIndexLi2
-	AllIndexLbb
-	AllIndexLm
-	AllIndexLst
-	AllIndexLrl
-	AllIndexIP
-	AllIndexPfx
-	AllIndexNip
-	AllIndexNnet
-	AllIndexNum
-	AllIndexDec
-	AllIndexRng
-	AllIndexMrng
-	AllIndexPt
-	AllIndexBits
-	AllIndexPs
-	AllIndexPi
-	AllIndexPb
-	AllIndexPf
-	AllIndexPt2
-	AllIndexPip
-	AllIndexNs
-	AllIndexNi
-	AllIndexNb
-	AllIndexNf
-	AllIndexNt
-	AllIndexPtx
-	AllIndexPi8
-	AllIndexPbo
-	AllIndexSt
-	AllIndexProv
-	AllIndexRl
-	AllIndexNn
-)
-
-// string index
-const (
-	AllFieldID     = "id"     // int sql{inc}
-	AllFieldB      = "b"      // bool
-	AllFieldS      = "s"      // string
-	AllFieldI      = "i"      // int
-	AllFieldI8     = "i8"     // int8
-	AllFieldI16    = "i16"    // int16
-	AllFieldI32    = "i32"    // int32
-	AllFieldI64    = "i64"    // int64
-	AllFieldU      = "u"      // uint
-	AllFieldU8     = "u8"     // uint8
-	AllFieldU16    = "u16"    // uint16
-	AllFieldU32    = "u32"    // uint32
-	AllFieldU64    = "u64"    // uint64
-	AllFieldF32    = "f32"    // float32
-	AllFieldF64    = "f64"    // float64
-	AllFieldR      = "r"      // rune
-	AllFieldBy     = "by"     // byte
-	AllFieldBytes  = "bytes"  // []byte
-	AllFieldFixed  = "fixed"  // [16]byte
-	AllFieldUID    = "uid"    // uuid.UUID
-	AllFieldPuid   = "puid"   // pgtype.UUID
-	AllFieldRaw    = "raw"    // json.RawMessage
-	AllFieldMapany = "mapany" // map[string]any
-	AllFieldMaps   = "maps"   // map[string]string
-	AllFieldConf   = "conf"   // Config
-	AllFieldConfs  = "confs"  // []Config
-	AllFieldAnyv   = "anyv"   // any
-	AllFieldT      = "t"      // time.Time
-	AllFieldDur    = "dur"    // time.Duration
-	AllFieldDate   = "date"   // time.Time sql{type="date"}
-	AllFieldPd     = "pd"     // pgtype.Date
-	AllFieldPts    = "pts"    // pgtype.Timestamp
-	AllFieldPiv    = "piv"    // pgtype.Interval
-	AllFieldLb     = "lb"     // []bool
-	AllFieldLs     = "ls"     // []string
-	AllFieldLi     = "li"     // []int
-	AllFieldLi8    = "li8"    // []int8
-	AllFieldLi16   = "li16"   // []int16
-	AllFieldLi32   = "li32"   // []int32
-	AllFieldLu16   = "lu16"   // []uint16
-	AllFieldLu32   = "lu32"   // []uint32
-	AllFieldLu64   = "lu64"   // []uint64
-	AllFieldLf32   = "lf32"   // []float32
-	AllFieldLt     = "lt"     // []time.Time
-	AllFieldLu     = "lu"     // []uuid.UUID
-	AllFieldLs2    = "ls2"    // [][]string
-	AllFieldLi2    = "li2"    // [][]int64
-	AllFieldLbb    = "lbb"    // [][]byte
-	AllFieldLm     = "lm"     // []map[string]any
-	AllFieldLst    = "lst"    // []Status
-	AllFieldLrl    = "lrl"    // []role.Role
-	AllFieldIP     = "ip"     // netip.Addr
-	AllFieldPfx    = "pfx"    // netip.Prefix
-	AllFieldNip    = "nip"    // net.IP
-	AllFieldNnet   = "nnet"   // net.IPNet
-	AllFieldNum    = "num"    // pgtype.Numeric
-	AllFieldDec    = "dec"    // decimal.Decimal
-	AllFieldRng    = "rng"    // pgtype.Range[pgtype.Int4]
-	AllFieldMrng   = "mrng"   // pgtype.Multirange[pgtype.Range[pgtype.Int8]]
-	AllFieldPt     = "pt"     // pgtype.Point
-	AllFieldBits   = "bits"   // pgtype.Bits
-	AllFieldPs     = "ps"     // *string
-	AllFieldPi     = "pi"     // *int
-	AllFieldPb     = "pb"     // *bool
-	AllFieldPf     = "pf"     // *float64
-	AllFieldPt2    = "pt2"    // *time.Time
-	AllFieldPip    = "pip"    // *netip.Addr
-	AllFieldNs     = "ns"     // sql.NullString
-	AllFieldNi     = "ni"     // sql.NullInt64
-	AllFieldNb     = "nb"     // sql.NullBool
-	AllFieldNf     = "nf"     // sql.NullFloat64
-	AllFieldNt     = "nt"     // sql.NullTime
-	AllFieldPtx    = "ptx"    // pgtype.Text
-	AllFieldPi8    = "pi8"    // pgtype.Int8
-	AllFieldPbo    = "pbo"    // pgtype.Bool
-	AllFieldSt     = "st"     // Status
-	AllFieldProv   = "prov"   // Provider
-	AllFieldRl     = "rl"     // role.Role
-	AllFieldNn     = "nn"     // string sql{notnull}
-)
-
-// index func
-func AllIndexes() []AllIndexTyped {
-	return []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBy, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPd, AllIndexPts, AllIndexPiv, AllIndexLb, AllIndexLs, AllIndexLi, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLt, AllIndexLu, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLm, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPt, AllIndexBits, AllIndexPs, AllIndexPi, AllIndexPb, AllIndexPf, AllIndexPt2, AllIndexPip, AllIndexNs, AllIndexNi, AllIndexNb, AllIndexNf, AllIndexNt, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexSt, AllIndexProv, AllIndexRl, AllIndexNn}
-
+// init struct
+func NewAll() (a *All) {
+	a = new(All)
+	a.Mapany = make(map[string]any)
+	a.Maps = make(map[string]string)
+	return
 }
 
 // 616 bytes (go padding)
-//
-//easyjson:json
 type All struct {
 	ID     int                                          `json:"id,omitempty"`     // sql{inc}
 	B      bool                                         `json:"b,omitempty"`      //
@@ -356,1472 +187,6 @@ type All struct {
 	Nn     string                                       `json:"nn,omitempty"`     // sql{notnull}
 }
 
-// init struct
-func NewAll() (a *All) {
-	a = new(All)
-	a.Mapany = make(map[string]any)
-	a.Maps = make(map[string]string)
-	return
-}
-
-// Tuple create an array from struct
-func (a *All) Tuple() (r []any) {
-	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.By, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.Pd, a.Pts, a.Piv, a.Lb, a.Ls, a.Li, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.Lt, a.Lu, a.Ls2, a.Li2, a.Lbb, a.Lm, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.Pt, a.Bits, a.Ps, a.Pi, a.Pb, a.Pf, a.Pt2, a.Pip, a.Ns, a.Ni, a.Nb, a.Nf, a.Nt, a.Ptx, a.Pi8, a.Pbo, a.St, a.Prov, a.Rl, a.Nn}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *All) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.By, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.Pd, a.Pts, a.Piv, a.Lb, a.Ls, a.Li, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.Lt, a.Lu, a.Ls2, a.Li2, a.Lbb, a.Lm, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.Pt, a.Bits, a.Ps, a.Pi, a.Pb, a.Pf, a.Pt2, a.Pip, a.Ns, a.Ni, a.Nb, a.Nf, a.Nt, a.Ptx, a.Pi8, a.Pbo, int16(a.St), string(a.Prov), int(a.Rl), a.Nn}
-}
-
-// get struct value with function
-func (a *All) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "b":
-		return a.B //bool
-	case "s":
-		return a.S //string
-	case "i":
-		return a.I //int
-	case "i8":
-		return a.I8 //int8
-	case "i16":
-		return a.I16 //int16
-	case "i32":
-		return a.I32 //int32
-	case "i64":
-		return a.I64 //int64
-	case "u":
-		return a.U //uint
-	case "u8":
-		return a.U8 //uint8
-	case "u16":
-		return a.U16 //uint16
-	case "u32":
-		return a.U32 //uint32
-	case "u64":
-		return a.U64 //uint64
-	case "f32":
-		return a.F32 //float32
-	case "f64":
-		return a.F64 //float64
-	case "r":
-		return a.R //rune
-	case "by":
-		return a.By //byte
-	case "bytes":
-		return a.Bytes //[]byte
-	case "fixed":
-		return a.Fixed //[16]byte
-	case "uid":
-		return a.UID //uuid.UUID
-	case "puid":
-		return a.Puid //pgtype.UUID
-	case "raw":
-		return a.Raw //json.RawMessage
-	case "mapany":
-		return a.Mapany //map[string]any
-	case "maps":
-		return a.Maps //map[string]string
-	case "conf":
-		return a.Conf //Config
-	case "confs":
-		return a.Confs //[]Config
-	case "anyv":
-		return a.Anyv //any
-	case "t":
-		return a.T //time.Time
-	case "dur":
-		return a.Dur //time.Duration
-	case "date":
-		return a.Date //time.Time
-	case "pd":
-		return a.Pd //pgtype.Date
-	case "pts":
-		return a.Pts //pgtype.Timestamp
-	case "piv":
-		return a.Piv //pgtype.Interval
-	case "lb":
-		return a.Lb //[]bool
-	case "ls":
-		return a.Ls //[]string
-	case "li":
-		return a.Li //[]int
-	case "li8":
-		return a.Li8 //[]int8
-	case "li16":
-		return a.Li16 //[]int16
-	case "li32":
-		return a.Li32 //[]int32
-	case "lu16":
-		return a.Lu16 //[]uint16
-	case "lu32":
-		return a.Lu32 //[]uint32
-	case "lu64":
-		return a.Lu64 //[]uint64
-	case "lf32":
-		return a.Lf32 //[]float32
-	case "lt":
-		return a.Lt //[]time.Time
-	case "lu":
-		return a.Lu //[]uuid.UUID
-	case "ls2":
-		return a.Ls2 //[][]string
-	case "li2":
-		return a.Li2 //[][]int64
-	case "lbb":
-		return a.Lbb //[][]byte
-	case "lm":
-		return a.Lm //[]map[string]any
-	case "lst":
-		return a.Lst //[]Status
-	case "lrl":
-		return a.Lrl //[]role.Role
-	case "ip":
-		return a.IP //netip.Addr
-	case "pfx":
-		return a.Pfx //netip.Prefix
-	case "nip":
-		return a.Nip //net.IP
-	case "nnet":
-		return a.Nnet //net.IPNet
-	case "num":
-		return a.Num //pgtype.Numeric
-	case "dec":
-		return a.Dec //decimal.Decimal
-	case "rng":
-		return a.Rng //pgtype.Range[pgtype.Int4]
-	case "mrng":
-		return a.Mrng //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
-	case "pt":
-		return a.Pt //pgtype.Point
-	case "bits":
-		return a.Bits //pgtype.Bits
-	case "ps":
-		return a.Ps //*string
-	case "pi":
-		return a.Pi //*int
-	case "pb":
-		return a.Pb //*bool
-	case "pf":
-		return a.Pf //*float64
-	case "pt2":
-		return a.Pt2 //*time.Time
-	case "pip":
-		return a.Pip //*netip.Addr
-	case "ns":
-		return a.Ns //sql.NullString
-	case "ni":
-		return a.Ni //sql.NullInt64
-	case "nb":
-		return a.Nb //sql.NullBool
-	case "nf":
-		return a.Nf //sql.NullFloat64
-	case "nt":
-		return a.Nt //sql.NullTime
-	case "ptx":
-		return a.Ptx //pgtype.Text
-	case "pi8":
-		return a.Pi8 //pgtype.Int8
-	case "pbo":
-		return a.Pbo //pgtype.Bool
-	case "st":
-		return a.St //Status
-	case "prov":
-		return a.Prov //Provider
-	case "rl":
-		return a.Rl //role.Role
-	case "nn":
-		return a.Nn //string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *All) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "b":
-		return fmt.Sprint(a.B) //bool
-	case "s":
-		return fmt.Sprint(a.S) //string
-	case "i":
-		return fmt.Sprint(a.I) //int
-	case "i8":
-		return fmt.Sprint(a.I8) //int8
-	case "i16":
-		return fmt.Sprint(a.I16) //int16
-	case "i32":
-		return fmt.Sprint(a.I32) //int32
-	case "i64":
-		return fmt.Sprint(a.I64) //int64
-	case "u":
-		return fmt.Sprint(a.U) //uint
-	case "u8":
-		return fmt.Sprint(a.U8) //uint8
-	case "u16":
-		return fmt.Sprint(a.U16) //uint16
-	case "u32":
-		return fmt.Sprint(a.U32) //uint32
-	case "u64":
-		return fmt.Sprint(a.U64) //uint64
-	case "f32":
-		return fmt.Sprint(a.F32) //float32
-	case "f64":
-		return fmt.Sprint(a.F64) //float64
-	case "r":
-		return fmt.Sprint(a.R) //rune
-	case "by":
-		return fmt.Sprint(a.By) //byte
-	case "bytes":
-		return fmt.Sprint(a.Bytes) //[]byte
-	case "fixed":
-		return fmt.Sprint(a.Fixed) //[16]byte
-	case "uid":
-		return fmt.Sprint(a.UID) //uuid.UUID
-	case "puid":
-		return fmt.Sprint(a.Puid) //pgtype.UUID
-	case "raw":
-		return fmt.Sprint(a.Raw) //json.RawMessage
-	case "mapany":
-		return fmt.Sprint(a.Mapany) //map[string]any
-	case "maps":
-		return fmt.Sprint(a.Maps) //map[string]string
-	case "conf":
-		return fmt.Sprint(a.Conf) //Config
-	case "confs":
-		return fmt.Sprint(a.Confs) //[]Config
-	case "anyv":
-		return fmt.Sprint(a.Anyv) //any
-	case "t":
-		return fmt.Sprint(a.T) //time.Time
-	case "dur":
-		return fmt.Sprint(a.Dur) //time.Duration
-	case "date":
-		return fmt.Sprint(a.Date) //time.Time
-	case "pd":
-		return fmt.Sprint(a.Pd) //pgtype.Date
-	case "pts":
-		return fmt.Sprint(a.Pts) //pgtype.Timestamp
-	case "piv":
-		return fmt.Sprint(a.Piv) //pgtype.Interval
-	case "lb":
-		return fmt.Sprint(a.Lb) //[]bool
-	case "ls":
-		return fmt.Sprint(a.Ls) //[]string
-	case "li":
-		return fmt.Sprint(a.Li) //[]int
-	case "li8":
-		return fmt.Sprint(a.Li8) //[]int8
-	case "li16":
-		return fmt.Sprint(a.Li16) //[]int16
-	case "li32":
-		return fmt.Sprint(a.Li32) //[]int32
-	case "lu16":
-		return fmt.Sprint(a.Lu16) //[]uint16
-	case "lu32":
-		return fmt.Sprint(a.Lu32) //[]uint32
-	case "lu64":
-		return fmt.Sprint(a.Lu64) //[]uint64
-	case "lf32":
-		return fmt.Sprint(a.Lf32) //[]float32
-	case "lt":
-		return fmt.Sprint(a.Lt) //[]time.Time
-	case "lu":
-		return fmt.Sprint(a.Lu) //[]uuid.UUID
-	case "ls2":
-		return fmt.Sprint(a.Ls2) //[][]string
-	case "li2":
-		return fmt.Sprint(a.Li2) //[][]int64
-	case "lbb":
-		return fmt.Sprint(a.Lbb) //[][]byte
-	case "lm":
-		return fmt.Sprint(a.Lm) //[]map[string]any
-	case "lst":
-		return fmt.Sprint(a.Lst) //[]Status
-	case "lrl":
-		return fmt.Sprint(a.Lrl) //[]role.Role
-	case "ip":
-		return fmt.Sprint(a.IP) //netip.Addr
-	case "pfx":
-		return fmt.Sprint(a.Pfx) //netip.Prefix
-	case "nip":
-		return fmt.Sprint(a.Nip) //net.IP
-	case "nnet":
-		return fmt.Sprint(a.Nnet) //net.IPNet
-	case "num":
-		return fmt.Sprint(a.Num) //pgtype.Numeric
-	case "dec":
-		return fmt.Sprint(a.Dec) //decimal.Decimal
-	case "rng":
-		return fmt.Sprint(a.Rng) //pgtype.Range[pgtype.Int4]
-	case "mrng":
-		return fmt.Sprint(a.Mrng) //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
-	case "pt":
-		return fmt.Sprint(a.Pt) //pgtype.Point
-	case "bits":
-		return fmt.Sprint(a.Bits) //pgtype.Bits
-	case "ps":
-		return fmt.Sprint(a.Ps) //*string
-	case "pi":
-		return fmt.Sprint(a.Pi) //*int
-	case "pb":
-		return fmt.Sprint(a.Pb) //*bool
-	case "pf":
-		return fmt.Sprint(a.Pf) //*float64
-	case "pt2":
-		return fmt.Sprint(a.Pt2) //*time.Time
-	case "pip":
-		return fmt.Sprint(a.Pip) //*netip.Addr
-	case "ns":
-		return fmt.Sprint(a.Ns) //sql.NullString
-	case "ni":
-		return fmt.Sprint(a.Ni) //sql.NullInt64
-	case "nb":
-		return fmt.Sprint(a.Nb) //sql.NullBool
-	case "nf":
-		return fmt.Sprint(a.Nf) //sql.NullFloat64
-	case "nt":
-		return fmt.Sprint(a.Nt) //sql.NullTime
-	case "ptx":
-		return fmt.Sprint(a.Ptx) //pgtype.Text
-	case "pi8":
-		return fmt.Sprint(a.Pi8) //pgtype.Int8
-	case "pbo":
-		return fmt.Sprint(a.Pbo) //pgtype.Bool
-	case "st":
-		return fmt.Sprint(a.St) //Status
-	case "prov":
-		return fmt.Sprint(a.Prov) //Provider
-	case "rl":
-		return fmt.Sprint(a.Rl) //role.Role
-	case "nn":
-		return fmt.Sprint(a.Nn) //string
-	}
-	return
-}
-
-// key index string
-func (a AllIndexTyped) String() string {
-	switch a {
-	case AllIndexID:
-		return "id"
-	case AllIndexB:
-		return "b"
-	case AllIndexS:
-		return "s"
-	case AllIndexI:
-		return "i"
-	case AllIndexI8:
-		return "i8"
-	case AllIndexI16:
-		return "i16"
-	case AllIndexI32:
-		return "i32"
-	case AllIndexI64:
-		return "i64"
-	case AllIndexU:
-		return "u"
-	case AllIndexU8:
-		return "u8"
-	case AllIndexU16:
-		return "u16"
-	case AllIndexU32:
-		return "u32"
-	case AllIndexU64:
-		return "u64"
-	case AllIndexF32:
-		return "f32"
-	case AllIndexF64:
-		return "f64"
-	case AllIndexR:
-		return "r"
-	case AllIndexBy:
-		return "by"
-	case AllIndexBytes:
-		return "bytes"
-	case AllIndexFixed:
-		return "fixed"
-	case AllIndexUID:
-		return "uid"
-	case AllIndexPuid:
-		return "puid"
-	case AllIndexRaw:
-		return "raw"
-	case AllIndexMapany:
-		return "mapany"
-	case AllIndexMaps:
-		return "maps"
-	case AllIndexConf:
-		return "conf"
-	case AllIndexConfs:
-		return "confs"
-	case AllIndexAnyv:
-		return "anyv"
-	case AllIndexT:
-		return "t"
-	case AllIndexDur:
-		return "dur"
-	case AllIndexDate:
-		return "date"
-	case AllIndexPd:
-		return "pd"
-	case AllIndexPts:
-		return "pts"
-	case AllIndexPiv:
-		return "piv"
-	case AllIndexLb:
-		return "lb"
-	case AllIndexLs:
-		return "ls"
-	case AllIndexLi:
-		return "li"
-	case AllIndexLi8:
-		return "li8"
-	case AllIndexLi16:
-		return "li16"
-	case AllIndexLi32:
-		return "li32"
-	case AllIndexLu16:
-		return "lu16"
-	case AllIndexLu32:
-		return "lu32"
-	case AllIndexLu64:
-		return "lu64"
-	case AllIndexLf32:
-		return "lf32"
-	case AllIndexLt:
-		return "lt"
-	case AllIndexLu:
-		return "lu"
-	case AllIndexLs2:
-		return "ls2"
-	case AllIndexLi2:
-		return "li2"
-	case AllIndexLbb:
-		return "lbb"
-	case AllIndexLm:
-		return "lm"
-	case AllIndexLst:
-		return "lst"
-	case AllIndexLrl:
-		return "lrl"
-	case AllIndexIP:
-		return "ip"
-	case AllIndexPfx:
-		return "pfx"
-	case AllIndexNip:
-		return "nip"
-	case AllIndexNnet:
-		return "nnet"
-	case AllIndexNum:
-		return "num"
-	case AllIndexDec:
-		return "dec"
-	case AllIndexRng:
-		return "rng"
-	case AllIndexMrng:
-		return "mrng"
-	case AllIndexPt:
-		return "pt"
-	case AllIndexBits:
-		return "bits"
-	case AllIndexPs:
-		return "ps"
-	case AllIndexPi:
-		return "pi"
-	case AllIndexPb:
-		return "pb"
-	case AllIndexPf:
-		return "pf"
-	case AllIndexPt2:
-		return "pt2"
-	case AllIndexPip:
-		return "pip"
-	case AllIndexNs:
-		return "ns"
-	case AllIndexNi:
-		return "ni"
-	case AllIndexNb:
-		return "nb"
-	case AllIndexNf:
-		return "nf"
-	case AllIndexNt:
-		return "nt"
-	case AllIndexPtx:
-		return "ptx"
-	case AllIndexPi8:
-		return "pi8"
-	case AllIndexPbo:
-		return "pbo"
-	case AllIndexSt:
-		return "st"
-	case AllIndexProv:
-		return "prov"
-	case AllIndexRl:
-		return "rl"
-	case AllIndexNn:
-		return "nn"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a AllIndexTyped) SQLName() string {
-	switch a {
-	case AllIndexID:
-		return "id"
-	case AllIndexB:
-		return "b"
-	case AllIndexS:
-		return "s"
-	case AllIndexI:
-		return "i"
-	case AllIndexI8:
-		return "i8"
-	case AllIndexI16:
-		return "i16"
-	case AllIndexI32:
-		return "i32"
-	case AllIndexI64:
-		return "i64"
-	case AllIndexU:
-		return "u"
-	case AllIndexU8:
-		return "u8"
-	case AllIndexU16:
-		return "u16"
-	case AllIndexU32:
-		return "u32"
-	case AllIndexU64:
-		return "u64"
-	case AllIndexF32:
-		return "f32"
-	case AllIndexF64:
-		return "f64"
-	case AllIndexR:
-		return "r"
-	case AllIndexBy:
-		return "by"
-	case AllIndexBytes:
-		return "bytes"
-	case AllIndexFixed:
-		return "fixed"
-	case AllIndexUID:
-		return "uid"
-	case AllIndexPuid:
-		return "puid"
-	case AllIndexRaw:
-		return "raw"
-	case AllIndexMapany:
-		return "mapany"
-	case AllIndexMaps:
-		return "maps"
-	case AllIndexConf:
-		return "conf"
-	case AllIndexConfs:
-		return "confs"
-	case AllIndexAnyv:
-		return "anyv"
-	case AllIndexT:
-		return "t"
-	case AllIndexDur:
-		return "dur"
-	case AllIndexDate:
-		return "date"
-	case AllIndexPd:
-		return "pd"
-	case AllIndexPts:
-		return "pts"
-	case AllIndexPiv:
-		return "piv"
-	case AllIndexLb:
-		return "lb"
-	case AllIndexLs:
-		return "ls"
-	case AllIndexLi:
-		return "li"
-	case AllIndexLi8:
-		return "li8"
-	case AllIndexLi16:
-		return "li16"
-	case AllIndexLi32:
-		return "li32"
-	case AllIndexLu16:
-		return "lu16"
-	case AllIndexLu32:
-		return "lu32"
-	case AllIndexLu64:
-		return "lu64"
-	case AllIndexLf32:
-		return "lf32"
-	case AllIndexLt:
-		return "lt"
-	case AllIndexLu:
-		return "lu"
-	case AllIndexLs2:
-		return "ls2"
-	case AllIndexLi2:
-		return "li2"
-	case AllIndexLbb:
-		return "lbb"
-	case AllIndexLm:
-		return "lm"
-	case AllIndexLst:
-		return "lst"
-	case AllIndexLrl:
-		return "lrl"
-	case AllIndexIP:
-		return "ip"
-	case AllIndexPfx:
-		return "pfx"
-	case AllIndexNip:
-		return "nip"
-	case AllIndexNnet:
-		return "nnet"
-	case AllIndexNum:
-		return "num"
-	case AllIndexDec:
-		return "dec"
-	case AllIndexRng:
-		return "rng"
-	case AllIndexMrng:
-		return "mrng"
-	case AllIndexPt:
-		return "pt"
-	case AllIndexBits:
-		return "bits"
-	case AllIndexPs:
-		return "ps"
-	case AllIndexPi:
-		return "pi"
-	case AllIndexPb:
-		return "pb"
-	case AllIndexPf:
-		return "pf"
-	case AllIndexPt2:
-		return "pt2"
-	case AllIndexPip:
-		return "pip"
-	case AllIndexNs:
-		return "ns"
-	case AllIndexNi:
-		return "ni"
-	case AllIndexNb:
-		return "nb"
-	case AllIndexNf:
-		return "nf"
-	case AllIndexNt:
-		return "nt"
-	case AllIndexPtx:
-		return "ptx"
-	case AllIndexPi8:
-		return "pi8"
-	case AllIndexPbo:
-		return "pbo"
-	case AllIndexSt:
-		return "st"
-	case AllIndexProv:
-		return "prov"
-	case AllIndexRl:
-		return "rl"
-	case AllIndexNn:
-		return "nn"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a AllIndexTyped) ClickhouseName() string {
-	switch a {
-	case AllIndexID:
-		return "id"
-	case AllIndexB:
-		return "b"
-	case AllIndexS:
-		return "s"
-	case AllIndexI:
-		return "i"
-	case AllIndexI8:
-		return "i8"
-	case AllIndexI16:
-		return "i16"
-	case AllIndexI32:
-		return "i32"
-	case AllIndexI64:
-		return "i64"
-	case AllIndexU:
-		return "u"
-	case AllIndexU8:
-		return "u8"
-	case AllIndexU16:
-		return "u16"
-	case AllIndexU32:
-		return "u32"
-	case AllIndexU64:
-		return "u64"
-	case AllIndexF32:
-		return "f32"
-	case AllIndexF64:
-		return "f64"
-	case AllIndexR:
-		return "r"
-	case AllIndexBy:
-		return "by"
-	case AllIndexBytes:
-		return "bytes"
-	case AllIndexFixed:
-		return "fixed"
-	case AllIndexUID:
-		return "uid"
-	case AllIndexPuid:
-		return "puid"
-	case AllIndexRaw:
-		return "raw"
-	case AllIndexMapany:
-		return "mapany"
-	case AllIndexMaps:
-		return "maps"
-	case AllIndexConf:
-		return "conf"
-	case AllIndexConfs:
-		return "confs"
-	case AllIndexAnyv:
-		return "anyv"
-	case AllIndexT:
-		return "t"
-	case AllIndexDur:
-		return "dur"
-	case AllIndexDate:
-		return "date"
-	case AllIndexPd:
-		return "pd"
-	case AllIndexPts:
-		return "pts"
-	case AllIndexPiv:
-		return "piv"
-	case AllIndexLb:
-		return "lb"
-	case AllIndexLs:
-		return "ls"
-	case AllIndexLi:
-		return "li"
-	case AllIndexLi8:
-		return "li8"
-	case AllIndexLi16:
-		return "li16"
-	case AllIndexLi32:
-		return "li32"
-	case AllIndexLu16:
-		return "lu16"
-	case AllIndexLu32:
-		return "lu32"
-	case AllIndexLu64:
-		return "lu64"
-	case AllIndexLf32:
-		return "lf32"
-	case AllIndexLt:
-		return "lt"
-	case AllIndexLu:
-		return "lu"
-	case AllIndexLs2:
-		return "ls2"
-	case AllIndexLi2:
-		return "li2"
-	case AllIndexLbb:
-		return "lbb"
-	case AllIndexLm:
-		return "lm"
-	case AllIndexLst:
-		return "lst"
-	case AllIndexLrl:
-		return "lrl"
-	case AllIndexIP:
-		return "ip"
-	case AllIndexPfx:
-		return "pfx"
-	case AllIndexNip:
-		return "nip"
-	case AllIndexNnet:
-		return "nnet"
-	case AllIndexNum:
-		return "num"
-	case AllIndexDec:
-		return "dec"
-	case AllIndexRng:
-		return "rng"
-	case AllIndexMrng:
-		return "mrng"
-	case AllIndexPt:
-		return "pt"
-	case AllIndexBits:
-		return "bits"
-	case AllIndexPs:
-		return "ps"
-	case AllIndexPi:
-		return "pi"
-	case AllIndexPb:
-		return "pb"
-	case AllIndexPf:
-		return "pf"
-	case AllIndexPt2:
-		return "pt2"
-	case AllIndexPip:
-		return "pip"
-	case AllIndexNs:
-		return "ns"
-	case AllIndexNi:
-		return "ni"
-	case AllIndexNb:
-		return "nb"
-	case AllIndexNf:
-		return "nf"
-	case AllIndexNt:
-		return "nt"
-	case AllIndexPtx:
-		return "ptx"
-	case AllIndexPi8:
-		return "pi8"
-	case AllIndexPbo:
-		return "pbo"
-	case AllIndexSt:
-		return "st"
-	case AllIndexProv:
-		return "prov"
-	case AllIndexRl:
-		return "rl"
-	case AllIndexNn:
-		return "nn"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a AllIndexTyped) Type() string {
-	switch a {
-	case AllIndexID:
-		return "int"
-	case AllIndexB:
-		return "bool"
-	case AllIndexS:
-		return "string"
-	case AllIndexI:
-		return "int"
-	case AllIndexI8:
-		return "int8"
-	case AllIndexI16:
-		return "int16"
-	case AllIndexI32:
-		return "int32"
-	case AllIndexI64:
-		return "int64"
-	case AllIndexU:
-		return "uint"
-	case AllIndexU8:
-		return "uint8"
-	case AllIndexU16:
-		return "uint16"
-	case AllIndexU32:
-		return "uint32"
-	case AllIndexU64:
-		return "uint64"
-	case AllIndexF32:
-		return "float32"
-	case AllIndexF64:
-		return "float64"
-	case AllIndexR:
-		return "rune"
-	case AllIndexBy:
-		return "byte"
-	case AllIndexBytes:
-		return "[]byte"
-	case AllIndexFixed:
-		return "[16]byte"
-	case AllIndexUID:
-		return "uuid.UUID"
-	case AllIndexPuid:
-		return "pgtype.UUID"
-	case AllIndexRaw:
-		return "json.RawMessage"
-	case AllIndexMapany:
-		return "map[string]any"
-	case AllIndexMaps:
-		return "map[string]string"
-	case AllIndexConf:
-		return "Config"
-	case AllIndexConfs:
-		return "[]Config"
-	case AllIndexAnyv:
-		return "any"
-	case AllIndexT:
-		return "time.Time"
-	case AllIndexDur:
-		return "time.Duration"
-	case AllIndexDate:
-		return "time.Time"
-	case AllIndexPd:
-		return "pgtype.Date"
-	case AllIndexPts:
-		return "pgtype.Timestamp"
-	case AllIndexPiv:
-		return "pgtype.Interval"
-	case AllIndexLb:
-		return "[]bool"
-	case AllIndexLs:
-		return "[]string"
-	case AllIndexLi:
-		return "[]int"
-	case AllIndexLi8:
-		return "[]int8"
-	case AllIndexLi16:
-		return "[]int16"
-	case AllIndexLi32:
-		return "[]int32"
-	case AllIndexLu16:
-		return "[]uint16"
-	case AllIndexLu32:
-		return "[]uint32"
-	case AllIndexLu64:
-		return "[]uint64"
-	case AllIndexLf32:
-		return "[]float32"
-	case AllIndexLt:
-		return "[]time.Time"
-	case AllIndexLu:
-		return "[]uuid.UUID"
-	case AllIndexLs2:
-		return "[][]string"
-	case AllIndexLi2:
-		return "[][]int64"
-	case AllIndexLbb:
-		return "[][]byte"
-	case AllIndexLm:
-		return "[]map[string]any"
-	case AllIndexLst:
-		return "[]Status"
-	case AllIndexLrl:
-		return "[]role.Role"
-	case AllIndexIP:
-		return "netip.Addr"
-	case AllIndexPfx:
-		return "netip.Prefix"
-	case AllIndexNip:
-		return "net.IP"
-	case AllIndexNnet:
-		return "net.IPNet"
-	case AllIndexNum:
-		return "pgtype.Numeric"
-	case AllIndexDec:
-		return "decimal.Decimal"
-	case AllIndexRng:
-		return "pgtype.Range[pgtype.Int4]"
-	case AllIndexMrng:
-		return "pgtype.Multirange[pgtype.Range[pgtype.Int8]]"
-	case AllIndexPt:
-		return "pgtype.Point"
-	case AllIndexBits:
-		return "pgtype.Bits"
-	case AllIndexPs:
-		return "*string"
-	case AllIndexPi:
-		return "*int"
-	case AllIndexPb:
-		return "*bool"
-	case AllIndexPf:
-		return "*float64"
-	case AllIndexPt2:
-		return "*time.Time"
-	case AllIndexPip:
-		return "*netip.Addr"
-	case AllIndexNs:
-		return "sql.NullString"
-	case AllIndexNi:
-		return "sql.NullInt64"
-	case AllIndexNb:
-		return "sql.NullBool"
-	case AllIndexNf:
-		return "sql.NullFloat64"
-	case AllIndexNt:
-		return "sql.NullTime"
-	case AllIndexPtx:
-		return "pgtype.Text"
-	case AllIndexPi8:
-		return "pgtype.Int8"
-	case AllIndexPbo:
-		return "pgtype.Bool"
-	case AllIndexSt:
-		return "Status"
-	case AllIndexProv:
-		return "Provider"
-	case AllIndexRl:
-		return "role.Role"
-	case AllIndexNn:
-		return "string"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a AllIndexTyped) Title() string {
-	switch a {
-	case AllIndexID:
-		return "ID"
-	case AllIndexB:
-		return "B"
-	case AllIndexS:
-		return "S"
-	case AllIndexI:
-		return "I"
-	case AllIndexI8:
-		return "I8"
-	case AllIndexI16:
-		return "I16"
-	case AllIndexI32:
-		return "I32"
-	case AllIndexI64:
-		return "I64"
-	case AllIndexU:
-		return "U"
-	case AllIndexU8:
-		return "U8"
-	case AllIndexU16:
-		return "U16"
-	case AllIndexU32:
-		return "U32"
-	case AllIndexU64:
-		return "U64"
-	case AllIndexF32:
-		return "F32"
-	case AllIndexF64:
-		return "F64"
-	case AllIndexR:
-		return "R"
-	case AllIndexBy:
-		return "By"
-	case AllIndexBytes:
-		return "Bytes"
-	case AllIndexFixed:
-		return "Fixed"
-	case AllIndexUID:
-		return "UID"
-	case AllIndexPuid:
-		return "Puid"
-	case AllIndexRaw:
-		return "Raw"
-	case AllIndexMapany:
-		return "Mapany"
-	case AllIndexMaps:
-		return "Maps"
-	case AllIndexConf:
-		return "Conf"
-	case AllIndexConfs:
-		return "Confs"
-	case AllIndexAnyv:
-		return "Anyv"
-	case AllIndexT:
-		return "T"
-	case AllIndexDur:
-		return "Dur"
-	case AllIndexDate:
-		return "Date"
-	case AllIndexPd:
-		return "Pd"
-	case AllIndexPts:
-		return "Pts"
-	case AllIndexPiv:
-		return "Piv"
-	case AllIndexLb:
-		return "Lb"
-	case AllIndexLs:
-		return "Ls"
-	case AllIndexLi:
-		return "Li"
-	case AllIndexLi8:
-		return "Li8"
-	case AllIndexLi16:
-		return "Li16"
-	case AllIndexLi32:
-		return "Li32"
-	case AllIndexLu16:
-		return "Lu16"
-	case AllIndexLu32:
-		return "Lu32"
-	case AllIndexLu64:
-		return "Lu64"
-	case AllIndexLf32:
-		return "Lf32"
-	case AllIndexLt:
-		return "Lt"
-	case AllIndexLu:
-		return "Lu"
-	case AllIndexLs2:
-		return "Ls2"
-	case AllIndexLi2:
-		return "Li2"
-	case AllIndexLbb:
-		return "Lbb"
-	case AllIndexLm:
-		return "Lm"
-	case AllIndexLst:
-		return "Lst"
-	case AllIndexLrl:
-		return "Lrl"
-	case AllIndexIP:
-		return "IP"
-	case AllIndexPfx:
-		return "Pfx"
-	case AllIndexNip:
-		return "Nip"
-	case AllIndexNnet:
-		return "Nnet"
-	case AllIndexNum:
-		return "Num"
-	case AllIndexDec:
-		return "Dec"
-	case AllIndexRng:
-		return "Rng"
-	case AllIndexMrng:
-		return "Mrng"
-	case AllIndexPt:
-		return "Pt"
-	case AllIndexBits:
-		return "Bits"
-	case AllIndexPs:
-		return "Ps"
-	case AllIndexPi:
-		return "Pi"
-	case AllIndexPb:
-		return "Pb"
-	case AllIndexPf:
-		return "Pf"
-	case AllIndexPt2:
-		return "Pt2"
-	case AllIndexPip:
-		return "Pip"
-	case AllIndexNs:
-		return "Ns"
-	case AllIndexNi:
-		return "Ni"
-	case AllIndexNb:
-		return "Nb"
-	case AllIndexNf:
-		return "Nf"
-	case AllIndexNt:
-		return "Nt"
-	case AllIndexPtx:
-		return "Ptx"
-	case AllIndexPi8:
-		return "Pi8"
-	case AllIndexPbo:
-		return "Pbo"
-	case AllIndexSt:
-		return "St"
-	case AllIndexProv:
-		return "Prov"
-	case AllIndexRl:
-		return "Rl"
-	case AllIndexNn:
-		return "Nn"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a AllIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func AllKeyIndex(key string) AllIndexTyped {
-	switch key {
-	case "id":
-		return AllIndexID
-	case "b":
-		return AllIndexB
-	case "s":
-		return AllIndexS
-	case "i":
-		return AllIndexI
-	case "i8":
-		return AllIndexI8
-	case "i16":
-		return AllIndexI16
-	case "i32":
-		return AllIndexI32
-	case "i64":
-		return AllIndexI64
-	case "u":
-		return AllIndexU
-	case "u8":
-		return AllIndexU8
-	case "u16":
-		return AllIndexU16
-	case "u32":
-		return AllIndexU32
-	case "u64":
-		return AllIndexU64
-	case "f32":
-		return AllIndexF32
-	case "f64":
-		return AllIndexF64
-	case "r":
-		return AllIndexR
-	case "by":
-		return AllIndexBy
-	case "bytes":
-		return AllIndexBytes
-	case "fixed":
-		return AllIndexFixed
-	case "uid":
-		return AllIndexUID
-	case "puid":
-		return AllIndexPuid
-	case "raw":
-		return AllIndexRaw
-	case "mapany":
-		return AllIndexMapany
-	case "maps":
-		return AllIndexMaps
-	case "conf":
-		return AllIndexConf
-	case "confs":
-		return AllIndexConfs
-	case "anyv":
-		return AllIndexAnyv
-	case "t":
-		return AllIndexT
-	case "dur":
-		return AllIndexDur
-	case "date":
-		return AllIndexDate
-	case "pd":
-		return AllIndexPd
-	case "pts":
-		return AllIndexPts
-	case "piv":
-		return AllIndexPiv
-	case "lb":
-		return AllIndexLb
-	case "ls":
-		return AllIndexLs
-	case "li":
-		return AllIndexLi
-	case "li8":
-		return AllIndexLi8
-	case "li16":
-		return AllIndexLi16
-	case "li32":
-		return AllIndexLi32
-	case "lu16":
-		return AllIndexLu16
-	case "lu32":
-		return AllIndexLu32
-	case "lu64":
-		return AllIndexLu64
-	case "lf32":
-		return AllIndexLf32
-	case "lt":
-		return AllIndexLt
-	case "lu":
-		return AllIndexLu
-	case "ls2":
-		return AllIndexLs2
-	case "li2":
-		return AllIndexLi2
-	case "lbb":
-		return AllIndexLbb
-	case "lm":
-		return AllIndexLm
-	case "lst":
-		return AllIndexLst
-	case "lrl":
-		return AllIndexLrl
-	case "ip":
-		return AllIndexIP
-	case "pfx":
-		return AllIndexPfx
-	case "nip":
-		return AllIndexNip
-	case "nnet":
-		return AllIndexNnet
-	case "num":
-		return AllIndexNum
-	case "dec":
-		return AllIndexDec
-	case "rng":
-		return AllIndexRng
-	case "mrng":
-		return AllIndexMrng
-	case "pt":
-		return AllIndexPt
-	case "bits":
-		return AllIndexBits
-	case "ps":
-		return AllIndexPs
-	case "pi":
-		return AllIndexPi
-	case "pb":
-		return AllIndexPb
-	case "pf":
-		return AllIndexPf
-	case "pt2":
-		return AllIndexPt2
-	case "pip":
-		return AllIndexPip
-	case "ns":
-		return AllIndexNs
-	case "ni":
-		return AllIndexNi
-	case "nb":
-		return AllIndexNb
-	case "nf":
-		return AllIndexNf
-	case "nt":
-		return AllIndexNt
-	case "ptx":
-		return AllIndexPtx
-	case "pi8":
-		return AllIndexPi8
-	case "pbo":
-		return AllIndexPbo
-	case "st":
-		return AllIndexSt
-	case "prov":
-		return AllIndexProv
-	case "rl":
-		return AllIndexRl
-	case "nn":
-		return AllIndexNn
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func AllValidKey(key string) bool {
-	switch key {
-	case "id", "b", "s", "i", "i8", "i16", "i32", "i64", "u", "u8", "u16", "u32", "u64", "f32", "f64", "r", "by", "bytes", "fixed", "uid", "puid", "raw", "mapany", "maps", "conf", "confs", "anyv", "t", "dur", "date", "pd", "pts", "piv", "lb", "ls", "li", "li8", "li16", "li32", "lu16", "lu32", "lu64", "lf32", "lt", "lu", "ls2", "li2", "lbb", "lm", "lst", "lrl", "ip", "pfx", "nip", "nnet", "num", "dec", "rng", "mrng", "pt", "bits", "ps", "pi", "pb", "pf", "pt2", "pip", "ns", "ni", "nb", "nf", "nt", "ptx", "pi8", "pbo", "st", "prov", "rl", "nn":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *All) Map() map[string]any {
-	return map[string]any{
-		"id":     a.ID,
-		"b":      a.B,
-		"s":      a.S,
-		"i":      a.I,
-		"i8":     a.I8,
-		"i16":    a.I16,
-		"i32":    a.I32,
-		"i64":    a.I64,
-		"u":      a.U,
-		"u8":     a.U8,
-		"u16":    a.U16,
-		"u32":    a.U32,
-		"u64":    a.U64,
-		"f32":    a.F32,
-		"f64":    a.F64,
-		"r":      a.R,
-		"by":     a.By,
-		"bytes":  a.Bytes,
-		"fixed":  a.Fixed,
-		"uid":    a.UID,
-		"puid":   a.Puid,
-		"raw":    a.Raw,
-		"mapany": a.Mapany,
-		"maps":   a.Maps,
-		"conf":   a.Conf,
-		"confs":  a.Confs,
-		"anyv":   a.Anyv,
-		"t":      a.T,
-		"dur":    a.Dur,
-		"date":   a.Date,
-		"pd":     a.Pd,
-		"pts":    a.Pts,
-		"piv":    a.Piv,
-		"lb":     a.Lb,
-		"ls":     a.Ls,
-		"li":     a.Li,
-		"li8":    a.Li8,
-		"li16":   a.Li16,
-		"li32":   a.Li32,
-		"lu16":   a.Lu16,
-		"lu32":   a.Lu32,
-		"lu64":   a.Lu64,
-		"lf32":   a.Lf32,
-		"lt":     a.Lt,
-		"lu":     a.Lu,
-		"ls2":    a.Ls2,
-		"li2":    a.Li2,
-		"lbb":    a.Lbb,
-		"lm":     a.Lm,
-		"lst":    a.Lst,
-		"lrl":    a.Lrl,
-		"ip":     a.IP,
-		"pfx":    a.Pfx,
-		"nip":    a.Nip,
-		"nnet":   a.Nnet,
-		"num":    a.Num,
-		"dec":    a.Dec,
-		"rng":    a.Rng,
-		"mrng":   a.Mrng,
-		"pt":     a.Pt,
-		"bits":   a.Bits,
-		"ps":     a.Ps,
-		"pi":     a.Pi,
-		"pb":     a.Pb,
-		"pf":     a.Pf,
-		"pt2":    a.Pt2,
-		"pip":    a.Pip,
-		"ns":     a.Ns,
-		"ni":     a.Ni,
-		"nb":     a.Nb,
-		"nf":     a.Nf,
-		"nt":     a.Nt,
-		"ptx":    a.Ptx,
-		"pi8":    a.Pi8,
-		"pbo":    a.Pbo,
-		"st":     a.St,
-		"prov":   a.Prov,
-		"rl":     a.Rl,
-		"nn":     a.Nn,
-	}
-}
-
-// struct to map
-func (a *All) Iterate(f func(k AllIndexTyped, v any)) {
-	for _, x := range AllIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *All) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseAll(v []byte) (a All, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
-}
-
 // allSQLDB runs queries: pool or transaction
 type allSQLDB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
@@ -1844,13 +209,14 @@ type AllSQL struct {
 	db   allSQLDB // pool, or transaction after TX
 }
 
-// NewAllSQL creates queries on pool, table and indexes if not exist
-func NewAllSQL(pool *pgxpool.Pool) (*AllSQL, error) {
+// NewAllSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewAllSQL(pool *pgxpool.Pool) *AllSQL {
 	a := &AllSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -3604,4 +1970,1632 @@ func (a *AllSQL) ResetSequence(add ...int64) error {
 func (a *AllSQL) SetSequence(v int64) error {
 	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('alltypes', 'id'), $1, false)", v)
 	return err
+}
+
+// field type
+type AllIndexTyped int
+
+// int index
+const (
+	AllIndexID = AllIndexTyped(iota)
+	AllIndexB
+	AllIndexS
+	AllIndexI
+	AllIndexI8
+	AllIndexI16
+	AllIndexI32
+	AllIndexI64
+	AllIndexU
+	AllIndexU8
+	AllIndexU16
+	AllIndexU32
+	AllIndexU64
+	AllIndexF32
+	AllIndexF64
+	AllIndexR
+	AllIndexBy
+	AllIndexBytes
+	AllIndexFixed
+	AllIndexUID
+	AllIndexPuid
+	AllIndexRaw
+	AllIndexMapany
+	AllIndexMaps
+	AllIndexConf
+	AllIndexConfs
+	AllIndexAnyv
+	AllIndexT
+	AllIndexDur
+	AllIndexDate
+	AllIndexPd
+	AllIndexPts
+	AllIndexPiv
+	AllIndexLb
+	AllIndexLs
+	AllIndexLi
+	AllIndexLi8
+	AllIndexLi16
+	AllIndexLi32
+	AllIndexLu16
+	AllIndexLu32
+	AllIndexLu64
+	AllIndexLf32
+	AllIndexLt
+	AllIndexLu
+	AllIndexLs2
+	AllIndexLi2
+	AllIndexLbb
+	AllIndexLm
+	AllIndexLst
+	AllIndexLrl
+	AllIndexIP
+	AllIndexPfx
+	AllIndexNip
+	AllIndexNnet
+	AllIndexNum
+	AllIndexDec
+	AllIndexRng
+	AllIndexMrng
+	AllIndexPt
+	AllIndexBits
+	AllIndexPs
+	AllIndexPi
+	AllIndexPb
+	AllIndexPf
+	AllIndexPt2
+	AllIndexPip
+	AllIndexNs
+	AllIndexNi
+	AllIndexNb
+	AllIndexNf
+	AllIndexNt
+	AllIndexPtx
+	AllIndexPi8
+	AllIndexPbo
+	AllIndexSt
+	AllIndexProv
+	AllIndexRl
+	AllIndexNn
+)
+
+// string index
+const (
+	AllFieldID     = "id"     // int sql{inc}
+	AllFieldB      = "b"      // bool
+	AllFieldS      = "s"      // string
+	AllFieldI      = "i"      // int
+	AllFieldI8     = "i8"     // int8
+	AllFieldI16    = "i16"    // int16
+	AllFieldI32    = "i32"    // int32
+	AllFieldI64    = "i64"    // int64
+	AllFieldU      = "u"      // uint
+	AllFieldU8     = "u8"     // uint8
+	AllFieldU16    = "u16"    // uint16
+	AllFieldU32    = "u32"    // uint32
+	AllFieldU64    = "u64"    // uint64
+	AllFieldF32    = "f32"    // float32
+	AllFieldF64    = "f64"    // float64
+	AllFieldR      = "r"      // rune
+	AllFieldBy     = "by"     // byte
+	AllFieldBytes  = "bytes"  // []byte
+	AllFieldFixed  = "fixed"  // [16]byte
+	AllFieldUID    = "uid"    // uuid.UUID
+	AllFieldPuid   = "puid"   // pgtype.UUID
+	AllFieldRaw    = "raw"    // json.RawMessage
+	AllFieldMapany = "mapany" // map[string]any
+	AllFieldMaps   = "maps"   // map[string]string
+	AllFieldConf   = "conf"   // Config
+	AllFieldConfs  = "confs"  // []Config
+	AllFieldAnyv   = "anyv"   // any
+	AllFieldT      = "t"      // time.Time
+	AllFieldDur    = "dur"    // time.Duration
+	AllFieldDate   = "date"   // time.Time sql{type="date"}
+	AllFieldPd     = "pd"     // pgtype.Date
+	AllFieldPts    = "pts"    // pgtype.Timestamp
+	AllFieldPiv    = "piv"    // pgtype.Interval
+	AllFieldLb     = "lb"     // []bool
+	AllFieldLs     = "ls"     // []string
+	AllFieldLi     = "li"     // []int
+	AllFieldLi8    = "li8"    // []int8
+	AllFieldLi16   = "li16"   // []int16
+	AllFieldLi32   = "li32"   // []int32
+	AllFieldLu16   = "lu16"   // []uint16
+	AllFieldLu32   = "lu32"   // []uint32
+	AllFieldLu64   = "lu64"   // []uint64
+	AllFieldLf32   = "lf32"   // []float32
+	AllFieldLt     = "lt"     // []time.Time
+	AllFieldLu     = "lu"     // []uuid.UUID
+	AllFieldLs2    = "ls2"    // [][]string
+	AllFieldLi2    = "li2"    // [][]int64
+	AllFieldLbb    = "lbb"    // [][]byte
+	AllFieldLm     = "lm"     // []map[string]any
+	AllFieldLst    = "lst"    // []Status
+	AllFieldLrl    = "lrl"    // []role.Role
+	AllFieldIP     = "ip"     // netip.Addr
+	AllFieldPfx    = "pfx"    // netip.Prefix
+	AllFieldNip    = "nip"    // net.IP
+	AllFieldNnet   = "nnet"   // net.IPNet
+	AllFieldNum    = "num"    // pgtype.Numeric
+	AllFieldDec    = "dec"    // decimal.Decimal
+	AllFieldRng    = "rng"    // pgtype.Range[pgtype.Int4]
+	AllFieldMrng   = "mrng"   // pgtype.Multirange[pgtype.Range[pgtype.Int8]]
+	AllFieldPt     = "pt"     // pgtype.Point
+	AllFieldBits   = "bits"   // pgtype.Bits
+	AllFieldPs     = "ps"     // *string
+	AllFieldPi     = "pi"     // *int
+	AllFieldPb     = "pb"     // *bool
+	AllFieldPf     = "pf"     // *float64
+	AllFieldPt2    = "pt2"    // *time.Time
+	AllFieldPip    = "pip"    // *netip.Addr
+	AllFieldNs     = "ns"     // sql.NullString
+	AllFieldNi     = "ni"     // sql.NullInt64
+	AllFieldNb     = "nb"     // sql.NullBool
+	AllFieldNf     = "nf"     // sql.NullFloat64
+	AllFieldNt     = "nt"     // sql.NullTime
+	AllFieldPtx    = "ptx"    // pgtype.Text
+	AllFieldPi8    = "pi8"    // pgtype.Int8
+	AllFieldPbo    = "pbo"    // pgtype.Bool
+	AllFieldSt     = "st"     // Status
+	AllFieldProv   = "prov"   // Provider
+	AllFieldRl     = "rl"     // role.Role
+	AllFieldNn     = "nn"     // string sql{notnull}
+)
+
+// index func
+func AllIndexes() []AllIndexTyped {
+	return []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBy, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPd, AllIndexPts, AllIndexPiv, AllIndexLb, AllIndexLs, AllIndexLi, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLt, AllIndexLu, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLm, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPt, AllIndexBits, AllIndexPs, AllIndexPi, AllIndexPb, AllIndexPf, AllIndexPt2, AllIndexPip, AllIndexNs, AllIndexNi, AllIndexNb, AllIndexNf, AllIndexNt, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexSt, AllIndexProv, AllIndexRl, AllIndexNn}
+
+}
+
+// key index string
+func (a AllIndexTyped) String() string {
+	switch a {
+	case AllIndexID:
+		return "id"
+	case AllIndexB:
+		return "b"
+	case AllIndexS:
+		return "s"
+	case AllIndexI:
+		return "i"
+	case AllIndexI8:
+		return "i8"
+	case AllIndexI16:
+		return "i16"
+	case AllIndexI32:
+		return "i32"
+	case AllIndexI64:
+		return "i64"
+	case AllIndexU:
+		return "u"
+	case AllIndexU8:
+		return "u8"
+	case AllIndexU16:
+		return "u16"
+	case AllIndexU32:
+		return "u32"
+	case AllIndexU64:
+		return "u64"
+	case AllIndexF32:
+		return "f32"
+	case AllIndexF64:
+		return "f64"
+	case AllIndexR:
+		return "r"
+	case AllIndexBy:
+		return "by"
+	case AllIndexBytes:
+		return "bytes"
+	case AllIndexFixed:
+		return "fixed"
+	case AllIndexUID:
+		return "uid"
+	case AllIndexPuid:
+		return "puid"
+	case AllIndexRaw:
+		return "raw"
+	case AllIndexMapany:
+		return "mapany"
+	case AllIndexMaps:
+		return "maps"
+	case AllIndexConf:
+		return "conf"
+	case AllIndexConfs:
+		return "confs"
+	case AllIndexAnyv:
+		return "anyv"
+	case AllIndexT:
+		return "t"
+	case AllIndexDur:
+		return "dur"
+	case AllIndexDate:
+		return "date"
+	case AllIndexPd:
+		return "pd"
+	case AllIndexPts:
+		return "pts"
+	case AllIndexPiv:
+		return "piv"
+	case AllIndexLb:
+		return "lb"
+	case AllIndexLs:
+		return "ls"
+	case AllIndexLi:
+		return "li"
+	case AllIndexLi8:
+		return "li8"
+	case AllIndexLi16:
+		return "li16"
+	case AllIndexLi32:
+		return "li32"
+	case AllIndexLu16:
+		return "lu16"
+	case AllIndexLu32:
+		return "lu32"
+	case AllIndexLu64:
+		return "lu64"
+	case AllIndexLf32:
+		return "lf32"
+	case AllIndexLt:
+		return "lt"
+	case AllIndexLu:
+		return "lu"
+	case AllIndexLs2:
+		return "ls2"
+	case AllIndexLi2:
+		return "li2"
+	case AllIndexLbb:
+		return "lbb"
+	case AllIndexLm:
+		return "lm"
+	case AllIndexLst:
+		return "lst"
+	case AllIndexLrl:
+		return "lrl"
+	case AllIndexIP:
+		return "ip"
+	case AllIndexPfx:
+		return "pfx"
+	case AllIndexNip:
+		return "nip"
+	case AllIndexNnet:
+		return "nnet"
+	case AllIndexNum:
+		return "num"
+	case AllIndexDec:
+		return "dec"
+	case AllIndexRng:
+		return "rng"
+	case AllIndexMrng:
+		return "mrng"
+	case AllIndexPt:
+		return "pt"
+	case AllIndexBits:
+		return "bits"
+	case AllIndexPs:
+		return "ps"
+	case AllIndexPi:
+		return "pi"
+	case AllIndexPb:
+		return "pb"
+	case AllIndexPf:
+		return "pf"
+	case AllIndexPt2:
+		return "pt2"
+	case AllIndexPip:
+		return "pip"
+	case AllIndexNs:
+		return "ns"
+	case AllIndexNi:
+		return "ni"
+	case AllIndexNb:
+		return "nb"
+	case AllIndexNf:
+		return "nf"
+	case AllIndexNt:
+		return "nt"
+	case AllIndexPtx:
+		return "ptx"
+	case AllIndexPi8:
+		return "pi8"
+	case AllIndexPbo:
+		return "pbo"
+	case AllIndexSt:
+		return "st"
+	case AllIndexProv:
+		return "prov"
+	case AllIndexRl:
+		return "rl"
+	case AllIndexNn:
+		return "nn"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a AllIndexTyped) SQLName() string {
+	switch a {
+	case AllIndexID:
+		return "id"
+	case AllIndexB:
+		return "b"
+	case AllIndexS:
+		return "s"
+	case AllIndexI:
+		return "i"
+	case AllIndexI8:
+		return "i8"
+	case AllIndexI16:
+		return "i16"
+	case AllIndexI32:
+		return "i32"
+	case AllIndexI64:
+		return "i64"
+	case AllIndexU:
+		return "u"
+	case AllIndexU8:
+		return "u8"
+	case AllIndexU16:
+		return "u16"
+	case AllIndexU32:
+		return "u32"
+	case AllIndexU64:
+		return "u64"
+	case AllIndexF32:
+		return "f32"
+	case AllIndexF64:
+		return "f64"
+	case AllIndexR:
+		return "r"
+	case AllIndexBy:
+		return "by"
+	case AllIndexBytes:
+		return "bytes"
+	case AllIndexFixed:
+		return "fixed"
+	case AllIndexUID:
+		return "uid"
+	case AllIndexPuid:
+		return "puid"
+	case AllIndexRaw:
+		return "raw"
+	case AllIndexMapany:
+		return "mapany"
+	case AllIndexMaps:
+		return "maps"
+	case AllIndexConf:
+		return "conf"
+	case AllIndexConfs:
+		return "confs"
+	case AllIndexAnyv:
+		return "anyv"
+	case AllIndexT:
+		return "t"
+	case AllIndexDur:
+		return "dur"
+	case AllIndexDate:
+		return "date"
+	case AllIndexPd:
+		return "pd"
+	case AllIndexPts:
+		return "pts"
+	case AllIndexPiv:
+		return "piv"
+	case AllIndexLb:
+		return "lb"
+	case AllIndexLs:
+		return "ls"
+	case AllIndexLi:
+		return "li"
+	case AllIndexLi8:
+		return "li8"
+	case AllIndexLi16:
+		return "li16"
+	case AllIndexLi32:
+		return "li32"
+	case AllIndexLu16:
+		return "lu16"
+	case AllIndexLu32:
+		return "lu32"
+	case AllIndexLu64:
+		return "lu64"
+	case AllIndexLf32:
+		return "lf32"
+	case AllIndexLt:
+		return "lt"
+	case AllIndexLu:
+		return "lu"
+	case AllIndexLs2:
+		return "ls2"
+	case AllIndexLi2:
+		return "li2"
+	case AllIndexLbb:
+		return "lbb"
+	case AllIndexLm:
+		return "lm"
+	case AllIndexLst:
+		return "lst"
+	case AllIndexLrl:
+		return "lrl"
+	case AllIndexIP:
+		return "ip"
+	case AllIndexPfx:
+		return "pfx"
+	case AllIndexNip:
+		return "nip"
+	case AllIndexNnet:
+		return "nnet"
+	case AllIndexNum:
+		return "num"
+	case AllIndexDec:
+		return "dec"
+	case AllIndexRng:
+		return "rng"
+	case AllIndexMrng:
+		return "mrng"
+	case AllIndexPt:
+		return "pt"
+	case AllIndexBits:
+		return "bits"
+	case AllIndexPs:
+		return "ps"
+	case AllIndexPi:
+		return "pi"
+	case AllIndexPb:
+		return "pb"
+	case AllIndexPf:
+		return "pf"
+	case AllIndexPt2:
+		return "pt2"
+	case AllIndexPip:
+		return "pip"
+	case AllIndexNs:
+		return "ns"
+	case AllIndexNi:
+		return "ni"
+	case AllIndexNb:
+		return "nb"
+	case AllIndexNf:
+		return "nf"
+	case AllIndexNt:
+		return "nt"
+	case AllIndexPtx:
+		return "ptx"
+	case AllIndexPi8:
+		return "pi8"
+	case AllIndexPbo:
+		return "pbo"
+	case AllIndexSt:
+		return "st"
+	case AllIndexProv:
+		return "prov"
+	case AllIndexRl:
+		return "rl"
+	case AllIndexNn:
+		return "nn"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a AllIndexTyped) ClickhouseName() string {
+	switch a {
+	case AllIndexID:
+		return "id"
+	case AllIndexB:
+		return "b"
+	case AllIndexS:
+		return "s"
+	case AllIndexI:
+		return "i"
+	case AllIndexI8:
+		return "i8"
+	case AllIndexI16:
+		return "i16"
+	case AllIndexI32:
+		return "i32"
+	case AllIndexI64:
+		return "i64"
+	case AllIndexU:
+		return "u"
+	case AllIndexU8:
+		return "u8"
+	case AllIndexU16:
+		return "u16"
+	case AllIndexU32:
+		return "u32"
+	case AllIndexU64:
+		return "u64"
+	case AllIndexF32:
+		return "f32"
+	case AllIndexF64:
+		return "f64"
+	case AllIndexR:
+		return "r"
+	case AllIndexBy:
+		return "by"
+	case AllIndexBytes:
+		return "bytes"
+	case AllIndexFixed:
+		return "fixed"
+	case AllIndexUID:
+		return "uid"
+	case AllIndexPuid:
+		return "puid"
+	case AllIndexRaw:
+		return "raw"
+	case AllIndexMapany:
+		return "mapany"
+	case AllIndexMaps:
+		return "maps"
+	case AllIndexConf:
+		return "conf"
+	case AllIndexConfs:
+		return "confs"
+	case AllIndexAnyv:
+		return "anyv"
+	case AllIndexT:
+		return "t"
+	case AllIndexDur:
+		return "dur"
+	case AllIndexDate:
+		return "date"
+	case AllIndexPd:
+		return "pd"
+	case AllIndexPts:
+		return "pts"
+	case AllIndexPiv:
+		return "piv"
+	case AllIndexLb:
+		return "lb"
+	case AllIndexLs:
+		return "ls"
+	case AllIndexLi:
+		return "li"
+	case AllIndexLi8:
+		return "li8"
+	case AllIndexLi16:
+		return "li16"
+	case AllIndexLi32:
+		return "li32"
+	case AllIndexLu16:
+		return "lu16"
+	case AllIndexLu32:
+		return "lu32"
+	case AllIndexLu64:
+		return "lu64"
+	case AllIndexLf32:
+		return "lf32"
+	case AllIndexLt:
+		return "lt"
+	case AllIndexLu:
+		return "lu"
+	case AllIndexLs2:
+		return "ls2"
+	case AllIndexLi2:
+		return "li2"
+	case AllIndexLbb:
+		return "lbb"
+	case AllIndexLm:
+		return "lm"
+	case AllIndexLst:
+		return "lst"
+	case AllIndexLrl:
+		return "lrl"
+	case AllIndexIP:
+		return "ip"
+	case AllIndexPfx:
+		return "pfx"
+	case AllIndexNip:
+		return "nip"
+	case AllIndexNnet:
+		return "nnet"
+	case AllIndexNum:
+		return "num"
+	case AllIndexDec:
+		return "dec"
+	case AllIndexRng:
+		return "rng"
+	case AllIndexMrng:
+		return "mrng"
+	case AllIndexPt:
+		return "pt"
+	case AllIndexBits:
+		return "bits"
+	case AllIndexPs:
+		return "ps"
+	case AllIndexPi:
+		return "pi"
+	case AllIndexPb:
+		return "pb"
+	case AllIndexPf:
+		return "pf"
+	case AllIndexPt2:
+		return "pt2"
+	case AllIndexPip:
+		return "pip"
+	case AllIndexNs:
+		return "ns"
+	case AllIndexNi:
+		return "ni"
+	case AllIndexNb:
+		return "nb"
+	case AllIndexNf:
+		return "nf"
+	case AllIndexNt:
+		return "nt"
+	case AllIndexPtx:
+		return "ptx"
+	case AllIndexPi8:
+		return "pi8"
+	case AllIndexPbo:
+		return "pbo"
+	case AllIndexSt:
+		return "st"
+	case AllIndexProv:
+		return "prov"
+	case AllIndexRl:
+		return "rl"
+	case AllIndexNn:
+		return "nn"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a AllIndexTyped) Type() string {
+	switch a {
+	case AllIndexID:
+		return "int"
+	case AllIndexB:
+		return "bool"
+	case AllIndexS:
+		return "string"
+	case AllIndexI:
+		return "int"
+	case AllIndexI8:
+		return "int8"
+	case AllIndexI16:
+		return "int16"
+	case AllIndexI32:
+		return "int32"
+	case AllIndexI64:
+		return "int64"
+	case AllIndexU:
+		return "uint"
+	case AllIndexU8:
+		return "uint8"
+	case AllIndexU16:
+		return "uint16"
+	case AllIndexU32:
+		return "uint32"
+	case AllIndexU64:
+		return "uint64"
+	case AllIndexF32:
+		return "float32"
+	case AllIndexF64:
+		return "float64"
+	case AllIndexR:
+		return "rune"
+	case AllIndexBy:
+		return "byte"
+	case AllIndexBytes:
+		return "[]byte"
+	case AllIndexFixed:
+		return "[16]byte"
+	case AllIndexUID:
+		return "uuid.UUID"
+	case AllIndexPuid:
+		return "pgtype.UUID"
+	case AllIndexRaw:
+		return "json.RawMessage"
+	case AllIndexMapany:
+		return "map[string]any"
+	case AllIndexMaps:
+		return "map[string]string"
+	case AllIndexConf:
+		return "Config"
+	case AllIndexConfs:
+		return "[]Config"
+	case AllIndexAnyv:
+		return "any"
+	case AllIndexT:
+		return "time.Time"
+	case AllIndexDur:
+		return "time.Duration"
+	case AllIndexDate:
+		return "time.Time"
+	case AllIndexPd:
+		return "pgtype.Date"
+	case AllIndexPts:
+		return "pgtype.Timestamp"
+	case AllIndexPiv:
+		return "pgtype.Interval"
+	case AllIndexLb:
+		return "[]bool"
+	case AllIndexLs:
+		return "[]string"
+	case AllIndexLi:
+		return "[]int"
+	case AllIndexLi8:
+		return "[]int8"
+	case AllIndexLi16:
+		return "[]int16"
+	case AllIndexLi32:
+		return "[]int32"
+	case AllIndexLu16:
+		return "[]uint16"
+	case AllIndexLu32:
+		return "[]uint32"
+	case AllIndexLu64:
+		return "[]uint64"
+	case AllIndexLf32:
+		return "[]float32"
+	case AllIndexLt:
+		return "[]time.Time"
+	case AllIndexLu:
+		return "[]uuid.UUID"
+	case AllIndexLs2:
+		return "[][]string"
+	case AllIndexLi2:
+		return "[][]int64"
+	case AllIndexLbb:
+		return "[][]byte"
+	case AllIndexLm:
+		return "[]map[string]any"
+	case AllIndexLst:
+		return "[]Status"
+	case AllIndexLrl:
+		return "[]role.Role"
+	case AllIndexIP:
+		return "netip.Addr"
+	case AllIndexPfx:
+		return "netip.Prefix"
+	case AllIndexNip:
+		return "net.IP"
+	case AllIndexNnet:
+		return "net.IPNet"
+	case AllIndexNum:
+		return "pgtype.Numeric"
+	case AllIndexDec:
+		return "decimal.Decimal"
+	case AllIndexRng:
+		return "pgtype.Range[pgtype.Int4]"
+	case AllIndexMrng:
+		return "pgtype.Multirange[pgtype.Range[pgtype.Int8]]"
+	case AllIndexPt:
+		return "pgtype.Point"
+	case AllIndexBits:
+		return "pgtype.Bits"
+	case AllIndexPs:
+		return "*string"
+	case AllIndexPi:
+		return "*int"
+	case AllIndexPb:
+		return "*bool"
+	case AllIndexPf:
+		return "*float64"
+	case AllIndexPt2:
+		return "*time.Time"
+	case AllIndexPip:
+		return "*netip.Addr"
+	case AllIndexNs:
+		return "sql.NullString"
+	case AllIndexNi:
+		return "sql.NullInt64"
+	case AllIndexNb:
+		return "sql.NullBool"
+	case AllIndexNf:
+		return "sql.NullFloat64"
+	case AllIndexNt:
+		return "sql.NullTime"
+	case AllIndexPtx:
+		return "pgtype.Text"
+	case AllIndexPi8:
+		return "pgtype.Int8"
+	case AllIndexPbo:
+		return "pgtype.Bool"
+	case AllIndexSt:
+		return "Status"
+	case AllIndexProv:
+		return "Provider"
+	case AllIndexRl:
+		return "role.Role"
+	case AllIndexNn:
+		return "string"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a AllIndexTyped) Title() string {
+	switch a {
+	case AllIndexID:
+		return "ID"
+	case AllIndexB:
+		return "B"
+	case AllIndexS:
+		return "S"
+	case AllIndexI:
+		return "I"
+	case AllIndexI8:
+		return "I8"
+	case AllIndexI16:
+		return "I16"
+	case AllIndexI32:
+		return "I32"
+	case AllIndexI64:
+		return "I64"
+	case AllIndexU:
+		return "U"
+	case AllIndexU8:
+		return "U8"
+	case AllIndexU16:
+		return "U16"
+	case AllIndexU32:
+		return "U32"
+	case AllIndexU64:
+		return "U64"
+	case AllIndexF32:
+		return "F32"
+	case AllIndexF64:
+		return "F64"
+	case AllIndexR:
+		return "R"
+	case AllIndexBy:
+		return "By"
+	case AllIndexBytes:
+		return "Bytes"
+	case AllIndexFixed:
+		return "Fixed"
+	case AllIndexUID:
+		return "UID"
+	case AllIndexPuid:
+		return "Puid"
+	case AllIndexRaw:
+		return "Raw"
+	case AllIndexMapany:
+		return "Mapany"
+	case AllIndexMaps:
+		return "Maps"
+	case AllIndexConf:
+		return "Conf"
+	case AllIndexConfs:
+		return "Confs"
+	case AllIndexAnyv:
+		return "Anyv"
+	case AllIndexT:
+		return "T"
+	case AllIndexDur:
+		return "Dur"
+	case AllIndexDate:
+		return "Date"
+	case AllIndexPd:
+		return "Pd"
+	case AllIndexPts:
+		return "Pts"
+	case AllIndexPiv:
+		return "Piv"
+	case AllIndexLb:
+		return "Lb"
+	case AllIndexLs:
+		return "Ls"
+	case AllIndexLi:
+		return "Li"
+	case AllIndexLi8:
+		return "Li8"
+	case AllIndexLi16:
+		return "Li16"
+	case AllIndexLi32:
+		return "Li32"
+	case AllIndexLu16:
+		return "Lu16"
+	case AllIndexLu32:
+		return "Lu32"
+	case AllIndexLu64:
+		return "Lu64"
+	case AllIndexLf32:
+		return "Lf32"
+	case AllIndexLt:
+		return "Lt"
+	case AllIndexLu:
+		return "Lu"
+	case AllIndexLs2:
+		return "Ls2"
+	case AllIndexLi2:
+		return "Li2"
+	case AllIndexLbb:
+		return "Lbb"
+	case AllIndexLm:
+		return "Lm"
+	case AllIndexLst:
+		return "Lst"
+	case AllIndexLrl:
+		return "Lrl"
+	case AllIndexIP:
+		return "IP"
+	case AllIndexPfx:
+		return "Pfx"
+	case AllIndexNip:
+		return "Nip"
+	case AllIndexNnet:
+		return "Nnet"
+	case AllIndexNum:
+		return "Num"
+	case AllIndexDec:
+		return "Dec"
+	case AllIndexRng:
+		return "Rng"
+	case AllIndexMrng:
+		return "Mrng"
+	case AllIndexPt:
+		return "Pt"
+	case AllIndexBits:
+		return "Bits"
+	case AllIndexPs:
+		return "Ps"
+	case AllIndexPi:
+		return "Pi"
+	case AllIndexPb:
+		return "Pb"
+	case AllIndexPf:
+		return "Pf"
+	case AllIndexPt2:
+		return "Pt2"
+	case AllIndexPip:
+		return "Pip"
+	case AllIndexNs:
+		return "Ns"
+	case AllIndexNi:
+		return "Ni"
+	case AllIndexNb:
+		return "Nb"
+	case AllIndexNf:
+		return "Nf"
+	case AllIndexNt:
+		return "Nt"
+	case AllIndexPtx:
+		return "Ptx"
+	case AllIndexPi8:
+		return "Pi8"
+	case AllIndexPbo:
+		return "Pbo"
+	case AllIndexSt:
+		return "St"
+	case AllIndexProv:
+		return "Prov"
+	case AllIndexRl:
+		return "Rl"
+	case AllIndexNn:
+		return "Nn"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a AllIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func AllKeyIndex(key string) AllIndexTyped {
+	switch key {
+	case "id":
+		return AllIndexID
+	case "b":
+		return AllIndexB
+	case "s":
+		return AllIndexS
+	case "i":
+		return AllIndexI
+	case "i8":
+		return AllIndexI8
+	case "i16":
+		return AllIndexI16
+	case "i32":
+		return AllIndexI32
+	case "i64":
+		return AllIndexI64
+	case "u":
+		return AllIndexU
+	case "u8":
+		return AllIndexU8
+	case "u16":
+		return AllIndexU16
+	case "u32":
+		return AllIndexU32
+	case "u64":
+		return AllIndexU64
+	case "f32":
+		return AllIndexF32
+	case "f64":
+		return AllIndexF64
+	case "r":
+		return AllIndexR
+	case "by":
+		return AllIndexBy
+	case "bytes":
+		return AllIndexBytes
+	case "fixed":
+		return AllIndexFixed
+	case "uid":
+		return AllIndexUID
+	case "puid":
+		return AllIndexPuid
+	case "raw":
+		return AllIndexRaw
+	case "mapany":
+		return AllIndexMapany
+	case "maps":
+		return AllIndexMaps
+	case "conf":
+		return AllIndexConf
+	case "confs":
+		return AllIndexConfs
+	case "anyv":
+		return AllIndexAnyv
+	case "t":
+		return AllIndexT
+	case "dur":
+		return AllIndexDur
+	case "date":
+		return AllIndexDate
+	case "pd":
+		return AllIndexPd
+	case "pts":
+		return AllIndexPts
+	case "piv":
+		return AllIndexPiv
+	case "lb":
+		return AllIndexLb
+	case "ls":
+		return AllIndexLs
+	case "li":
+		return AllIndexLi
+	case "li8":
+		return AllIndexLi8
+	case "li16":
+		return AllIndexLi16
+	case "li32":
+		return AllIndexLi32
+	case "lu16":
+		return AllIndexLu16
+	case "lu32":
+		return AllIndexLu32
+	case "lu64":
+		return AllIndexLu64
+	case "lf32":
+		return AllIndexLf32
+	case "lt":
+		return AllIndexLt
+	case "lu":
+		return AllIndexLu
+	case "ls2":
+		return AllIndexLs2
+	case "li2":
+		return AllIndexLi2
+	case "lbb":
+		return AllIndexLbb
+	case "lm":
+		return AllIndexLm
+	case "lst":
+		return AllIndexLst
+	case "lrl":
+		return AllIndexLrl
+	case "ip":
+		return AllIndexIP
+	case "pfx":
+		return AllIndexPfx
+	case "nip":
+		return AllIndexNip
+	case "nnet":
+		return AllIndexNnet
+	case "num":
+		return AllIndexNum
+	case "dec":
+		return AllIndexDec
+	case "rng":
+		return AllIndexRng
+	case "mrng":
+		return AllIndexMrng
+	case "pt":
+		return AllIndexPt
+	case "bits":
+		return AllIndexBits
+	case "ps":
+		return AllIndexPs
+	case "pi":
+		return AllIndexPi
+	case "pb":
+		return AllIndexPb
+	case "pf":
+		return AllIndexPf
+	case "pt2":
+		return AllIndexPt2
+	case "pip":
+		return AllIndexPip
+	case "ns":
+		return AllIndexNs
+	case "ni":
+		return AllIndexNi
+	case "nb":
+		return AllIndexNb
+	case "nf":
+		return AllIndexNf
+	case "nt":
+		return AllIndexNt
+	case "ptx":
+		return AllIndexPtx
+	case "pi8":
+		return AllIndexPi8
+	case "pbo":
+		return AllIndexPbo
+	case "st":
+		return AllIndexSt
+	case "prov":
+		return AllIndexProv
+	case "rl":
+		return AllIndexRl
+	case "nn":
+		return AllIndexNn
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func AllValidKey(key string) bool {
+	switch key {
+	case "id", "b", "s", "i", "i8", "i16", "i32", "i64", "u", "u8", "u16", "u32", "u64", "f32", "f64", "r", "by", "bytes", "fixed", "uid", "puid", "raw", "mapany", "maps", "conf", "confs", "anyv", "t", "dur", "date", "pd", "pts", "piv", "lb", "ls", "li", "li8", "li16", "li32", "lu16", "lu32", "lu64", "lf32", "lt", "lu", "ls2", "li2", "lbb", "lm", "lst", "lrl", "ip", "pfx", "nip", "nnet", "num", "dec", "rng", "mrng", "pt", "bits", "ps", "pi", "pb", "pf", "pt2", "pip", "ns", "ni", "nb", "nf", "nt", "ptx", "pi8", "pbo", "st", "prov", "rl", "nn":
+		return true
+	default:
+		return false
+	}
+}
+
+// Tuple create an array from struct
+func (a *All) Tuple() (r []any) {
+	return []any{a.ID, a.B, a.S, a.I, a.I8, a.I16, a.I32, a.I64, a.U, a.U8, a.U16, a.U32, a.U64, a.F32, a.F64, a.R, a.By, a.Bytes, a.Fixed, a.UID, a.Puid, a.Raw, a.Mapany, a.Maps, a.Conf, a.Confs, a.Anyv, a.T, a.Dur, a.Date, a.Pd, a.Pts, a.Piv, a.Lb, a.Ls, a.Li, a.Li8, a.Li16, a.Li32, a.Lu16, a.Lu32, a.Lu64, a.Lf32, a.Lt, a.Lu, a.Ls2, a.Li2, a.Lbb, a.Lm, a.Lst, a.Lrl, a.IP, a.Pfx, a.Nip, a.Nnet, a.Num, a.Dec, a.Rng, a.Mrng, a.Pt, a.Bits, a.Ps, a.Pi, a.Pb, a.Pf, a.Pt2, a.Pip, a.Ns, a.Ni, a.Nb, a.Nf, a.Nt, a.Ptx, a.Pi8, a.Pbo, a.St, a.Prov, a.Rl, a.Nn}
+}
+
+// get struct value with function
+func (a *All) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "b":
+		return a.B //bool
+	case "s":
+		return a.S //string
+	case "i":
+		return a.I //int
+	case "i8":
+		return a.I8 //int8
+	case "i16":
+		return a.I16 //int16
+	case "i32":
+		return a.I32 //int32
+	case "i64":
+		return a.I64 //int64
+	case "u":
+		return a.U //uint
+	case "u8":
+		return a.U8 //uint8
+	case "u16":
+		return a.U16 //uint16
+	case "u32":
+		return a.U32 //uint32
+	case "u64":
+		return a.U64 //uint64
+	case "f32":
+		return a.F32 //float32
+	case "f64":
+		return a.F64 //float64
+	case "r":
+		return a.R //rune
+	case "by":
+		return a.By //byte
+	case "bytes":
+		return a.Bytes //[]byte
+	case "fixed":
+		return a.Fixed //[16]byte
+	case "uid":
+		return a.UID //uuid.UUID
+	case "puid":
+		return a.Puid //pgtype.UUID
+	case "raw":
+		return a.Raw //json.RawMessage
+	case "mapany":
+		return a.Mapany //map[string]any
+	case "maps":
+		return a.Maps //map[string]string
+	case "conf":
+		return a.Conf //Config
+	case "confs":
+		return a.Confs //[]Config
+	case "anyv":
+		return a.Anyv //any
+	case "t":
+		return a.T //time.Time
+	case "dur":
+		return a.Dur //time.Duration
+	case "date":
+		return a.Date //time.Time
+	case "pd":
+		return a.Pd //pgtype.Date
+	case "pts":
+		return a.Pts //pgtype.Timestamp
+	case "piv":
+		return a.Piv //pgtype.Interval
+	case "lb":
+		return a.Lb //[]bool
+	case "ls":
+		return a.Ls //[]string
+	case "li":
+		return a.Li //[]int
+	case "li8":
+		return a.Li8 //[]int8
+	case "li16":
+		return a.Li16 //[]int16
+	case "li32":
+		return a.Li32 //[]int32
+	case "lu16":
+		return a.Lu16 //[]uint16
+	case "lu32":
+		return a.Lu32 //[]uint32
+	case "lu64":
+		return a.Lu64 //[]uint64
+	case "lf32":
+		return a.Lf32 //[]float32
+	case "lt":
+		return a.Lt //[]time.Time
+	case "lu":
+		return a.Lu //[]uuid.UUID
+	case "ls2":
+		return a.Ls2 //[][]string
+	case "li2":
+		return a.Li2 //[][]int64
+	case "lbb":
+		return a.Lbb //[][]byte
+	case "lm":
+		return a.Lm //[]map[string]any
+	case "lst":
+		return a.Lst //[]Status
+	case "lrl":
+		return a.Lrl //[]role.Role
+	case "ip":
+		return a.IP //netip.Addr
+	case "pfx":
+		return a.Pfx //netip.Prefix
+	case "nip":
+		return a.Nip //net.IP
+	case "nnet":
+		return a.Nnet //net.IPNet
+	case "num":
+		return a.Num //pgtype.Numeric
+	case "dec":
+		return a.Dec //decimal.Decimal
+	case "rng":
+		return a.Rng //pgtype.Range[pgtype.Int4]
+	case "mrng":
+		return a.Mrng //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
+	case "pt":
+		return a.Pt //pgtype.Point
+	case "bits":
+		return a.Bits //pgtype.Bits
+	case "ps":
+		return a.Ps //*string
+	case "pi":
+		return a.Pi //*int
+	case "pb":
+		return a.Pb //*bool
+	case "pf":
+		return a.Pf //*float64
+	case "pt2":
+		return a.Pt2 //*time.Time
+	case "pip":
+		return a.Pip //*netip.Addr
+	case "ns":
+		return a.Ns //sql.NullString
+	case "ni":
+		return a.Ni //sql.NullInt64
+	case "nb":
+		return a.Nb //sql.NullBool
+	case "nf":
+		return a.Nf //sql.NullFloat64
+	case "nt":
+		return a.Nt //sql.NullTime
+	case "ptx":
+		return a.Ptx //pgtype.Text
+	case "pi8":
+		return a.Pi8 //pgtype.Int8
+	case "pbo":
+		return a.Pbo //pgtype.Bool
+	case "st":
+		return a.St //Status
+	case "prov":
+		return a.Prov //Provider
+	case "rl":
+		return a.Rl //role.Role
+	case "nn":
+		return a.Nn //string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *All) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "b":
+		return fmt.Sprint(a.B) //bool
+	case "s":
+		return fmt.Sprint(a.S) //string
+	case "i":
+		return fmt.Sprint(a.I) //int
+	case "i8":
+		return fmt.Sprint(a.I8) //int8
+	case "i16":
+		return fmt.Sprint(a.I16) //int16
+	case "i32":
+		return fmt.Sprint(a.I32) //int32
+	case "i64":
+		return fmt.Sprint(a.I64) //int64
+	case "u":
+		return fmt.Sprint(a.U) //uint
+	case "u8":
+		return fmt.Sprint(a.U8) //uint8
+	case "u16":
+		return fmt.Sprint(a.U16) //uint16
+	case "u32":
+		return fmt.Sprint(a.U32) //uint32
+	case "u64":
+		return fmt.Sprint(a.U64) //uint64
+	case "f32":
+		return fmt.Sprint(a.F32) //float32
+	case "f64":
+		return fmt.Sprint(a.F64) //float64
+	case "r":
+		return fmt.Sprint(a.R) //rune
+	case "by":
+		return fmt.Sprint(a.By) //byte
+	case "bytes":
+		return fmt.Sprint(a.Bytes) //[]byte
+	case "fixed":
+		return fmt.Sprint(a.Fixed) //[16]byte
+	case "uid":
+		return fmt.Sprint(a.UID) //uuid.UUID
+	case "puid":
+		return fmt.Sprint(a.Puid) //pgtype.UUID
+	case "raw":
+		return fmt.Sprint(a.Raw) //json.RawMessage
+	case "mapany":
+		return fmt.Sprint(a.Mapany) //map[string]any
+	case "maps":
+		return fmt.Sprint(a.Maps) //map[string]string
+	case "conf":
+		return fmt.Sprint(a.Conf) //Config
+	case "confs":
+		return fmt.Sprint(a.Confs) //[]Config
+	case "anyv":
+		return fmt.Sprint(a.Anyv) //any
+	case "t":
+		return fmt.Sprint(a.T) //time.Time
+	case "dur":
+		return fmt.Sprint(a.Dur) //time.Duration
+	case "date":
+		return fmt.Sprint(a.Date) //time.Time
+	case "pd":
+		return fmt.Sprint(a.Pd) //pgtype.Date
+	case "pts":
+		return fmt.Sprint(a.Pts) //pgtype.Timestamp
+	case "piv":
+		return fmt.Sprint(a.Piv) //pgtype.Interval
+	case "lb":
+		return fmt.Sprint(a.Lb) //[]bool
+	case "ls":
+		return fmt.Sprint(a.Ls) //[]string
+	case "li":
+		return fmt.Sprint(a.Li) //[]int
+	case "li8":
+		return fmt.Sprint(a.Li8) //[]int8
+	case "li16":
+		return fmt.Sprint(a.Li16) //[]int16
+	case "li32":
+		return fmt.Sprint(a.Li32) //[]int32
+	case "lu16":
+		return fmt.Sprint(a.Lu16) //[]uint16
+	case "lu32":
+		return fmt.Sprint(a.Lu32) //[]uint32
+	case "lu64":
+		return fmt.Sprint(a.Lu64) //[]uint64
+	case "lf32":
+		return fmt.Sprint(a.Lf32) //[]float32
+	case "lt":
+		return fmt.Sprint(a.Lt) //[]time.Time
+	case "lu":
+		return fmt.Sprint(a.Lu) //[]uuid.UUID
+	case "ls2":
+		return fmt.Sprint(a.Ls2) //[][]string
+	case "li2":
+		return fmt.Sprint(a.Li2) //[][]int64
+	case "lbb":
+		return fmt.Sprint(a.Lbb) //[][]byte
+	case "lm":
+		return fmt.Sprint(a.Lm) //[]map[string]any
+	case "lst":
+		return fmt.Sprint(a.Lst) //[]Status
+	case "lrl":
+		return fmt.Sprint(a.Lrl) //[]role.Role
+	case "ip":
+		return fmt.Sprint(a.IP) //netip.Addr
+	case "pfx":
+		return fmt.Sprint(a.Pfx) //netip.Prefix
+	case "nip":
+		return fmt.Sprint(a.Nip) //net.IP
+	case "nnet":
+		return fmt.Sprint(a.Nnet) //net.IPNet
+	case "num":
+		return fmt.Sprint(a.Num) //pgtype.Numeric
+	case "dec":
+		return fmt.Sprint(a.Dec) //decimal.Decimal
+	case "rng":
+		return fmt.Sprint(a.Rng) //pgtype.Range[pgtype.Int4]
+	case "mrng":
+		return fmt.Sprint(a.Mrng) //pgtype.Multirange[pgtype.Range[pgtype.Int8]]
+	case "pt":
+		return fmt.Sprint(a.Pt) //pgtype.Point
+	case "bits":
+		return fmt.Sprint(a.Bits) //pgtype.Bits
+	case "ps":
+		return fmt.Sprint(a.Ps) //*string
+	case "pi":
+		return fmt.Sprint(a.Pi) //*int
+	case "pb":
+		return fmt.Sprint(a.Pb) //*bool
+	case "pf":
+		return fmt.Sprint(a.Pf) //*float64
+	case "pt2":
+		return fmt.Sprint(a.Pt2) //*time.Time
+	case "pip":
+		return fmt.Sprint(a.Pip) //*netip.Addr
+	case "ns":
+		return fmt.Sprint(a.Ns) //sql.NullString
+	case "ni":
+		return fmt.Sprint(a.Ni) //sql.NullInt64
+	case "nb":
+		return fmt.Sprint(a.Nb) //sql.NullBool
+	case "nf":
+		return fmt.Sprint(a.Nf) //sql.NullFloat64
+	case "nt":
+		return fmt.Sprint(a.Nt) //sql.NullTime
+	case "ptx":
+		return fmt.Sprint(a.Ptx) //pgtype.Text
+	case "pi8":
+		return fmt.Sprint(a.Pi8) //pgtype.Int8
+	case "pbo":
+		return fmt.Sprint(a.Pbo) //pgtype.Bool
+	case "st":
+		return fmt.Sprint(a.St) //Status
+	case "prov":
+		return fmt.Sprint(a.Prov) //Provider
+	case "rl":
+		return fmt.Sprint(a.Rl) //role.Role
+	case "nn":
+		return fmt.Sprint(a.Nn) //string
+	}
+	return
+}
+
+// struct to map
+func (a *All) Map() map[string]any {
+	return map[string]any{
+		"id":     a.ID,
+		"b":      a.B,
+		"s":      a.S,
+		"i":      a.I,
+		"i8":     a.I8,
+		"i16":    a.I16,
+		"i32":    a.I32,
+		"i64":    a.I64,
+		"u":      a.U,
+		"u8":     a.U8,
+		"u16":    a.U16,
+		"u32":    a.U32,
+		"u64":    a.U64,
+		"f32":    a.F32,
+		"f64":    a.F64,
+		"r":      a.R,
+		"by":     a.By,
+		"bytes":  a.Bytes,
+		"fixed":  a.Fixed,
+		"uid":    a.UID,
+		"puid":   a.Puid,
+		"raw":    a.Raw,
+		"mapany": a.Mapany,
+		"maps":   a.Maps,
+		"conf":   a.Conf,
+		"confs":  a.Confs,
+		"anyv":   a.Anyv,
+		"t":      a.T,
+		"dur":    a.Dur,
+		"date":   a.Date,
+		"pd":     a.Pd,
+		"pts":    a.Pts,
+		"piv":    a.Piv,
+		"lb":     a.Lb,
+		"ls":     a.Ls,
+		"li":     a.Li,
+		"li8":    a.Li8,
+		"li16":   a.Li16,
+		"li32":   a.Li32,
+		"lu16":   a.Lu16,
+		"lu32":   a.Lu32,
+		"lu64":   a.Lu64,
+		"lf32":   a.Lf32,
+		"lt":     a.Lt,
+		"lu":     a.Lu,
+		"ls2":    a.Ls2,
+		"li2":    a.Li2,
+		"lbb":    a.Lbb,
+		"lm":     a.Lm,
+		"lst":    a.Lst,
+		"lrl":    a.Lrl,
+		"ip":     a.IP,
+		"pfx":    a.Pfx,
+		"nip":    a.Nip,
+		"nnet":   a.Nnet,
+		"num":    a.Num,
+		"dec":    a.Dec,
+		"rng":    a.Rng,
+		"mrng":   a.Mrng,
+		"pt":     a.Pt,
+		"bits":   a.Bits,
+		"ps":     a.Ps,
+		"pi":     a.Pi,
+		"pb":     a.Pb,
+		"pf":     a.Pf,
+		"pt2":    a.Pt2,
+		"pip":    a.Pip,
+		"ns":     a.Ns,
+		"ni":     a.Ni,
+		"nb":     a.Nb,
+		"nf":     a.Nf,
+		"nt":     a.Nt,
+		"ptx":    a.Ptx,
+		"pi8":    a.Pi8,
+		"pbo":    a.Pbo,
+		"st":     a.St,
+		"prov":   a.Prov,
+		"rl":     a.Rl,
+		"nn":     a.Nn,
+	}
+}
+
+// struct to map
+func (a *All) Iterate(f func(k AllIndexTyped, v any)) {
+	for _, x := range AllIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *All) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseAll(v []byte) (a All, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

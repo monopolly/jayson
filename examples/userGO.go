@@ -87,251 +87,11 @@ import (
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
 */
 
-// field type
-type UserIndexTyped int
-
-// int index
-const (
-	UserIndexID = UserIndexTyped(iota)
-	UserIndexName
-	UserIndexPassword
-)
-
-// string index
-const (
-	UserFieldID       = "id"       // int sql{inc} @public #readonly
-	UserFieldName     = "name"     // string @public
-	UserFieldPassword = "password" // string
-)
-
-// index func
-func UserIndexes() []UserIndexTyped {
-	return []UserIndexTyped{UserIndexID, UserIndexName, UserIndexPassword}
-
-}
-
 // 40 bytes (go padding)
-//
-//easyjson:json
 type User struct {
 	ID       int    `json:"id,omitempty"`       // sql{inc} @public #readonly
 	Name     string `json:"name,omitempty"`     // @public
 	Password string `json:"password,omitempty"` //
-}
-
-type UserPublic struct {
-	ID   int    `json:"id,omitempty"`   // sql{inc} @public #readonly
-	Name string `json:"name,omitempty"` // @public
-}
-
-func (a *User) UserPublic() (res *UserPublic) {
-	return &UserPublic{
-		ID:   a.ID,
-		Name: a.Name,
-	}
-}
-
-func (a *UserPublic) User() (res *User) {
-	return &User{
-		ID:   a.ID,
-		Name: a.Name,
-	}
-}
-
-func (a *UserPublic) Pack() (res []byte) {
-	res, _ = gojson.Marshal(a)
-	return
-}
-
-// Tuple create an array from struct
-func (a *User) Tuple() (r []any) {
-	return []any{a.ID, a.Name, a.Password}
-}
-
-// Tuple create an array from struct for clickhouse
-func (a *User) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Name, a.Password}
-}
-
-// get struct value with function
-func (a *User) Get(k string) (v any) {
-	switch k {
-	case "id":
-		return a.ID //int
-	case "name":
-		return a.Name //string
-	case "password":
-		return a.Password //string
-	}
-	return
-}
-
-// get any struct value as string
-func (a *User) String(k string) (v string) {
-	switch k {
-	case "id":
-		return fmt.Sprint(a.ID) //int
-	case "name":
-		return fmt.Sprint(a.Name) //string
-	case "password":
-		return fmt.Sprint(a.Password) //string
-	}
-	return
-}
-
-func UserPublicList() []UserIndexTyped {
-	return []UserIndexTyped{UserIndexID, UserIndexName}
-}
-
-func UserReadonlyList() []UserIndexTyped {
-	return []UserIndexTyped{UserIndexID}
-}
-
-func (a UserIndexTyped) Public() bool {
-	switch a {
-	case UserIndexID, UserIndexName:
-		return true
-	default:
-		return false
-	}
-}
-func (a UserIndexTyped) Readonly() bool {
-	switch a {
-	case UserIndexID:
-		return true
-	default:
-		return false
-	}
-}
-
-// key index string
-func (a UserIndexTyped) String() string {
-	switch a {
-	case UserIndexID:
-		return "id"
-	case UserIndexName:
-		return "name"
-	case UserIndexPassword:
-		return "password"
-	default:
-		return ""
-	}
-}
-
-// key index string
-func (a UserIndexTyped) SQLName() string {
-	switch a {
-	case UserIndexID:
-		return "id"
-	case UserIndexName:
-		return "name"
-	case UserIndexPassword:
-		return "password"
-	default:
-		return ""
-	}
-}
-
-// key index clickhouse string
-func (a UserIndexTyped) ClickhouseName() string {
-	switch a {
-	case UserIndexID:
-		return "id"
-	case UserIndexName:
-		return "name"
-	case UserIndexPassword:
-		return "password"
-	default:
-		return ""
-	}
-}
-
-// key index type
-func (a UserIndexTyped) Type() string {
-	switch a {
-	case UserIndexID:
-		return "int"
-	case UserIndexName:
-		return "string"
-	case UserIndexPassword:
-		return "string"
-	default:
-		return ""
-	}
-}
-
-// custom title
-func (a UserIndexTyped) Title() string {
-	switch a {
-	case UserIndexID:
-		return "ID"
-	case UserIndexName:
-		return "Name"
-	case UserIndexPassword:
-		return "Password"
-	default:
-		return ""
-	}
-}
-
-// custom desc
-func (a UserIndexTyped) Desc() string {
-	switch a {
-	default:
-		return ""
-	}
-}
-
-// struct key to index
-func UserKeyIndex(key string) UserIndexTyped {
-	switch key {
-	case "id":
-		return UserIndexID
-	case "name":
-		return UserIndexName
-	case "password":
-		return UserIndexPassword
-	default:
-		return 0
-	}
-}
-
-// valid struct key check
-func UserValidKey(key string) bool {
-	switch key {
-	case "id", "name", "password":
-		return true
-	default:
-		return false
-	}
-}
-
-// struct to map
-func (a *User) Map() map[string]any {
-	return map[string]any{
-		"id":       a.ID,
-		"name":     a.Name,
-		"password": a.Password,
-	}
-}
-
-// struct to map
-func (a *User) Iterate(f func(k UserIndexTyped, v any)) {
-	for _, x := range UserIndexes() {
-		f(x, a.Get(x.String()))
-	}
-}
-
-// fast json marshal
-func (a *User) Pack() []byte {
-	b, _ := gojson.Marshal(a)
-	return b
-}
-
-// fast json unmarshal
-func ParseUser(v []byte) (a User, err error) {
-	err = gojson.Unmarshal(v, &a)
-	return
 }
 
 // userSQLDB runs queries: pool or transaction
@@ -356,13 +116,14 @@ type UserSQL struct {
 	db   userSQLDB // pool, or transaction after TX
 }
 
-// NewUserSQL creates queries on pool, table and indexes if not exist
-func NewUserSQL(pool *pgxpool.Pool) (*UserSQL, error) {
+// NewUserSQL creates queries on pool, table and indexes if not exist.
+// Errors of table are not returned: call CreateTable and CreateIndexes to see them
+func NewUserSQL(pool *pgxpool.Pool) *UserSQL {
 	a := &UserSQL{pool: pool, db: pool}
-	if err := a.CreateTable(); err != nil {
-		return nil, err
+	if err := a.CreateTable(); err == nil {
+		_ = a.CreateIndexes()
 	}
-	return a, a.CreateIndexes()
+	return a
 }
 
 // Pool returns pool
@@ -1039,4 +800,237 @@ func (a *UserSQL) ResetSequence(add ...int64) error {
 func (a *UserSQL) SetSequence(v int64) error {
 	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('user', 'id'), $1, false)", v)
 	return err
+}
+
+// field type
+type UserIndexTyped int
+
+// int index
+const (
+	UserIndexID = UserIndexTyped(iota)
+	UserIndexName
+	UserIndexPassword
+)
+
+// string index
+const (
+	UserFieldID       = "id"       // int sql{inc} @public #readonly
+	UserFieldName     = "name"     // string @public
+	UserFieldPassword = "password" // string
+)
+
+// index func
+func UserIndexes() []UserIndexTyped {
+	return []UserIndexTyped{UserIndexID, UserIndexName, UserIndexPassword}
+
+}
+
+func UserPublicList() []UserIndexTyped {
+	return []UserIndexTyped{UserIndexID, UserIndexName}
+}
+
+func UserReadonlyList() []UserIndexTyped {
+	return []UserIndexTyped{UserIndexID}
+}
+
+func (a UserIndexTyped) Public() bool {
+	switch a {
+	case UserIndexID, UserIndexName:
+		return true
+	default:
+		return false
+	}
+}
+func (a UserIndexTyped) Readonly() bool {
+	switch a {
+	case UserIndexID:
+		return true
+	default:
+		return false
+	}
+}
+
+// key index string
+func (a UserIndexTyped) String() string {
+	switch a {
+	case UserIndexID:
+		return "id"
+	case UserIndexName:
+		return "name"
+	case UserIndexPassword:
+		return "password"
+	default:
+		return ""
+	}
+}
+
+// key index string
+func (a UserIndexTyped) SQLName() string {
+	switch a {
+	case UserIndexID:
+		return "id"
+	case UserIndexName:
+		return "name"
+	case UserIndexPassword:
+		return "password"
+	default:
+		return ""
+	}
+}
+
+// key index clickhouse string
+func (a UserIndexTyped) ClickhouseName() string {
+	switch a {
+	case UserIndexID:
+		return "id"
+	case UserIndexName:
+		return "name"
+	case UserIndexPassword:
+		return "password"
+	default:
+		return ""
+	}
+}
+
+// key index type
+func (a UserIndexTyped) Type() string {
+	switch a {
+	case UserIndexID:
+		return "int"
+	case UserIndexName:
+		return "string"
+	case UserIndexPassword:
+		return "string"
+	default:
+		return ""
+	}
+}
+
+// custom title
+func (a UserIndexTyped) Title() string {
+	switch a {
+	case UserIndexID:
+		return "ID"
+	case UserIndexName:
+		return "Name"
+	case UserIndexPassword:
+		return "Password"
+	default:
+		return ""
+	}
+}
+
+// custom desc
+func (a UserIndexTyped) Desc() string {
+	switch a {
+	default:
+		return ""
+	}
+}
+
+// struct key to index
+func UserKeyIndex(key string) UserIndexTyped {
+	switch key {
+	case "id":
+		return UserIndexID
+	case "name":
+		return UserIndexName
+	case "password":
+		return UserIndexPassword
+	default:
+		return 0
+	}
+}
+
+// valid struct key check
+func UserValidKey(key string) bool {
+	switch key {
+	case "id", "name", "password":
+		return true
+	default:
+		return false
+	}
+}
+
+type UserPublic struct {
+	ID   int    `json:"id,omitempty"`   // sql{inc} @public #readonly
+	Name string `json:"name,omitempty"` // @public
+}
+
+func (a *User) UserPublic() (res *UserPublic) {
+	return &UserPublic{
+		ID:   a.ID,
+		Name: a.Name,
+	}
+}
+
+func (a *UserPublic) User() (res *User) {
+	return &User{
+		ID:   a.ID,
+		Name: a.Name,
+	}
+}
+
+func (a *UserPublic) Pack() (res []byte) {
+	res, _ = gojson.Marshal(a)
+	return
+}
+
+// Tuple create an array from struct
+func (a *User) Tuple() (r []any) {
+	return []any{a.ID, a.Name, a.Password}
+}
+
+// get struct value with function
+func (a *User) Get(k string) (v any) {
+	switch k {
+	case "id":
+		return a.ID //int
+	case "name":
+		return a.Name //string
+	case "password":
+		return a.Password //string
+	}
+	return
+}
+
+// get any struct value as string
+func (a *User) String(k string) (v string) {
+	switch k {
+	case "id":
+		return fmt.Sprint(a.ID) //int
+	case "name":
+		return fmt.Sprint(a.Name) //string
+	case "password":
+		return fmt.Sprint(a.Password) //string
+	}
+	return
+}
+
+// struct to map
+func (a *User) Map() map[string]any {
+	return map[string]any{
+		"id":       a.ID,
+		"name":     a.Name,
+		"password": a.Password,
+	}
+}
+
+// struct to map
+func (a *User) Iterate(f func(k UserIndexTyped, v any)) {
+	for _, x := range UserIndexes() {
+		f(x, a.Get(x.String()))
+	}
+}
+
+// fast json marshal
+func (a *User) Pack() []byte {
+	b, _ := gojson.Marshal(a)
+	return b
+}
+
+// fast json unmarshal
+func ParseUser(v []byte) (a User, err error) {
+	err = gojson.Unmarshal(v, &a)
+	return
 }

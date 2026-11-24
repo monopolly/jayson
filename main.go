@@ -42,24 +42,23 @@ func main() {
 // render generates all files of model
 func render() {
 
-	// package
-	goFile.Write(header())
-
-	// import
-	goFile.Write(importers())
-
-	// help
-	goFile.Write(helps.Render())
-
-	//go
-	goFile.Write(golang.Generate())
+	// indexes go first: other parts use their names
+	fieldsCode := golang.Fields()
+	headCode := golang.Head()
+	methodsCode := golang.Methods()
 
 	// option ee: errors is github.com/monopolly/errors, standard package is stderrors
 	if settings.SQL.EE {
-		code := stdErrorsAlias(goFile.Bytes())
-		goFile.Reset()
-		goFile.Write(code)
+		fieldsCode, headCode, methodsCode = stdErrorsAlias(fieldsCode), stdErrorsAlias(headCode), stdErrorsAlias(methodsCode)
 	}
+
+	// package, imports, help
+	goFile.Write(header())
+	goFile.Write(importers())
+	goFile.Write(helps.Render())
+
+	// constructor and struct
+	goFile.Write(headCode)
 
 	// sql
 	if settings.SQL.Table != "" {
@@ -68,6 +67,12 @@ func render() {
 		saveFile(settings.File.sql, sqlFile())
 		removeGenerated(settings.File.golangSQL) // sql was a separate file
 	}
+
+	// indexes and names of fields
+	goFile.Write(fieldsCode)
+
+	// methods of struct
+	goFile.Write(methodsCode)
 
 	// clickhouse
 	if settings.Clickhouse.Table != "" {
@@ -83,8 +88,6 @@ func render() {
 
 	// gosql
 	saveGo(settings.File.golang, goFile.Bytes())
-	// goFile.Write(easyjsonCompile())
-	// saveFile(settings.File.golang, addGoImports(goFile.Bytes(), easyjsonImports()))
 
 	if settings.Options.Test {
 		saveFile(settings.File.golangTest, goTestFile())
