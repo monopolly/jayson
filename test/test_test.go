@@ -55,7 +55,8 @@ func TestAccount_Marshal(ggggg *testing.T) {
 	r.Offset = 50
 	r.Sort = "title"
 
-	sql, fields, v := r.Render()
+	sql, fields, v, err := r.Render()
+	fmt.Println(err)
 
 	fmt.Println(sql)
 	fmt.Println(fields)

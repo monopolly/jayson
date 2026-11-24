@@ -7,31 +7,36 @@ import (
 	"github.com/monopolly/jsonsgenerator/tools"
 )
 
-var sqlQuoted = regexp.MustCompile(`"[^"]*"`)
+// key="value"
+var sqlTagValue = regexp.MustCompile(`\w+="[^"]*"`)
 
 // sql options
 func (a *Field) parseSQLOptions(v string) {
 
-	a.SQL.NoInsert = strings.Contains(v, "noinsert")
-	a.SQL.Skip = strings.Contains(v, "skip")
-	a.SQL.Primary = strings.Contains(sqlQuoted.ReplaceAllString(v, ""), "primary") // ignore add="primary key"
-	a.SQL.Inc = strings.Contains(v, "inc")
-	a.SQL.Get = strings.Contains(v, "get")
+	// flags and values: inc index unique="group" type="jsonb"
+	flags := map[string]bool{}
+	for _, x := range strings.FieldsFunc(sqlTagValue.ReplaceAllString(v, " "), func(r rune) bool { return r == ' ' || r == ',' || r == '\t' }) {
+		flags[x] = true
+	}
+
+	a.SQL.NoInsert = flags["noinsert"]
+	a.SQL.Skip = flags["skip"]
+	a.SQL.Primary = flags["primary"] || flags["primarykey"]
+	a.SQL.Inc = flags["inc"]
+	a.SQL.Get = flags["get"]
 	if a.SQL.Inc {
 		a.SQL.NoInsert = true
 	}
-	a.SQL.NotNull = strings.Contains(v, "notnull")
-	a.SQL.Default.Simple = strings.Contains(v, "defaults")
-	a.SQL.Default.Unixtime = strings.Contains(v, "unix")
-	a.SQL.Index.Simple = strings.Contains(v, "index")
-	if strings.Contains(v, "altertable") {
+	a.SQL.NotNull = flags["notnull"]
+	a.SQL.Default.Simple = flags["defaults"]
+	a.SQL.Default.Unixtime = flags["unix"]
+	a.SQL.Index.Simple = flags["index"]
+	if flags["altertable"] {
 		a.SQL.AlterTable = "1"
 	}
-	// a.SQL.Index.Jsonb = strings.Contains(v, "gin")
 	a.SQL.Replace = tools.Between(v, `replace="`, `"`)
 	a.SQL.Append = tools.Between(v, `add="`, `"`)
 	a.SQL.Unique = tools.Betweens(v, `unique="`, `"`)
-	// a.SQL.PrimaryKeys = tools.Betweens(v, `primary="`, `"`)
 	a.SQL.Rename = tools.Between(v, `renames="`, `"`)
 	a.SQL.Keys = tools.Between(v, `keys="`, `"`)
 	a.SQL.Index.Group = tools.Betweens(v, `idx="`, `"`)

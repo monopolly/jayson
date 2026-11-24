@@ -79,8 +79,8 @@ func render() {
 	// sql
 	if settings.SQL.Table != "" {
 		A("sql table", settings.SQL.Table)
-		goFile.Write(sql.Generate())
-		file.Save(settings.File.sql, sql.File())
+		saveGo(settings.File.golangSQL, sqlGenerate())
+		file.Save(settings.File.sql, sqlFile())
 	}
 
 	// clickhouse
@@ -96,8 +96,7 @@ func render() {
 	}
 
 	// gosql
-	file.Save(settings.File.golang, goFile.Bytes())
-	goFmt()
+	saveGo(settings.File.golang, goFile.Bytes())
 	// goFile.Write(easyjsonCompile())
 	// file.Save(settings.File.golang, addGoImports(goFile.Bytes(), easyjsonImports()))
 
@@ -160,6 +159,7 @@ func parsePath() (in string) {
 	//in = "test.go"
 	settings.File.path = path.Dir(in)
 	settings.File.golang = strings.ReplaceAll(in, ".go", "GO.go")
+	settings.File.golangSQL = strings.ReplaceAll(in, ".go", "SQL.go")
 	settings.File.golangTest = strings.ReplaceAll(settings.File.golang, ".go", "_test.go")
 	settings.File.sql = strings.ReplaceAll(in, ".go", ".sql")
 	settings.File.clickhouse = strings.ReplaceAll(in, ".go", ".cql")
@@ -325,8 +325,6 @@ func importers() []byte {
 		imports["context"] = true
 		imports["errors"] = true
 		imports["strings"] = true
-		imports["github.com/jackc/pgx/v5/pgxpool"] = true
-		imports["github.com/jackc/pgx/v5"] = true
 	}
 	if settings.Clickhouse.Table != "" {
 		imports["context"] = true

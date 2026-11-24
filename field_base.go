@@ -194,7 +194,7 @@ func sourceLocalTypes() map[string]localType {
 	files, _ := filepath.Glob(filepath.Join(source.Dir, "*.go"))
 	for _, name := range files {
 		switch {
-		case strings.HasSuffix(name, "GO.go"), strings.HasSuffix(name, "_test.go"), strings.HasSuffix(name, ".pb.go"):
+		case strings.HasSuffix(name, "GO.go"), strings.HasSuffix(name, "SQL.go"), strings.HasSuffix(name, "_test.go"), strings.HasSuffix(name, ".pb.go"):
 			continue
 		}
 		f, err := parser.ParseFile(token.NewFileSet(), name, nil, parser.SkipObjectResolution)
