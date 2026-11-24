@@ -63,9 +63,9 @@ type sqlColumn struct {
 	MapKey   string // map[string]int > string
 	MapValue string // map[string]int > int
 	JSONElem string // []Item in jsonb > Item
-	Select string // select expression: coalesce(title, '')
-	Value  string // go value for query args: a.Title
-	Dest   string // go scan target: &a.Title
+	Select   string // select expression: coalesce(title, '')
+	Value    string // go value for query args: a.Title
+	Dest     string // go scan target: &a.Title
 }
 
 type sqlSearch struct {
