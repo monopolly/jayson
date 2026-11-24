@@ -31,8 +31,8 @@ func newSQLFuncs(m *sqlModel) (res []sqlFunc) {
 	used := map[string]bool{}
 	for _, name := range []string{"Pool", "Conn", "Begin", "TX", "TableName", "Fields", "Get", "Exists", "GetBy", "GetWhere", "Has",
 		"All", "List", "Select", "Count", "CountWhere", "Insert", "InsertNoConflict", "InsertFull", "Upsert", "InsertMany", "InsertBatch",
-		"Update", "Updates", "Save", "Increment", "Delete", "UpdateWhere", "UpdatesWhere", "DeleteWhere", "Search",
-		"CreateTable", "CreateIndexes", "Init", "ResetSequence", "SetSequence"} {
+		"Update", "Updates", "Save", "Inc", "Delete", "UpdateWhere", "UpdatesWhere", "DeleteWhere", "Search",
+		"CreateTable", "CreateIndexes", "ResetSequence", "SetSequence"} {
 		used[name] = true
 	}
 
@@ -155,8 +155,8 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 	case result == "int64" && (word == "update" || word == "delete" || word == "insert") && !strings.Contains(strings.ToLower(query), " returning "):
 		res.Body = fmt.Sprintf("tag, err := a.db.Exec(%s)\nreturn tag.RowsAffected(), err", withArgs(ctx+", "+strconv.Quote(query)))
 
-	// []int: column of values
-	case strings.HasPrefix(result, "[]") && result != "[]byte" && result != "[]uint8":
+	// []int: column of values, or one array value: select music from news where id = $1
+	case strings.HasPrefix(result, "[]") && result != "[]byte" && result != "[]uint8" && !strings.Contains(flags, "!array") && !sqlSelectsColumn(m, query, result):
 		res.Body = fmt.Sprintf("rows, err := a.db.Query(%s)\nif err != nil {\nreturn\n}\nreturn pgx.CollectRows(rows, pgx.RowTo[%s])",
 			withArgs(ctx+", "+strconv.Quote(query)), strings.TrimPrefix(result, "[]"))
 
@@ -166,4 +166,21 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 	}
 
 	return res, nil
+}
+
+// select <column> from ...
+var sqlSelectOne = regexp.MustCompile(`(?i)^select\s+(\w+)\s+from\b`)
+
+// query selects one column of model with this go type: array column is one value, not rows
+func sqlSelectsColumn(m *sqlModel, query, goType string) bool {
+	p := sqlSelectOne.FindStringSubmatch(query)
+	if p == nil {
+		return false
+	}
+	for _, c := range m.Columns {
+		if c.Name == p[1] && c.GoType == goType {
+			return true
+		}
+	}
+	return false
 }

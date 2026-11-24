@@ -8,9 +8,8 @@ The main idea is simple: describe the model once, then let the generator create 
 
 Depending on the options in the comment above the struct, the generator can create:
 
-- `NameGO.go` - the main Go file with the generated struct, field indexes, JSON pack/parse, ClickHouse class, gotiny/protobuf code.
+- `NameGO.go` - the main Go file with the generated struct, field indexes, JSON pack/parse, PostgreSQL and ClickHouse classes, gotiny/protobuf code.
 - `NameGO_test.go` - tests and benchmarks for a specific generated struct.
-- `NameSQL.go` - PostgreSQL queries on pgx.
 - `Name.sql` - PostgreSQL DDL.
 - `Name.cql` - ClickHouse DDL.
 - `Name.proto` - protobuf schema.
@@ -65,7 +64,6 @@ The generated files will be written next to the source file:
 ```text
 newsGO.go
 newsGO_test.go
-newsSQL.go
 news.sql
 news.proto
 ```
@@ -172,8 +170,7 @@ type account struct {
 
 Generated output:
 
-- `accountGO.go` with `Account` and helpers.
-- `accountSQL.go` with `AccountSQL` and `AccountQuery`.
+- `accountGO.go` with `Account`, `AccountSQL`, and `AccountQuery`.
 - `accountGO_test.go` with tests and benchmarks.
 - `account.sql` with table and index definitions.
 
@@ -181,8 +178,7 @@ Usage:
 
 ```go
 pool, _ := pgxpool.New(ctx, dsn)
-db := NewAccountSQL(pool)
-err := db.Init()       // create table and indexes if not exist
+db, err := NewAccountSQL(pool) // creates table and indexes if not exist
 
 item := Account{Email: "hello@example.com", Name: "Sergey", Active: true}
 err = db.Insert(&item) // sets item.ID
@@ -200,16 +196,16 @@ list, err := db.Select(nil, "active and balance > $1 order by balance desc limit
 // update
 err = db.Update(item.ID, AccountIndexName, "Max")
 err = db.Updates(item.ID, map[AccountIndexTyped]any{AccountIndexActive: false, AccountIndexBalance: 0})
-err = db.Increment(item.ID, AccountIndexBalance, 50)
+err = db.Inc(item.ID, AccountIndexBalance, 50)
 acc.Name = "Kate"
 err = db.Save(&acc, AccountIndexName)
 
 // transaction: commit on nil, rollback on error
 err = db.Begin(func(tx pgx.Tx) error {
-	if err := db.TX(tx).Increment(from, AccountIndexBalance, -50); err != nil {
+	if err := db.TX(tx).Inc(from, AccountIndexBalance, -50); err != nil {
 		return err
 	}
-	return db.TX(tx).Increment(to, AccountIndexBalance, 50)
+	return db.TX(tx).Inc(to, AccountIndexBalance, 50)
 })
 
 // query from json: keys are validated, values are sql parameters
@@ -232,9 +228,9 @@ A missing row is `pgx.ErrNoRows`.
 | Transactions | `Begin(f)`, `TX(tx)` |
 | Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
 | Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` (COPY) |
-| Update | `Update`, `Updates`, `Save`, `Increment`, `UpdateWhere`, `UpdatesWhere` |
+| Update | `Update`, `Updates`, `Save`, `Inc`, `UpdateWhere`, `UpdatesWhere` |
 | Delete | `Delete`, `DeleteWhere` |
-| Table | `Init`, `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
+| Table | `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
 
 Methods by id (`Get`, `Update`, `Delete`...) need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
 `Upsert` uses primary keys (or the identity field) as the conflict target.
@@ -279,7 +275,7 @@ type accountSQL interface {
 | --- | --- |
 | `([]Account, error)`, `(Account, error)` | Rows of the model. SQL starts with `where`, `order` or `limit`: columns are added by the generator. |
 | `(T, error)` | One value. |
-| `([]T, error)` | A column of values. |
+| `([]T, error)` | A column of values. One array value when the query selects an array column of the model (`select tags from ...`) or has the `!array` flag. |
 | `(int64, error)` with `update`/`delete`/`insert` | Count of affected rows. |
 | `error` | Exec. |
 
@@ -448,7 +444,7 @@ For ClickHouse, numeric arrays, string arrays, `LowCardinality`, and IPv4 fields
 ## Recommendations
 
 - Keep source models separate from generated files, for example `news.go` and `newsGO.go`.
-- Do not edit `*GO.go`, `*SQL.go`, `.sql`, `.cql`, or `.proto` manually. Change the source struct and rerun the generator instead.
+- Do not edit `*GO.go`, `.sql`, `.cql`, or `.proto` manually. Change the source struct and rerun the generator instead.
 - For multiple models in the same package, use separate source files. Test names and protobuf init helpers are generated from the struct name.
 - Commit generated files if you want reproducible builds without running the generator in CI.
 

@@ -38,9 +38,9 @@ func testDB(t *testing.T) (*AllSQL, context.Context) {
 	if _, err := pool.Exec(ctx, "drop table if exists alltypes"); err != nil {
 		t.Fatal(err)
 	}
-	db := NewAllSQL(pool)
-	if err := db.Init(); err != nil {
-		t.Fatal("init:", err)
+	db, err := NewAllSQL(pool)
+	if err != nil {
+		t.Fatal("new:", err)
 	}
 	return db, ctx
 }
@@ -256,8 +256,8 @@ func TestUpdate(t *testing.T) {
 
 	check(db.Update(id, AllIndexS, "b"))
 	check(db.Updates(id, map[AllIndexTyped]any{AllIndexI: 10, AllIndexB: true}))
-	check(db.Increment(id, AllIndexI, 5))
-	check(db.Increment(id, AllIndexI64, -2)) // null + delta
+	check(db.Inc(id, AllIndexI, 5))
+	check(db.Inc(id, AllIndexI64, -2)) // null + delta
 	if err := db.Update(999, AllIndexS, "b"); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatal("update of missing row:", err)
 	}
@@ -335,17 +335,17 @@ func TestUpdate(t *testing.T) {
 
 func TestTx(t *testing.T) {
 	db, ctx := testDB(t)
-	tags := NewTagSQL(db.Pool())
 	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tags.Init(); err != nil {
+	tags, err := NewTagSQL(db.Pool())
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	// rollback of two models
 	fail := errors.New("fail")
-	err := db.Begin(func(tx pgx.Tx) error {
+	err = db.Begin(func(tx pgx.Tx) error {
 		v := All{NN: "rollback"}
 		if err := db.TX(tx).Insert(&v); err != nil {
 			return err
@@ -451,11 +451,11 @@ func TestParallel(t *testing.T) {
 // own functions from interface tagSQL
 func TestFuncs(t *testing.T) {
 	db, ctx := testDB(t)
-	tags := NewTagSQL(db.Pool())
 	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tags.Init(); err != nil {
+	tags, err := NewTagSQL(db.Pool())
+	if err != nil {
 		t.Fatal(err)
 	}
 	for _, v := range []Tag{{Name: "a", Owner: 1}, {Name: "b", Owner: 1}, {Name: "c", Owner: 2}} {
@@ -492,7 +492,7 @@ func TestFuncs(t *testing.T) {
 	}
 
 	// all or nothing
-	err := tags.Begin(func(tx pgx.Tx) error {
+	err = tags.Begin(func(tx pgx.Tx) error {
 		if err := tags.TX(tx).Drop(3); err != nil {
 			return err
 		}

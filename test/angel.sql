@@ -5,6 +5,8 @@ create table if not exists angel (
 	key         uuid,
 	created     timestamptz,
 	smalls      smallint,
+	name        text,
+	about       text[] default '{}',
 	music       bigint[] default '{}',
 	links       jsonb default '{}'::jsonb,
 	stats       jsonb default '{}'::jsonb,

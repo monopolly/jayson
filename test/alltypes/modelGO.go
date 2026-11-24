@@ -1,16 +1,25 @@
 package alltypes
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	gojson "github.com/goccy/go-json"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/monopolly/jayson/test/role"
 	"github.com/shopspring/decimal"
 )
@@ -1813,4 +1822,1788 @@ func (a *All) Pack() []byte {
 func ParseAll(v []byte) (a All, err error) {
 	err = gojson.Unmarshal(v, &a)
 	return
+}
+
+// allSQLDB runs queries: pool or transaction
+type allSQLDB interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	CopyFrom(ctx context.Context, table pgx.Identifier, columns []string, src pgx.CopyFromSource) (int64, error)
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+}
+
+// AllSQL sql queries of table alltypes
+//
+// Rules:
+//   - safe for concurrent use: queries run on pgxpool, the class keeps no state
+//   - not found row is pgx.ErrNoRows
+//   - fields: columns to select, all columns when empty
+//   - where: sql condition with placeholders $1, $2... for args: "title = $1 and views > $2"
+type AllSQL struct {
+	pool *pgxpool.Pool
+	db   allSQLDB // pool, or transaction after TX
+}
+
+// NewAllSQL creates queries on pool, table and indexes if not exist
+func NewAllSQL(pool *pgxpool.Pool) (*AllSQL, error) {
+	a := &AllSQL{pool: pool, db: pool}
+	if err := a.CreateTable(); err != nil {
+		return nil, err
+	}
+	return a, a.CreateIndexes()
+}
+
+// Pool returns pool
+func (a *AllSQL) Pool() *pgxpool.Pool {
+	return a.pool
+}
+
+// Conn runs f on a connection of pool, for own queries.
+// Connection is always taken from pool: it is out of transaction of TX.
+// Own methods of AllSQL can use a.db: pool, or transaction after TX
+//
+//	err := db.Conn(func(conn *pgxpool.Conn) error {
+//		_, err := conn.Exec(context.Background(), "vacuum alltypes")
+//		return err
+//	})
+func (a *AllSQL) Conn(f func(conn *pgxpool.Conn) error) error {
+	conn, err := a.pool.Acquire(context.Background())
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	return f(conn)
+}
+
+// Begin runs f in transaction: commit on nil, rollback on error or panic.
+// TX(tx) of every model runs its queries in this transaction
+//
+//	err := news.Begin(func(tx pgx.Tx) error {
+//		if err := news.TX(tx).Insert(&item); err != nil {
+//			return err
+//		}
+//		return users.TX(tx).Update(id, UserIndexNews, item.ID)
+//	})
+//
+// Begin of TX(tx) makes a savepoint
+func (a *AllSQL) Begin(f func(tx pgx.Tx) error) error {
+	return pgx.BeginFunc(context.Background(), a.db, f)
+}
+
+// TX returns queries in transaction tx
+func (a *AllSQL) TX(tx pgx.Tx) *AllSQL {
+	return &AllSQL{pool: a.pool, db: tx}
+}
+
+// TableName returns sql table name
+func (a *AllSQL) TableName() string {
+	return "alltypes"
+}
+
+// Fields returns all sql columns
+func (a *AllSQL) Fields() []AllIndexTyped {
+	return slices.Clone(allSQLFields)
+}
+
+// ---------------------------------------------------------------------------
+// columns
+// ---------------------------------------------------------------------------
+
+// all sql columns
+var allSQLFields = []AllIndexTyped{AllIndexID, AllIndexB, AllIndexS, AllIndexI, AllIndexI8, AllIndexI16, AllIndexI32, AllIndexI64, AllIndexU, AllIndexU8, AllIndexU16, AllIndexU32, AllIndexU64, AllIndexF32, AllIndexF64, AllIndexR, AllIndexBY, AllIndexBytes, AllIndexFixed, AllIndexUID, AllIndexPuid, AllIndexRaw, AllIndexMapany, AllIndexMaps, AllIndexConf, AllIndexConfs, AllIndexAnyv, AllIndexT, AllIndexDur, AllIndexDate, AllIndexPD, AllIndexPts, AllIndexPiv, AllIndexLB, AllIndexLS, AllIndexLI, AllIndexLi8, AllIndexLi16, AllIndexLi32, AllIndexLu16, AllIndexLu32, AllIndexLu64, AllIndexLf32, AllIndexLT, AllIndexLU, AllIndexLs2, AllIndexLi2, AllIndexLbb, AllIndexLM, AllIndexLst, AllIndexLrl, AllIndexIP, AllIndexPfx, AllIndexNip, AllIndexNnet, AllIndexNum, AllIndexDec, AllIndexRng, AllIndexMrng, AllIndexPT, AllIndexBits, AllIndexPS, AllIndexPI, AllIndexPB, AllIndexPF, AllIndexPt2, AllIndexPip, AllIndexNS, AllIndexNI, AllIndexNB, AllIndexNF, AllIndexNT, AllIndexPtx, AllIndexPi8, AllIndexPbo, AllIndexST, AllIndexProv, AllIndexRL, AllIndexNN}
+
+// columns of insert
+var allSQLInsertColumns = []string{"b", "s", "i", "i8", "i16", "i32", "i64", "u", "u8", "u16", "u32", "u64", "f32", "f64", "r", "by", "bytes", "fixed", "uid", "puid", "raw", "mapany", "maps", "conf", "confs", "anyv", "t", "dur", "date", "pd", "pts", "piv", "lb", "ls", "li", "li8", "li16", "li32", "lu16", "lu32", "lu64", "lf32", "lt", "lu", "ls2", "li2", "lbb", "lm", "lst", "lrl", "ip", "pfx", "nip", "nnet", "num", "dec", "rng", "mrng", "pt", "bits", "ps", "pi", "pb", "pf", "pt2", "pip", "ns", "ni", "nb", "nf", "nt", "ptx", "pi8", "pbo", "st", "prov", "rl", "nn"}
+
+// sql column names
+var allSQLColumns = [...]string{
+	AllIndexID:     "id",
+	AllIndexB:      "b",
+	AllIndexS:      "s",
+	AllIndexI:      "i",
+	AllIndexI8:     "i8",
+	AllIndexI16:    "i16",
+	AllIndexI32:    "i32",
+	AllIndexI64:    "i64",
+	AllIndexU:      "u",
+	AllIndexU8:     "u8",
+	AllIndexU16:    "u16",
+	AllIndexU32:    "u32",
+	AllIndexU64:    "u64",
+	AllIndexF32:    "f32",
+	AllIndexF64:    "f64",
+	AllIndexR:      "r",
+	AllIndexBY:     "by",
+	AllIndexBytes:  "bytes",
+	AllIndexFixed:  "fixed",
+	AllIndexUID:    "uid",
+	AllIndexPuid:   "puid",
+	AllIndexRaw:    "raw",
+	AllIndexMapany: "mapany",
+	AllIndexMaps:   "maps",
+	AllIndexConf:   "conf",
+	AllIndexConfs:  "confs",
+	AllIndexAnyv:   "anyv",
+	AllIndexT:      "t",
+	AllIndexDur:    "dur",
+	AllIndexDate:   "date",
+	AllIndexPD:     "pd",
+	AllIndexPts:    "pts",
+	AllIndexPiv:    "piv",
+	AllIndexLB:     "lb",
+	AllIndexLS:     "ls",
+	AllIndexLI:     "li",
+	AllIndexLi8:    "li8",
+	AllIndexLi16:   "li16",
+	AllIndexLi32:   "li32",
+	AllIndexLu16:   "lu16",
+	AllIndexLu32:   "lu32",
+	AllIndexLu64:   "lu64",
+	AllIndexLf32:   "lf32",
+	AllIndexLT:     "lt",
+	AllIndexLU:     "lu",
+	AllIndexLs2:    "ls2",
+	AllIndexLi2:    "li2",
+	AllIndexLbb:    "lbb",
+	AllIndexLM:     "lm",
+	AllIndexLst:    "lst",
+	AllIndexLrl:    "lrl",
+	AllIndexIP:     "ip",
+	AllIndexPfx:    "pfx",
+	AllIndexNip:    "nip",
+	AllIndexNnet:   "nnet",
+	AllIndexNum:    "num",
+	AllIndexDec:    "dec",
+	AllIndexRng:    "rng",
+	AllIndexMrng:   "mrng",
+	AllIndexPT:     "pt",
+	AllIndexBits:   "bits",
+	AllIndexPS:     "ps",
+	AllIndexPI:     "pi",
+	AllIndexPB:     "pb",
+	AllIndexPF:     "pf",
+	AllIndexPt2:    "pt2",
+	AllIndexPip:    "pip",
+	AllIndexNS:     "ns",
+	AllIndexNI:     "ni",
+	AllIndexNB:     "nb",
+	AllIndexNF:     "nf",
+	AllIndexNT:     "nt",
+	AllIndexPtx:    "ptx",
+	AllIndexPi8:    "pi8",
+	AllIndexPbo:    "pbo",
+	AllIndexST:     "st",
+	AllIndexProv:   "prov",
+	AllIndexRL:     "rl",
+	AllIndexNN:     "nn",
+}
+
+// select expressions: null of scalar column is zero value
+var allSQLSelects = [...]string{
+	AllIndexID:     "coalesce(id, 0)",
+	AllIndexB:      "coalesce(b, false)",
+	AllIndexS:      "coalesce(s, '')",
+	AllIndexI:      "coalesce(i, 0)",
+	AllIndexI8:     "coalesce(i8, 0)",
+	AllIndexI16:    "coalesce(i16, 0)",
+	AllIndexI32:    "coalesce(i32, 0)",
+	AllIndexI64:    "coalesce(i64, 0)",
+	AllIndexU:      "coalesce(u, 0)",
+	AllIndexU8:     "coalesce(u8, 0)",
+	AllIndexU16:    "coalesce(u16, 0)",
+	AllIndexU32:    "coalesce(u32, 0)",
+	AllIndexU64:    "coalesce(u64, 0)",
+	AllIndexF32:    "coalesce(f32, 0)",
+	AllIndexF64:    "coalesce(f64, 0)",
+	AllIndexR:      "coalesce(r, 0)",
+	AllIndexBY:     "coalesce(by, 0)",
+	AllIndexBytes:  "bytes",
+	AllIndexFixed:  "fixed",
+	AllIndexUID:    "uid",
+	AllIndexPuid:   "puid",
+	AllIndexRaw:    "raw",
+	AllIndexMapany: "mapany",
+	AllIndexMaps:   "maps",
+	AllIndexConf:   "coalesce(conf, 'null'::jsonb)",
+	AllIndexConfs:  "confs",
+	AllIndexAnyv:   "anyv",
+	AllIndexT:      "coalesce(t, '0001-01-01 00:00:00+00')",
+	AllIndexDur:    "coalesce(dur, 0)",
+	AllIndexDate:   "coalesce(date, '0001-01-01 00:00:00+00')",
+	AllIndexPD:     "pd",
+	AllIndexPts:    "pts",
+	AllIndexPiv:    "piv",
+	AllIndexLB:     "lb",
+	AllIndexLS:     "ls",
+	AllIndexLI:     "li",
+	AllIndexLi8:    "li8",
+	AllIndexLi16:   "li16",
+	AllIndexLi32:   "li32",
+	AllIndexLu16:   "lu16",
+	AllIndexLu32:   "lu32",
+	AllIndexLu64:   "lu64",
+	AllIndexLf32:   "lf32",
+	AllIndexLT:     "lt",
+	AllIndexLU:     "lu",
+	AllIndexLs2:    "ls2",
+	AllIndexLi2:    "li2",
+	AllIndexLbb:    "lbb",
+	AllIndexLM:     "lm",
+	AllIndexLst:    "lst",
+	AllIndexLrl:    "lrl",
+	AllIndexIP:     "ip",
+	AllIndexPfx:    "pfx",
+	AllIndexNip:    "nip",
+	AllIndexNnet:   "nnet",
+	AllIndexNum:    "num",
+	AllIndexDec:    "coalesce(dec, 0)",
+	AllIndexRng:    "rng",
+	AllIndexMrng:   "mrng",
+	AllIndexPT:     "pt",
+	AllIndexBits:   "bits",
+	AllIndexPS:     "ps",
+	AllIndexPI:     "pi",
+	AllIndexPB:     "pb",
+	AllIndexPF:     "pf",
+	AllIndexPt2:    "pt2",
+	AllIndexPip:    "pip",
+	AllIndexNS:     "ns",
+	AllIndexNI:     "ni",
+	AllIndexNB:     "nb",
+	AllIndexNF:     "nf",
+	AllIndexNT:     "nt",
+	AllIndexPtx:    "ptx",
+	AllIndexPi8:    "pi8",
+	AllIndexPbo:    "pbo",
+	AllIndexST:     "coalesce(st, 0)",
+	AllIndexProv:   "coalesce(prov, '')",
+	AllIndexRL:     "coalesce(rl, 0)",
+	AllIndexNN:     "coalesce(nn, '')",
+}
+
+// sql column types
+var allSQLTypes = [...]string{
+	AllIndexID:     "bigint",
+	AllIndexB:      "boolean",
+	AllIndexS:      "text",
+	AllIndexI:      "bigint",
+	AllIndexI8:     "smallint",
+	AllIndexI16:    "smallint",
+	AllIndexI32:    "integer",
+	AllIndexI64:    "bigint",
+	AllIndexU:      "numeric(20,0)",
+	AllIndexU8:     "smallint",
+	AllIndexU16:    "integer",
+	AllIndexU32:    "bigint",
+	AllIndexU64:    "numeric(20,0)",
+	AllIndexF32:    "real",
+	AllIndexF64:    "double precision",
+	AllIndexR:      "integer",
+	AllIndexBY:     "smallint",
+	AllIndexBytes:  "bytea",
+	AllIndexFixed:  "bytea",
+	AllIndexUID:    "uuid",
+	AllIndexPuid:   "uuid",
+	AllIndexRaw:    "jsonb",
+	AllIndexMapany: "jsonb",
+	AllIndexMaps:   "jsonb",
+	AllIndexConf:   "jsonb",
+	AllIndexConfs:  "jsonb",
+	AllIndexAnyv:   "jsonb",
+	AllIndexT:      "timestamptz",
+	AllIndexDur:    "bigint",
+	AllIndexDate:   "date",
+	AllIndexPD:     "date",
+	AllIndexPts:    "timestamp",
+	AllIndexPiv:    "interval",
+	AllIndexLB:     "boolean[]",
+	AllIndexLS:     "text[]",
+	AllIndexLI:     "bigint[]",
+	AllIndexLi8:    "smallint[]",
+	AllIndexLi16:   "smallint[]",
+	AllIndexLi32:   "integer[]",
+	AllIndexLu16:   "integer[]",
+	AllIndexLu32:   "bigint[]",
+	AllIndexLu64:   "numeric(20,0)[]",
+	AllIndexLf32:   "real[]",
+	AllIndexLT:     "timestamptz[]",
+	AllIndexLU:     "uuid[]",
+	AllIndexLs2:    "jsonb",
+	AllIndexLi2:    "jsonb",
+	AllIndexLbb:    "bytea[]",
+	AllIndexLM:     "jsonb",
+	AllIndexLst:    "smallint[]",
+	AllIndexLrl:    "bigint[]",
+	AllIndexIP:     "inet",
+	AllIndexPfx:    "cidr",
+	AllIndexNip:    "inet",
+	AllIndexNnet:   "cidr",
+	AllIndexNum:    "numeric",
+	AllIndexDec:    "numeric",
+	AllIndexRng:    "int4range",
+	AllIndexMrng:   "int8multirange",
+	AllIndexPT:     "point",
+	AllIndexBits:   "varbit",
+	AllIndexPS:     "text",
+	AllIndexPI:     "bigint",
+	AllIndexPB:     "boolean",
+	AllIndexPF:     "double precision",
+	AllIndexPt2:    "timestamptz",
+	AllIndexPip:    "inet",
+	AllIndexNS:     "text",
+	AllIndexNI:     "bigint",
+	AllIndexNB:     "boolean",
+	AllIndexNF:     "double precision",
+	AllIndexNT:     "timestamptz",
+	AllIndexPtx:    "text",
+	AllIndexPi8:    "bigint",
+	AllIndexPbo:    "boolean",
+	AllIndexST:     "smallint",
+	AllIndexProv:   "text",
+	AllIndexRL:     "bigint",
+	AllIndexNN:     "text",
+}
+
+const allSQLSelectAll = "coalesce(id, 0), coalesce(b, false), coalesce(s, ''), coalesce(i, 0), coalesce(i8, 0), coalesce(i16, 0), coalesce(i32, 0), coalesce(i64, 0), coalesce(u, 0), coalesce(u8, 0), coalesce(u16, 0), coalesce(u32, 0), coalesce(u64, 0), coalesce(f32, 0), coalesce(f64, 0), coalesce(r, 0), coalesce(by, 0), bytes, fixed, uid, puid, raw, mapany, maps, coalesce(conf, 'null'::jsonb), confs, anyv, coalesce(t, '0001-01-01 00:00:00+00'), coalesce(dur, 0), coalesce(date, '0001-01-01 00:00:00+00'), pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, coalesce(dec, 0), rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, coalesce(st, 0), coalesce(prov, ''), coalesce(rl, 0), coalesce(nn, '')"
+
+// allSQLColumn returns sql column name of field
+func allSQLColumn(f AllIndexTyped) (string, error) {
+	if int(f) < 0 || int(f) >= len(allSQLColumns) || allSQLColumns[f] == "" {
+		return "", fmt.Errorf("alltypes: field %d is not a sql column", int(f))
+	}
+	return allSQLColumns[f], nil
+}
+
+// allSQLSelect returns select list of fields, all columns when empty
+func allSQLSelect(fields []AllIndexTyped) (string, []AllIndexTyped, error) {
+	if len(fields) == 0 {
+		return allSQLSelectAll, allSQLFields, nil
+	}
+	var b strings.Builder
+	for i, f := range fields {
+		if _, err := allSQLColumn(f); err != nil {
+			return "", nil, err
+		}
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(allSQLSelects[f])
+	}
+	return b.String(), fields, nil
+}
+
+// allSQLSet returns "a = $1, b = $2" in stable order, placeholders from $start
+func allSQLSet(v map[AllIndexTyped]any, start int) (string, []any, error) {
+	if len(v) == 0 {
+		return "", nil, errors.New("alltypes: no values")
+	}
+	var b strings.Builder
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
+		col, err := allSQLColumn(f)
+		if err != nil {
+			return "", nil, err
+		}
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(col)
+		b.WriteString(" = $")
+		b.WriteString(strconv.Itoa(start + i))
+		args = append(args, v[f])
+	}
+	return b.String(), args, nil
+}
+
+// allSQLAffected returns pgx.ErrNoRows when nothing was changed
+func allSQLAffected(tag pgconn.CommandTag, err error) error {
+	if err == nil && tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return err
+}
+
+// allSQLScanBytes scans bytea to byte array
+type allSQLScanBytes func(b []byte)
+
+func (f allSQLScanBytes) ScanBytes(b []byte) error {
+	f(b)
+	return nil
+}
+
+// allSQLScanPrefix scans cidr, null is invalid prefix
+type allSQLScanPrefix func(p netip.Prefix)
+
+func (f allSQLScanPrefix) ScanNetipPrefix(p netip.Prefix) error {
+	f(p)
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// struct
+// ---------------------------------------------------------------------------
+
+// sqlDest returns scan targets of fields
+func (a *All) sqlDest(fields []AllIndexTyped) []any {
+	dest := make([]any, len(fields))
+	for i, f := range fields {
+		switch f {
+		case AllIndexID:
+			dest[i] = &a.ID
+		case AllIndexB:
+			dest[i] = &a.B
+		case AllIndexS:
+			dest[i] = &a.S
+		case AllIndexI:
+			dest[i] = &a.I
+		case AllIndexI8:
+			dest[i] = &a.I8
+		case AllIndexI16:
+			dest[i] = &a.I16
+		case AllIndexI32:
+			dest[i] = &a.I32
+		case AllIndexI64:
+			dest[i] = &a.I64
+		case AllIndexU:
+			dest[i] = &a.U
+		case AllIndexU8:
+			dest[i] = &a.U8
+		case AllIndexU16:
+			dest[i] = &a.U16
+		case AllIndexU32:
+			dest[i] = &a.U32
+		case AllIndexU64:
+			dest[i] = &a.U64
+		case AllIndexF32:
+			dest[i] = &a.F32
+		case AllIndexF64:
+			dest[i] = &a.F64
+		case AllIndexR:
+			dest[i] = &a.R
+		case AllIndexBY:
+			dest[i] = &a.BY
+		case AllIndexBytes:
+			dest[i] = &a.Bytes
+		case AllIndexFixed:
+			dest[i] = allSQLScanBytes(func(b []byte) { copy(a.Fixed[:], b) })
+		case AllIndexUID:
+			dest[i] = &a.UID
+		case AllIndexPuid:
+			dest[i] = &a.Puid
+		case AllIndexRaw:
+			dest[i] = &a.Raw
+		case AllIndexMapany:
+			dest[i] = &a.Mapany
+		case AllIndexMaps:
+			dest[i] = &a.Maps
+		case AllIndexConf:
+			dest[i] = &a.Conf
+		case AllIndexConfs:
+			dest[i] = &a.Confs
+		case AllIndexAnyv:
+			dest[i] = &a.Anyv
+		case AllIndexT:
+			dest[i] = &a.T
+		case AllIndexDur:
+			dest[i] = &a.Dur
+		case AllIndexDate:
+			dest[i] = &a.Date
+		case AllIndexPD:
+			dest[i] = &a.PD
+		case AllIndexPts:
+			dest[i] = &a.Pts
+		case AllIndexPiv:
+			dest[i] = &a.Piv
+		case AllIndexLB:
+			dest[i] = &a.LB
+		case AllIndexLS:
+			dest[i] = &a.LS
+		case AllIndexLI:
+			dest[i] = &a.LI
+		case AllIndexLi8:
+			dest[i] = &a.Li8
+		case AllIndexLi16:
+			dest[i] = &a.Li16
+		case AllIndexLi32:
+			dest[i] = &a.Li32
+		case AllIndexLu16:
+			dest[i] = &a.Lu16
+		case AllIndexLu32:
+			dest[i] = &a.Lu32
+		case AllIndexLu64:
+			dest[i] = &a.Lu64
+		case AllIndexLf32:
+			dest[i] = &a.Lf32
+		case AllIndexLT:
+			dest[i] = &a.LT
+		case AllIndexLU:
+			dest[i] = &a.LU
+		case AllIndexLs2:
+			dest[i] = &a.Ls2
+		case AllIndexLi2:
+			dest[i] = &a.Li2
+		case AllIndexLbb:
+			dest[i] = &a.Lbb
+		case AllIndexLM:
+			dest[i] = &a.LM
+		case AllIndexLst:
+			dest[i] = &a.Lst
+		case AllIndexLrl:
+			dest[i] = &a.Lrl
+		case AllIndexIP:
+			dest[i] = &a.IP
+		case AllIndexPfx:
+			dest[i] = &a.Pfx
+		case AllIndexNip:
+			dest[i] = &a.Nip
+		case AllIndexNnet:
+			dest[i] = allSQLScanPrefix(func(p netip.Prefix) {
+				a.Nnet = net.IPNet{}
+				if p.IsValid() {
+					a.Nnet = net.IPNet{IP: p.Masked().Addr().AsSlice(), Mask: net.CIDRMask(p.Bits(), p.Addr().BitLen())}
+				}
+			})
+		case AllIndexNum:
+			dest[i] = &a.Num
+		case AllIndexDec:
+			dest[i] = &a.Dec
+		case AllIndexRng:
+			dest[i] = &a.Rng
+		case AllIndexMrng:
+			dest[i] = &a.Mrng
+		case AllIndexPT:
+			dest[i] = &a.PT
+		case AllIndexBits:
+			dest[i] = &a.Bits
+		case AllIndexPS:
+			dest[i] = &a.PS
+		case AllIndexPI:
+			dest[i] = &a.PI
+		case AllIndexPB:
+			dest[i] = &a.PB
+		case AllIndexPF:
+			dest[i] = &a.PF
+		case AllIndexPt2:
+			dest[i] = &a.Pt2
+		case AllIndexPip:
+			dest[i] = &a.Pip
+		case AllIndexNS:
+			dest[i] = &a.NS
+		case AllIndexNI:
+			dest[i] = &a.NI
+		case AllIndexNB:
+			dest[i] = &a.NB
+		case AllIndexNF:
+			dest[i] = &a.NF
+		case AllIndexNT:
+			dest[i] = &a.NT
+		case AllIndexPtx:
+			dest[i] = &a.Ptx
+		case AllIndexPi8:
+			dest[i] = &a.Pi8
+		case AllIndexPbo:
+			dest[i] = &a.Pbo
+		case AllIndexST:
+			dest[i] = &a.ST
+		case AllIndexProv:
+			dest[i] = &a.Prov
+		case AllIndexRL:
+			dest[i] = &a.RL
+		case AllIndexNN:
+			dest[i] = &a.NN
+		}
+	}
+	return dest
+}
+
+// sqlValue returns value of field for query
+func (a *All) sqlValue(f AllIndexTyped) any {
+	switch f {
+	case AllIndexID:
+		return a.ID
+	case AllIndexB:
+		return a.B
+	case AllIndexS:
+		return a.S
+	case AllIndexI:
+		return a.I
+	case AllIndexI8:
+		return a.I8
+	case AllIndexI16:
+		return a.I16
+	case AllIndexI32:
+		return a.I32
+	case AllIndexI64:
+		return a.I64
+	case AllIndexU:
+		return a.U
+	case AllIndexU8:
+		return a.U8
+	case AllIndexU16:
+		return a.U16
+	case AllIndexU32:
+		return a.U32
+	case AllIndexU64:
+		return a.U64
+	case AllIndexF32:
+		return a.F32
+	case AllIndexF64:
+		return a.F64
+	case AllIndexR:
+		return a.R
+	case AllIndexBY:
+		return a.BY
+	case AllIndexBytes:
+		return a.Bytes
+	case AllIndexFixed:
+		return a.Fixed[:]
+	case AllIndexUID:
+		return a.UID
+	case AllIndexPuid:
+		return a.Puid
+	case AllIndexRaw:
+		return a.Raw
+	case AllIndexMapany:
+		return a.Mapany
+	case AllIndexMaps:
+		return a.Maps
+	case AllIndexConf:
+		return a.Conf
+	case AllIndexConfs:
+		return a.Confs
+	case AllIndexAnyv:
+		return func() []byte { b, _ := gojson.Marshal(a.Anyv); return b }()
+	case AllIndexT:
+		return a.T
+	case AllIndexDur:
+		return a.Dur
+	case AllIndexDate:
+		return a.Date
+	case AllIndexPD:
+		return a.PD
+	case AllIndexPts:
+		return a.Pts
+	case AllIndexPiv:
+		return a.Piv
+	case AllIndexLB:
+		return a.LB
+	case AllIndexLS:
+		return a.LS
+	case AllIndexLI:
+		return a.LI
+	case AllIndexLi8:
+		return a.Li8
+	case AllIndexLi16:
+		return a.Li16
+	case AllIndexLi32:
+		return a.Li32
+	case AllIndexLu16:
+		return a.Lu16
+	case AllIndexLu32:
+		return a.Lu32
+	case AllIndexLu64:
+		return a.Lu64
+	case AllIndexLf32:
+		return a.Lf32
+	case AllIndexLT:
+		return a.LT
+	case AllIndexLU:
+		return a.LU
+	case AllIndexLs2:
+		return a.Ls2
+	case AllIndexLi2:
+		return a.Li2
+	case AllIndexLbb:
+		return a.Lbb
+	case AllIndexLM:
+		return a.LM
+	case AllIndexLst:
+		return a.Lst
+	case AllIndexLrl:
+		return a.Lrl
+	case AllIndexIP:
+		return a.IP
+	case AllIndexPfx:
+		return a.Pfx
+	case AllIndexNip:
+		return a.Nip
+	case AllIndexNnet:
+		return func() any {
+			if a.Nnet.IP == nil {
+				return nil
+			}
+			return a.Nnet
+		}()
+	case AllIndexNum:
+		return a.Num
+	case AllIndexDec:
+		return a.Dec
+	case AllIndexRng:
+		return a.Rng
+	case AllIndexMrng:
+		return a.Mrng
+	case AllIndexPT:
+		return a.PT
+	case AllIndexBits:
+		return a.Bits
+	case AllIndexPS:
+		return a.PS
+	case AllIndexPI:
+		return a.PI
+	case AllIndexPB:
+		return a.PB
+	case AllIndexPF:
+		return a.PF
+	case AllIndexPt2:
+		return a.Pt2
+	case AllIndexPip:
+		return a.Pip
+	case AllIndexNS:
+		return a.NS
+	case AllIndexNI:
+		return a.NI
+	case AllIndexNB:
+		return a.NB
+	case AllIndexNF:
+		return a.NF
+	case AllIndexNT:
+		return a.NT
+	case AllIndexPtx:
+		return a.Ptx
+	case AllIndexPi8:
+		return a.Pi8
+	case AllIndexPbo:
+		return a.Pbo
+	case AllIndexST:
+		return int16(a.ST)
+	case AllIndexProv:
+		return string(a.Prov)
+	case AllIndexRL:
+		return int(a.RL)
+	case AllIndexNN:
+		return a.NN
+	}
+	return nil
+}
+
+// sqlInsertArgs returns values of insert
+func (a *All) sqlInsertArgs() []any {
+	return []any{
+		a.B,
+		a.S,
+		a.I,
+		a.I8,
+		a.I16,
+		a.I32,
+		a.I64,
+		a.U,
+		a.U8,
+		a.U16,
+		a.U32,
+		a.U64,
+		a.F32,
+		a.F64,
+		a.R,
+		a.BY,
+		a.Bytes,
+		a.Fixed[:],
+		a.UID,
+		a.Puid,
+		a.Raw,
+		a.Mapany,
+		a.Maps,
+		a.Conf,
+		a.Confs,
+		func() []byte { b, _ := gojson.Marshal(a.Anyv); return b }(),
+		a.T,
+		a.Dur,
+		a.Date,
+		a.PD,
+		a.Pts,
+		a.Piv,
+		a.LB,
+		a.LS,
+		a.LI,
+		a.Li8,
+		a.Li16,
+		a.Li32,
+		a.Lu16,
+		a.Lu32,
+		a.Lu64,
+		a.Lf32,
+		a.LT,
+		a.LU,
+		a.Ls2,
+		a.Li2,
+		a.Lbb,
+		a.LM,
+		a.Lst,
+		a.Lrl,
+		a.IP,
+		a.Pfx,
+		a.Nip,
+		func() any {
+			if a.Nnet.IP == nil {
+				return nil
+			}
+			return a.Nnet
+		}(),
+		a.Num,
+		a.Dec,
+		a.Rng,
+		a.Mrng,
+		a.PT,
+		a.Bits,
+		a.PS,
+		a.PI,
+		a.PB,
+		a.PF,
+		a.Pt2,
+		a.Pip,
+		a.NS,
+		a.NI,
+		a.NB,
+		a.NF,
+		a.NT,
+		a.Ptx,
+		a.Pi8,
+		a.Pbo,
+		int16(a.ST),
+		string(a.Prov),
+		int(a.RL),
+		a.NN,
+	}
+}
+
+// sqlAllArgs returns values of all columns
+func (a *All) sqlAllArgs() []any {
+	return []any{
+		a.ID,
+		a.B,
+		a.S,
+		a.I,
+		a.I8,
+		a.I16,
+		a.I32,
+		a.I64,
+		a.U,
+		a.U8,
+		a.U16,
+		a.U32,
+		a.U64,
+		a.F32,
+		a.F64,
+		a.R,
+		a.BY,
+		a.Bytes,
+		a.Fixed[:],
+		a.UID,
+		a.Puid,
+		a.Raw,
+		a.Mapany,
+		a.Maps,
+		a.Conf,
+		a.Confs,
+		func() []byte { b, _ := gojson.Marshal(a.Anyv); return b }(),
+		a.T,
+		a.Dur,
+		a.Date,
+		a.PD,
+		a.Pts,
+		a.Piv,
+		a.LB,
+		a.LS,
+		a.LI,
+		a.Li8,
+		a.Li16,
+		a.Li32,
+		a.Lu16,
+		a.Lu32,
+		a.Lu64,
+		a.Lf32,
+		a.LT,
+		a.LU,
+		a.Ls2,
+		a.Li2,
+		a.Lbb,
+		a.LM,
+		a.Lst,
+		a.Lrl,
+		a.IP,
+		a.Pfx,
+		a.Nip,
+		func() any {
+			if a.Nnet.IP == nil {
+				return nil
+			}
+			return a.Nnet
+		}(),
+		a.Num,
+		a.Dec,
+		a.Rng,
+		a.Mrng,
+		a.PT,
+		a.Bits,
+		a.PS,
+		a.PI,
+		a.PB,
+		a.PF,
+		a.Pt2,
+		a.Pip,
+		a.NS,
+		a.NI,
+		a.NB,
+		a.NF,
+		a.NT,
+		a.Ptx,
+		a.Pi8,
+		a.Pbo,
+		int16(a.ST),
+		string(a.Prov),
+		int(a.RL),
+		a.NN,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// select
+// ---------------------------------------------------------------------------
+
+// query selects rows: tail is sql after table name
+func (a *AllSQL) query(fields []AllIndexTyped, tail string, args ...any) ([]All, error) {
+	cols, fields, err := allSQLSelect(fields)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.db.Query(context.Background(), "select "+cols+" from alltypes"+tail, args...)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (v All, err error) {
+		err = row.Scan(v.sqlDest(fields)...)
+		return
+	})
+}
+
+// queryRow selects one row
+func (a *AllSQL) queryRow(fields []AllIndexTyped, tail string, args ...any) (v All, err error) {
+	cols, fields, err := allSQLSelect(fields)
+	if err != nil {
+		return
+	}
+	err = a.db.QueryRow(context.Background(), "select "+cols+" from alltypes"+tail, args...).Scan(v.sqlDest(fields)...)
+	return
+}
+
+// Get returns row by id
+func (a *AllSQL) Get(id int, fields ...AllIndexTyped) (All, error) {
+	return a.queryRow(fields, " where id = $1", id)
+}
+
+// Exists checks row by id
+func (a *AllSQL) Exists(id int) (has bool, err error) {
+	err = a.db.QueryRow(context.Background(), "select exists (select 1 from alltypes where id = $1)", id).Scan(&has)
+	return
+}
+
+// GetBy returns first row with field = v
+func (a *AllSQL) GetBy(field AllIndexTyped, v any, fields ...AllIndexTyped) (res All, err error) {
+	col, err := allSQLColumn(field)
+	if err != nil {
+		return
+	}
+	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
+}
+
+// GetWhere returns first row by condition
+//
+//	db.GetWhere(nil, "title = $1 order by created desc", "James")
+func (a *AllSQL) GetWhere(fields []AllIndexTyped, where string, args ...any) (All, error) {
+	return a.queryRow(fields, " where "+where+" limit 1", args...)
+}
+
+// Has checks row with field = v
+func (a *AllSQL) Has(field AllIndexTyped, v any) (has bool, err error) {
+	col, err := allSQLColumn(field)
+	if err != nil {
+		return
+	}
+	err = a.db.QueryRow(context.Background(), "select exists (select 1 from alltypes where "+col+" = $1)", v).Scan(&has)
+	return
+}
+
+// All returns all rows
+func (a *AllSQL) All(fields ...AllIndexTyped) ([]All, error) {
+	return a.query(fields, " order by id")
+}
+
+// List returns page of rows
+func (a *AllSQL) List(limit, offset int, fields ...AllIndexTyped) ([]All, error) {
+	return a.query(fields, " order by id limit $1 offset $2", limit, offset)
+}
+
+// Select returns rows by condition, all rows when where is empty
+//
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *AllSQL) Select(fields []AllIndexTyped, where string, args ...any) ([]All, error) {
+	if where != "" {
+		where = " where " + where
+	}
+	return a.query(fields, where, args...)
+}
+
+// Count returns count of rows
+func (a *AllSQL) Count() (count int, err error) {
+	err = a.db.QueryRow(context.Background(), "select count(*) from alltypes").Scan(&count)
+	return
+}
+
+// CountWhere returns count of rows by condition
+func (a *AllSQL) CountWhere(where string, args ...any) (count int, err error) {
+	err = a.db.QueryRow(context.Background(), "select count(*) from alltypes where "+where, args...).Scan(&count)
+	return
+}
+
+// ---------------------------------------------------------------------------
+// insert
+// ---------------------------------------------------------------------------
+
+const allSQLInsert = "insert into alltypes (b, s, i, i8, i16, i32, i64, u, u8, u16, u32, u64, f32, f64, r, by, bytes, fixed, uid, puid, raw, mapany, maps, conf, confs, anyv, t, dur, date, pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, dec, rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, st, prov, rl, nn) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78)"
+
+const allSQLInsertFull = "insert into alltypes (id, b, s, i, i8, i16, i32, i64, u, u8, u16, u32, u64, f32, f64, r, by, bytes, fixed, uid, puid, raw, mapany, maps, conf, confs, anyv, t, dur, date, pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, dec, rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, st, prov, rl, nn) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79)"
+
+// Insert adds row and sets generated v.ID
+func (a *AllSQL) Insert(v *All) error {
+	return a.db.QueryRow(context.Background(), allSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+}
+
+// InsertNoConflict adds row and sets v.ID, false when row exists
+func (a *AllSQL) InsertNoConflict(v *All) (inserted bool, err error) {
+	err = a.db.QueryRow(context.Background(), allSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// InsertFull adds row with all columns as is: generated and noinsert columns too
+func (a *AllSQL) InsertFull(v *All) error {
+	_, err := a.db.Exec(context.Background(), allSQLInsertFull, v.sqlAllArgs()...)
+	return err
+}
+
+// Upsert adds row with all columns or updates existing row by (id)
+func (a *AllSQL) Upsert(v *All) error {
+	_, err := a.db.Exec(context.Background(), "insert into alltypes (id, b, s, i, i8, i16, i32, i64, u, u8, u16, u32, u64, f32, f64, r, by, bytes, fixed, uid, puid, raw, mapany, maps, conf, confs, anyv, t, dur, date, pd, pts, piv, lb, ls, li, li8, li16, li32, lu16, lu32, lu64, lf32, lt, lu, ls2, li2, lbb, lm, lst, lrl, ip, pfx, nip, nnet, num, dec, rng, mrng, pt, bits, ps, pi, pb, pf, pt2, pip, ns, ni, nb, nf, nt, ptx, pi8, pbo, st, prov, rl, nn) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79) on conflict (id) do update set b = excluded.b, s = excluded.s, i = excluded.i, i8 = excluded.i8, i16 = excluded.i16, i32 = excluded.i32, i64 = excluded.i64, u = excluded.u, u8 = excluded.u8, u16 = excluded.u16, u32 = excluded.u32, u64 = excluded.u64, f32 = excluded.f32, f64 = excluded.f64, r = excluded.r, by = excluded.by, bytes = excluded.bytes, fixed = excluded.fixed, uid = excluded.uid, puid = excluded.puid, raw = excluded.raw, mapany = excluded.mapany, maps = excluded.maps, conf = excluded.conf, confs = excluded.confs, anyv = excluded.anyv, t = excluded.t, dur = excluded.dur, date = excluded.date, pd = excluded.pd, pts = excluded.pts, piv = excluded.piv, lb = excluded.lb, ls = excluded.ls, li = excluded.li, li8 = excluded.li8, li16 = excluded.li16, li32 = excluded.li32, lu16 = excluded.lu16, lu32 = excluded.lu32, lu64 = excluded.lu64, lf32 = excluded.lf32, lt = excluded.lt, lu = excluded.lu, ls2 = excluded.ls2, li2 = excluded.li2, lbb = excluded.lbb, lm = excluded.lm, lst = excluded.lst, lrl = excluded.lrl, ip = excluded.ip, pfx = excluded.pfx, nip = excluded.nip, nnet = excluded.nnet, num = excluded.num, dec = excluded.dec, rng = excluded.rng, mrng = excluded.mrng, pt = excluded.pt, bits = excluded.bits, ps = excluded.ps, pi = excluded.pi, pb = excluded.pb, pf = excluded.pf, pt2 = excluded.pt2, pip = excluded.pip, ns = excluded.ns, ni = excluded.ni, nb = excluded.nb, nf = excluded.nf, nt = excluded.nt, ptx = excluded.ptx, pi8 = excluded.pi8, pbo = excluded.pbo, st = excluded.st, prov = excluded.prov, rl = excluded.rl, nn = excluded.nn", v.sqlAllArgs()...)
+	return err
+}
+
+// InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
+func (a *AllSQL) InsertMany(list []All) (int64, error) {
+	return a.db.CopyFrom(context.Background(), pgx.Identifier{"alltypes"}, allSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
+		return list[i].sqlInsertArgs(), nil
+	}))
+}
+
+// InsertBatch adds rows in one round trip and sets generated ID
+func (a *AllSQL) InsertBatch(list []*All) error {
+	if len(list) == 0 {
+		return nil
+	}
+	b := &pgx.Batch{}
+	for _, v := range list {
+		b.Queue(allSQLInsert+" returning id", v.sqlInsertArgs()...)
+	}
+	res := a.db.SendBatch(context.Background(), b)
+	for _, v := range list {
+		if err := res.QueryRow().Scan(&v.ID); err != nil {
+			res.Close()
+			return err
+		}
+	}
+	return res.Close()
+}
+
+// ---------------------------------------------------------------------------
+// update, delete
+// ---------------------------------------------------------------------------
+
+// Update sets field of row, pgx.ErrNoRows when row not found
+func (a *AllSQL) Update(id int, field AllIndexTyped, v any) error {
+	col, err := allSQLColumn(field)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = $1 where id = $2", v, id))
+}
+
+// Updates sets fields of row, pgx.ErrNoRows when row not found
+func (a *AllSQL) Updates(id int, v map[AllIndexTyped]any) error {
+	set, args, err := allSQLSet(v, 1)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
+}
+
+// Save updates row from struct by v.ID: listed fields or all columns
+func (a *AllSQL) Save(v *All, fields ...AllIndexTyped) error {
+	if len(fields) == 0 {
+		fields = allSQLFields
+	}
+	values := make(map[AllIndexTyped]any, len(fields))
+	for _, f := range fields {
+		if f != AllIndexID {
+			values[f] = v.sqlValue(f)
+		}
+	}
+	set, args, err := allSQLSet(values, 1)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(AllIndexID))...))
+}
+
+// Inc adds v to number field: views = views + 1
+func (a *AllSQL) Inc(id int, field AllIndexTyped, v any) error {
+	col, err := allSQLColumn(field)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = coalesce("+col+", 0) + $1 where id = $2", v, id))
+}
+
+// Delete removes row by id
+func (a *AllSQL) Delete(id int) error {
+	_, err := a.db.Exec(context.Background(), "delete from alltypes where id = $1", id)
+	return err
+}
+
+// UpdateWhere sets field of rows by condition, returns count of rows
+//
+//	db.UpdateWhere(IndexActive, false, "created < $1", date)
+func (a *AllSQL) UpdateWhere(field AllIndexTyped, v any, where string, args ...any) (int64, error) {
+	col, err := allSQLColumn(field)
+	if err != nil {
+		return 0, err
+	}
+	tag, err := a.db.Exec(context.Background(), "update alltypes set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
+	return tag.RowsAffected(), err
+}
+
+// UpdatesWhere sets fields of rows by condition, returns count of rows
+func (a *AllSQL) UpdatesWhere(v map[AllIndexTyped]any, where string, args ...any) (int64, error) {
+	set, vals, err := allSQLSet(v, len(args)+1)
+	if err != nil {
+		return 0, err
+	}
+	tag, err := a.db.Exec(context.Background(), "update alltypes set "+set+" where "+where, append(slices.Clone(args), vals...)...)
+	return tag.RowsAffected(), err
+}
+
+// DeleteWhere removes rows by condition, returns count of rows
+func (a *AllSQL) DeleteWhere(where string, args ...any) (int64, error) {
+	tag, err := a.db.Exec(context.Background(), "delete from alltypes where "+where, args...)
+	return tag.RowsAffected(), err
+}
+
+// RawUpdate sets key of jsonb raw
+func (a *AllSQL) RawUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "raw", k, v)
+}
+
+// RawMerge adds keys of object v to jsonb raw: existing keys are replaced
+func (a *AllSQL) RawMerge(id int, v any) error {
+	return a.jsonMerge(id, "raw", "{}", v)
+}
+
+// RawDelete removes key of jsonb raw
+func (a *AllSQL) RawDelete(id int, k string) error {
+	return a.jsonDelete(id, "raw", k)
+}
+
+// RawRename renames key of jsonb raw, pgx.ErrNoRows when key not found
+func (a *AllSQL) RawRename(id int, k, newK string) error {
+	return a.jsonRename(id, "raw", k, newK)
+}
+
+// MapanyUpdate sets key of jsonb mapany
+func (a *AllSQL) MapanyUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "mapany", fmt.Sprint(k), v)
+}
+
+// MapanyMerge adds keys to jsonb mapany: existing keys are replaced
+func (a *AllSQL) MapanyMerge(id int, v map[string]any) error {
+	return a.jsonMerge(id, "mapany", "{}", v)
+}
+
+// MapanyDelete removes key of jsonb mapany
+func (a *AllSQL) MapanyDelete(id int, k string) error {
+	return a.jsonDelete(id, "mapany", fmt.Sprint(k))
+}
+
+// MapanyRename renames key of jsonb mapany, pgx.ErrNoRows when key not found
+func (a *AllSQL) MapanyRename(id int, k, newK string) error {
+	return a.jsonRename(id, "mapany", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapsUpdate sets key of jsonb maps
+func (a *AllSQL) MapsUpdate(id int, k string, v string) error {
+	return a.jsonSet(id, "maps", fmt.Sprint(k), v)
+}
+
+// MapsMerge adds keys to jsonb maps: existing keys are replaced
+func (a *AllSQL) MapsMerge(id int, v map[string]string) error {
+	return a.jsonMerge(id, "maps", "{}", v)
+}
+
+// MapsDelete removes key of jsonb maps
+func (a *AllSQL) MapsDelete(id int, k string) error {
+	return a.jsonDelete(id, "maps", fmt.Sprint(k))
+}
+
+// MapsRename renames key of jsonb maps, pgx.ErrNoRows when key not found
+func (a *AllSQL) MapsRename(id int, k, newK string) error {
+	return a.jsonRename(id, "maps", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// ConfUpdate sets key of jsonb conf
+func (a *AllSQL) ConfUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "conf", k, v)
+}
+
+// ConfMerge adds keys of object v to jsonb conf: existing keys are replaced
+func (a *AllSQL) ConfMerge(id int, v any) error {
+	return a.jsonMerge(id, "conf", "{}", v)
+}
+
+// ConfDelete removes key of jsonb conf
+func (a *AllSQL) ConfDelete(id int, k string) error {
+	return a.jsonDelete(id, "conf", k)
+}
+
+// ConfRename renames key of jsonb conf, pgx.ErrNoRows when key not found
+func (a *AllSQL) ConfRename(id int, k, newK string) error {
+	return a.jsonRename(id, "conf", k, newK)
+}
+
+// ConfsAppend adds values to jsonb array confs
+func (a *AllSQL) ConfsAppend(id int, v ...Config) error {
+	return a.jsonMerge(id, "confs", "[]", v)
+}
+
+// AnyvUpdate sets key of jsonb anyv
+func (a *AllSQL) AnyvUpdate(id int, k string, v any) error {
+	return a.jsonSet(id, "anyv", k, v)
+}
+
+// AnyvMerge adds keys of object v to jsonb anyv: existing keys are replaced
+func (a *AllSQL) AnyvMerge(id int, v any) error {
+	return a.jsonMerge(id, "anyv", "{}", v)
+}
+
+// AnyvDelete removes key of jsonb anyv
+func (a *AllSQL) AnyvDelete(id int, k string) error {
+	return a.jsonDelete(id, "anyv", k)
+}
+
+// AnyvRename renames key of jsonb anyv, pgx.ErrNoRows when key not found
+func (a *AllSQL) AnyvRename(id int, k, newK string) error {
+	return a.jsonRename(id, "anyv", k, newK)
+}
+
+// LBAppend adds values to array lb
+func (a *AllSQL) LBAppend(id int, v ...bool) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lb = coalesce(lb, '{}') || $1::boolean[] where id = $2", v, id))
+}
+
+// LBRemove removes all entries of v from array lb
+func (a *AllSQL) LBRemove(id int, v bool) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lb = array_remove(lb, $1::boolean) where id = $2", v, id))
+}
+
+// LSAppend adds values to array ls
+func (a *AllSQL) LSAppend(id int, v ...string) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set ls = coalesce(ls, '{}') || $1::text[] where id = $2", v, id))
+}
+
+// LSRemove removes all entries of v from array ls
+func (a *AllSQL) LSRemove(id int, v string) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set ls = array_remove(ls, $1::text) where id = $2", v, id))
+}
+
+// LIAppend adds values to array li
+func (a *AllSQL) LIAppend(id int, v ...int) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li = coalesce(li, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// LIRemove removes all entries of v from array li
+func (a *AllSQL) LIRemove(id int, v int) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li = array_remove(li, $1::bigint) where id = $2", v, id))
+}
+
+// Li8Append adds values to array li8
+func (a *AllSQL) Li8Append(id int, v ...int8) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li8 = coalesce(li8, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// Li8Remove removes all entries of v from array li8
+func (a *AllSQL) Li8Remove(id int, v int8) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li8 = array_remove(li8, $1::smallint) where id = $2", v, id))
+}
+
+// Li16Append adds values to array li16
+func (a *AllSQL) Li16Append(id int, v ...int16) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li16 = coalesce(li16, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// Li16Remove removes all entries of v from array li16
+func (a *AllSQL) Li16Remove(id int, v int16) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li16 = array_remove(li16, $1::smallint) where id = $2", v, id))
+}
+
+// Li32Append adds values to array li32
+func (a *AllSQL) Li32Append(id int, v ...int32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li32 = coalesce(li32, '{}') || $1::integer[] where id = $2", v, id))
+}
+
+// Li32Remove removes all entries of v from array li32
+func (a *AllSQL) Li32Remove(id int, v int32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set li32 = array_remove(li32, $1::integer) where id = $2", v, id))
+}
+
+// Lu16Append adds values to array lu16
+func (a *AllSQL) Lu16Append(id int, v ...uint16) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu16 = coalesce(lu16, '{}') || $1::integer[] where id = $2", v, id))
+}
+
+// Lu16Remove removes all entries of v from array lu16
+func (a *AllSQL) Lu16Remove(id int, v uint16) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu16 = array_remove(lu16, $1::integer) where id = $2", v, id))
+}
+
+// Lu32Append adds values to array lu32
+func (a *AllSQL) Lu32Append(id int, v ...uint32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu32 = coalesce(lu32, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// Lu32Remove removes all entries of v from array lu32
+func (a *AllSQL) Lu32Remove(id int, v uint32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu32 = array_remove(lu32, $1::bigint) where id = $2", v, id))
+}
+
+// Lu64Append adds values to array lu64
+func (a *AllSQL) Lu64Append(id int, v ...uint64) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu64 = coalesce(lu64, '{}') || $1::numeric(20,0)[] where id = $2", v, id))
+}
+
+// Lu64Remove removes all entries of v from array lu64
+func (a *AllSQL) Lu64Remove(id int, v uint64) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu64 = array_remove(lu64, $1::numeric(20,0)) where id = $2", v, id))
+}
+
+// Lf32Append adds values to array lf32
+func (a *AllSQL) Lf32Append(id int, v ...float32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lf32 = coalesce(lf32, '{}') || $1::real[] where id = $2", v, id))
+}
+
+// Lf32Remove removes all entries of v from array lf32
+func (a *AllSQL) Lf32Remove(id int, v float32) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lf32 = array_remove(lf32, $1::real) where id = $2", v, id))
+}
+
+// LTAppend adds values to array lt
+func (a *AllSQL) LTAppend(id int, v ...time.Time) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lt = coalesce(lt, '{}') || $1::timestamptz[] where id = $2", v, id))
+}
+
+// LTRemove removes all entries of v from array lt
+func (a *AllSQL) LTRemove(id int, v time.Time) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lt = array_remove(lt, $1::timestamptz) where id = $2", v, id))
+}
+
+// LUAppend adds values to array lu
+func (a *AllSQL) LUAppend(id int, v ...uuid.UUID) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu = coalesce(lu, '{}') || $1::uuid[] where id = $2", v, id))
+}
+
+// LURemove removes all entries of v from array lu
+func (a *AllSQL) LURemove(id int, v uuid.UUID) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lu = array_remove(lu, $1::uuid) where id = $2", v, id))
+}
+
+// Ls2Append adds values to jsonb array ls2
+func (a *AllSQL) Ls2Append(id int, v ...[]string) error {
+	return a.jsonMerge(id, "ls2", "[]", v)
+}
+
+// Li2Append adds values to jsonb array li2
+func (a *AllSQL) Li2Append(id int, v ...[]int64) error {
+	return a.jsonMerge(id, "li2", "[]", v)
+}
+
+// LbbAppend adds values to array lbb
+func (a *AllSQL) LbbAppend(id int, v ...[]byte) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lbb = coalesce(lbb, '{}') || $1::bytea[] where id = $2", v, id))
+}
+
+// LbbRemove removes all entries of v from array lbb
+func (a *AllSQL) LbbRemove(id int, v []byte) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lbb = array_remove(lbb, $1::bytea) where id = $2", v, id))
+}
+
+// LMAppend adds values to jsonb array lm
+func (a *AllSQL) LMAppend(id int, v ...map[string]any) error {
+	return a.jsonMerge(id, "lm", "[]", v)
+}
+
+// LstAppend adds values to array lst
+func (a *AllSQL) LstAppend(id int, v ...Status) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lst = coalesce(lst, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// LstRemove removes all entries of v from array lst
+func (a *AllSQL) LstRemove(id int, v Status) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lst = array_remove(lst, $1::smallint) where id = $2", v, id))
+}
+
+// LrlAppend adds values to array lrl
+func (a *AllSQL) LrlAppend(id int, v ...role.Role) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lrl = coalesce(lrl, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// LrlRemove removes all entries of v from array lrl
+func (a *AllSQL) LrlRemove(id int, v role.Role) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set lrl = array_remove(lrl, $1::bigint) where id = $2", v, id))
+}
+
+// jsonSet sets key of jsonb column
+func (a *AllSQL) jsonSet(id int, col, k string, v any) error {
+	b, err := gojson.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where id = $3", k, b, id))
+}
+
+// jsonMerge concats json to jsonb column: object keys or array values
+func (a *AllSQL) jsonMerge(id int, col, empty string, v any) error {
+	b, err := gojson.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where id = $2", b, id))
+}
+
+// jsonDelete removes key of jsonb column
+func (a *AllSQL) jsonDelete(id int, col, k string) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = "+col+" - $1::text where id = $2", k, id))
+}
+
+// jsonRename renames key of jsonb column
+func (a *AllSQL) jsonRename(id int, col, k, newK string) error {
+	return allSQLAffected(a.db.Exec(context.Background(), "update alltypes set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where id = $3 and "+col+" ? $1::text", k, newK, id))
+}
+
+// ---------------------------------------------------------------------------
+// query
+// ---------------------------------------------------------------------------
+
+// AllQuery is a search query, safe to fill from json: keys are checked, values are sql parameters
+type AllQuery struct {
+	Fields []string            `json:"fields,omitempty"` // columns to select, all when empty
+	EQ     map[string]any      `json:"eq,omitempty"`     // field = value, empty value is skipped
+	NOT    map[string][]any    `json:"not,omitempty"`    // field != values
+	GT     map[string]any      `json:"gt,omitempty"`     // field > value
+	GTE    map[string]any      `json:"gte,omitempty"`    // field >= value
+	LT     map[string]any      `json:"lt,omitempty"`     // field < value
+	LTE    map[string]any      `json:"lte,omitempty"`    // field <= value
+	Like   map[string]string   `json:"like,omitempty"`   // field ilike %value%
+	IN     map[string][]int    `json:"in,omitempty"`     // field in numbers
+	INS    map[string][]string `json:"ins,omitempty"`    // field in strings
+	Sort   string              `json:"sort,omitempty"`   // order by field
+	Desc   bool                `json:"desc,omitempty"`
+	Limit  int                 `json:"limit,omitempty"`
+	Offset int                 `json:"offset,omitempty"`
+
+	Where string `json:"-"` // trusted sql condition with placeholders $1, $2... for Args
+	Args  []any  `json:"-"`
+}
+
+// NewAllQuery creates query with empty maps
+func NewAllQuery() *AllQuery {
+	return &AllQuery{
+		EQ:   map[string]any{},
+		NOT:  map[string][]any{},
+		GT:   map[string]any{},
+		GTE:  map[string]any{},
+		LT:   map[string]any{},
+		LTE:  map[string]any{},
+		Like: map[string]string{},
+		IN:   map[string][]int{},
+		INS:  map[string][]string{},
+	}
+}
+
+// column returns sql column by key
+func (q *AllQuery) column(k string) (string, AllIndexTyped, error) {
+	if !AllValidKey(k) {
+		return "", 0, fmt.Errorf("alltypes: unknown field %q", k)
+	}
+	f := AllKeyIndex(k)
+	col, err := allSQLColumn(f)
+	return col, f, err
+}
+
+// Render returns sql after table name (where, order, limit), fields and args.
+// Sql text is stable for the same set of keys
+func (q *AllQuery) Render() (tail string, fields []AllIndexTyped, args []any, err error) {
+
+	for _, k := range q.Fields {
+		_, f, err := q.column(k)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		fields = append(fields, f)
+	}
+
+	args = append(args, q.Args...)
+	var and []string
+	if q.Where != "" {
+		and = append(and, "("+q.Where+")")
+	}
+
+	// field op $n
+	add := func(k, op string, v any) error {
+		col, _, err := q.column(k)
+		if err != nil {
+			return err
+		}
+		args = append(args, v)
+		and = append(and, fmt.Sprintf(op, col, len(args)))
+		return nil
+	}
+
+	for _, k := range slices.Sorted(maps.Keys(q.EQ)) {
+		v := q.EQ[k]
+		if v == nil || v == "" {
+			continue
+		}
+		op := "%s = $%d"
+		if _, f, err := q.column(k); err == nil && f.Type() == "bool" {
+			op = "coalesce(%s, false) = $%d" // false is null too
+		}
+		if err = add(k, op, v); err != nil {
+			return
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(q.NOT)) {
+		for _, v := range q.NOT[k] {
+			if err = add(k, "%s is distinct from $%d", v); err != nil {
+				return
+			}
+		}
+	}
+	for _, x := range []struct {
+		op     string
+		values map[string]any
+	}{
+		{"%s > $%d", q.GT}, {"%s >= $%d", q.GTE}, {"%s < $%d", q.LT}, {"%s <= $%d", q.LTE},
+	} {
+		for _, k := range slices.Sorted(maps.Keys(x.values)) {
+			v := x.values[k]
+			if v == nil || v == "" {
+				continue
+			}
+			if err = add(k, x.op, v); err != nil {
+				return
+			}
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(q.Like)) {
+		if q.Like[k] == "" {
+			continue
+		}
+		if err = add(k, "%s ilike $%d", "%"+q.Like[k]+"%"); err != nil {
+			return
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(q.IN)) {
+		if len(q.IN[k]) == 0 {
+			continue
+		}
+		if err = add(k, "%s = any($%d)", q.IN[k]); err != nil {
+			return
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(q.INS)) {
+		if len(q.INS[k]) == 0 {
+			continue
+		}
+		if err = add(k, "%s = any($%d)", q.INS[k]); err != nil {
+			return
+		}
+	}
+
+	var b strings.Builder
+	if len(and) > 0 {
+		b.WriteString(" where ")
+		b.WriteString(strings.Join(and, " and "))
+	}
+	if q.Sort != "" {
+		col, _, err := q.column(q.Sort)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		b.WriteString(" order by ")
+		b.WriteString(col)
+		if q.Desc {
+			b.WriteString(" desc")
+		}
+	}
+	if q.Limit > 0 {
+		args = append(args, q.Limit)
+		b.WriteString(" limit $")
+		b.WriteString(strconv.Itoa(len(args)))
+	}
+	if q.Offset > 0 {
+		args = append(args, q.Offset)
+		b.WriteString(" offset $")
+		b.WriteString(strconv.Itoa(len(args)))
+	}
+
+	return b.String(), fields, args, nil
+}
+
+// Search returns rows by query
+func (a *AllSQL) Search(q *AllQuery) ([]All, error) {
+	tail, fields, args, err := q.Render()
+	if err != nil {
+		return nil, err
+	}
+	return a.query(fields, tail, args...)
+}
+
+// ---------------------------------------------------------------------------
+// table
+// ---------------------------------------------------------------------------
+
+const allSQLCreateTable = `create table if not exists alltypes (
+	id         bigint generated by default as identity primary key,
+	b          boolean,
+	s          text,
+	i          bigint,
+	i8         smallint,
+	i16        smallint,
+	i32        integer,
+	i64        bigint,
+	u          numeric(20,0),
+	u8         smallint,
+	u16        integer,
+	u32        bigint,
+	u64        numeric(20,0),
+	f32        real,
+	f64        double precision,
+	r          integer,
+	by         smallint,
+	bytes      bytea,
+	fixed      bytea,
+	uid        uuid,
+	puid       uuid,
+	raw        jsonb default '{}'::jsonb,
+	mapany     jsonb default '{}'::jsonb,
+	maps       jsonb default '{}'::jsonb,
+	conf       jsonb default '{}'::jsonb,
+	confs      jsonb default '[]'::jsonb,
+	anyv       jsonb default '{}'::jsonb,
+	t          timestamptz,
+	dur        bigint,
+	date       date,
+	pd         date,
+	pts        timestamp,
+	piv        interval,
+	lb         boolean[] default '{}',
+	ls         text[] default '{}',
+	li         bigint[] default '{}',
+	li8        smallint[] default '{}',
+	li16       smallint[] default '{}',
+	li32       integer[] default '{}',
+	lu16       integer[] default '{}',
+	lu32       bigint[] default '{}',
+	lu64       numeric(20,0)[] default '{}',
+	lf32       real[] default '{}',
+	lt         timestamptz[] default '{}',
+	lu         uuid[] default '{}',
+	ls2        jsonb default '[]'::jsonb,
+	li2        jsonb default '[]'::jsonb,
+	lbb        bytea[] default '{}',
+	lm         jsonb default '[]'::jsonb,
+	lst        smallint[] default '{}',
+	lrl        bigint[] default '{}',
+	ip         inet,
+	pfx        cidr,
+	nip        inet,
+	nnet       cidr,
+	num        numeric,
+	dec        numeric,
+	rng        int4range,
+	mrng       int8multirange,
+	pt         point,
+	bits       varbit,
+	ps         text,
+	pi         bigint,
+	pb         boolean,
+	pf         double precision,
+	pt2        timestamptz,
+	pip        inet,
+	ns         text,
+	ni         bigint,
+	nb         boolean,
+	nf         double precision,
+	nt         timestamptz,
+	ptx        text,
+	pi8        bigint,
+	pbo        boolean,
+	st         smallint,
+	prov       text,
+	rl         bigint,
+	nn         text not null
+)`
+
+// indexes from tags: sql{index}, sql{idx="group"}, sql{search="group"}
+var allSQLIndexes = []string{}
+
+// CreateTable creates table if not exists
+func (a *AllSQL) CreateTable() error {
+	_, err := a.db.Exec(context.Background(), allSQLCreateTable)
+	return err
+}
+
+// CreateIndexes creates indexes if not exist
+func (a *AllSQL) CreateIndexes() error {
+	for _, q := range allSQLIndexes {
+		if _, err := a.db.Exec(context.Background(), q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ResetSequence sets next id to max(id) + add (1 by default).
+// Useful after insert with own ids: InsertFull, Upsert, InsertMany
+func (a *AllSQL) ResetSequence(add ...int64) error {
+	plus := int64(1)
+	if len(add) > 0 {
+		plus = add[0]
+	}
+	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('alltypes', 'id'), coalesce((select max(id) from alltypes), 0) + $1, false)", plus)
+	return err
+}
+
+// SetSequence sets next id
+func (a *AllSQL) SetSequence(v int64) error {
+	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('alltypes', 'id'), $1, false)", v)
+	return err
 }

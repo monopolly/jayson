@@ -68,8 +68,9 @@ func render() {
 	// sql
 	if settings.SQL.Table != "" {
 		A("sql table", settings.SQL.Table)
-		saveGo(settings.File.golangSQL, sqlGenerate())
+		goFile.Write(sqlGenerate())
 		saveFile(settings.File.sql, sqlFile())
+		removeGenerated(settings.File.golangSQL) // sql was a separate file
 	}
 
 	// clickhouse
@@ -284,9 +285,9 @@ func importers() []byte {
 	imports["gojson \"github.com/goccy/go-json\""] = true
 
 	if settings.SQL.Table != "" {
-		imports["context"] = true
-		imports["errors"] = true
-		imports["strings"] = true
+		for _, x := range sqlImports() {
+			imports[x] = true
+		}
 	}
 	if settings.Clickhouse.Table != "" {
 		imports["context"] = true
