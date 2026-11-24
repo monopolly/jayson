@@ -3,16 +3,8 @@ package main
 import "strings"
 
 func (a *Clickhouse) Type(t *Field) string {
-	if t.Clickhouse.IP {
-		return t.Clickhouse.Type
-	}
 
 	goType := t.BaseType() // role.Role > int
-
-	if strings.EqualFold(t.Name, "ip") || strings.EqualFold(t.Clickhouse.Name, "ip") {
-		t.Clickhouse.IP = true
-		return "IPv4"
-	}
 
 	switch goType {
 

@@ -94,29 +94,40 @@ func (a *Clickhouse) engine() string {
 	return engine + "()"
 }
 
-// engine, order by, partition by, ttl
+// fields of sorting key: ch{order}
+func (a *Clickhouse) orderFields() (res []string) {
+	for _, x := range fields {
+		if x.Clickhouse.Skip || !x.Clickhouse.Order {
+			continue
+		}
+		res = append(res, x.Clickhouse.Name)
+	}
+	return
+}
+
+// engine, primary key, order by, partition by
 func (a *Clickhouse) engineSQL(primary []string) string {
 	engine := a.engine()
 	list := []string{"engine = " + engine}
 
 	name, _, _ := strings.Cut(engine, "(")
-	upper := strings.ToUpper(engine)
+	order := a.orderFields()
 
-	// key only for MergeTree family: Log, Memory and Null have no key
-	if strings.HasSuffix(strings.TrimSpace(name), "MergeTree") && !strings.Contains(upper, "ORDER BY") {
-		switch len(primary) {
-		case 0:
+	// keys only for MergeTree family: Log, Memory and Null have no keys
+	if strings.HasSuffix(strings.TrimSpace(name), "MergeTree") {
+		if len(primary) > 0 {
+			list = append(list, fmt.Sprintf("primary key (%s)", strings.Join(primary, ", ")))
+		}
+		if len(order) > 0 {
+			list = append(list, fmt.Sprintf("order by (%s)", strings.Join(order, ", ")))
+		}
+		// MergeTree needs a key
+		if len(primary) == 0 && len(order) == 0 {
 			list = append(list, "order by tuple()")
-		default:
-			keys := strings.Join(primary, ", ")
-			list = append(list, fmt.Sprintf("order by (%s)", keys), fmt.Sprintf("primary key (%s)", keys))
 		}
 	}
-	if settings.Clickhouse.Partition != "" && !strings.Contains(upper, "PARTITION BY") {
+	if settings.Clickhouse.Partition != "" {
 		list = append(list, "partition by "+settings.Clickhouse.Partition)
-	}
-	if settings.Clickhouse.TTL != "" {
-		list = append(list, "ttl "+settings.Clickhouse.TTL)
 	}
 	return strings.Join(list, "\n")
 }

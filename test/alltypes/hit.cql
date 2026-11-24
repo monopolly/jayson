@@ -3,6 +3,7 @@ create table if not exists hits (
 	iuser       Int64,
 	country     LowCardinality(String),
 	ip          IPv4,
+	ip6         IPv6,
 	path        String,
 	ok          Bool,
 	views       Int64,
@@ -15,7 +16,6 @@ create table if not exists hits (
 	ifrom       String
 )
 engine = ReplacingMergeTree(views)
-order by (id)
 primary key (id)
-partition by toYYYYMM(created)
-ttl created + interval 10 year;
+order by (id, country)
+partition by toYYYYMM(created);

@@ -47,7 +47,7 @@ type sourceField struct {
 // struct options: // go=News sql=news ch proto
 var sourceOptionKeys = map[string]bool{
 	"go": true, "sql": true, "ch": true, "proto": true, "test": true, "lock": true, "debug": true, "noinit": true,
-	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "chengine": true, "engine": true, "partition": true, "ttl": true, "ee": true,
+	"gotiny": true, "msgp": true, "!omit": true, "optimize": true, "engine": true, "partition": true, "ee": true,
 }
 
 // parse model file: only the model struct, other types of file are ignored
@@ -148,7 +148,7 @@ func parseSource(filename string) (res sourceStruct, err error) {
 	return
 }
 
-// go=News sql ch ttl="created + interval 30 day" > {go: News, sql: true, ch: true, ttl: created + interval 30 day}
+// go=News sql partition="toYYYYMM(created)" > {go: News, sql: true, partition: toYYYYMM(created)}
 func parseSourceOptions(v string) map[string]any {
 	res := map[string]any{}
 	for _, x := range sourceOptionFields(v) {

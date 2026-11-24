@@ -5,6 +5,7 @@ create table if not exists events (
 	path        String,
 	tags        Array(String)
 )
-engine = MergeTree()
-order by (id)
-primary key (id);
+engine = ReplacingMergeTree(id)
+primary key (id)
+order by (id, country)
+partition by intDiv(id,1000000);

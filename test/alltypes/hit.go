@@ -2,12 +2,13 @@ package alltypes
 
 import "time"
 
-// go=Hit ch=hits engine=ReplacingMergeTree(views) partition=toYYYYMM(created) ttl="created + interval 10 year"
+// go=Hit ch=hits engine=ReplacingMergeTree(views) partition=toYYYYMM(created)
 type hit struct {
-	id      int // ch{primary}
+	id      int    // ch{primary order}
 	user    int
-	country string // ch{low}
-	ip      string
+	country string // ch{low order}
+	ip      string // ch{ip}
+	ip6     string // ch{ip6}
 	path    string
 	ok      bool
 	views   int64

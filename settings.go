@@ -39,7 +39,6 @@ type Settings struct {
 		Table     string //sql table from struct
 		Engine    string //MergeTree, ReplacingMergeTree(ver)
 		Partition string //toYYYYMM(created)
-		TTL       string //created + interval 30 day
 		Class     string //AccountClickhouseSQL: type accountCHSQL int{}
 	}
 

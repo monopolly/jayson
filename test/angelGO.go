@@ -47,7 +47,6 @@ import (
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
 	test                          Generate go tests for generated model
-	ttl="created + interval 30 day" Clickhouse ttl: rows are removed after the time
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
@@ -87,9 +86,15 @@ import (
 	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
 
 	Clickhouse:
+	ip                            ch{ip} IPv4 column for ip address
+	ip6                           ch{ip6} IPv6 column for ip address
 	low                           ch{low} Wrap field type in LowCardinality(...)
-	primary"                      ch{primary} Make primary key
-	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
+	name=""                       ch{name="col"} Name of column
+	order                         ch{order} Sorting key: order by (name). No order by without the tag
+	primary                       ch{primary} Primary key, several fields make a composite key
+	skip                          ch{skip} No column for the field
+	type=""                       ch{type="UInt8"} Clickhouse type of column
+	unix                          ch{unix} DateTime column for number field with unix time
 
 	PROTO:
 	name="field"                  Rewrite proto field name
@@ -135,7 +140,7 @@ import (
 		Clean(before time.Time) error
 	}
 
-	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created) ttl="created + interval 30 day"
+	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created)
 	MergeTree                                   default: rows sorted by key, for most tables
 	ReplacingMergeTree(ver)                     removes duplicates of key on merge, keeps the row with max ver (or the last one)
 	SummingMergeTree(a, b)                      sums number columns of rows with the same key
@@ -159,8 +164,8 @@ func NewAngel() (a *Angel) {
 
 // 104 bytes (go padding)
 type Angel struct {
-	ID      int               `json:"id,omitempty"`      // sql{primary} ch{primary}  #readonly
-	Role    role.Role         `json:"role,omitempty"`    // sql{unique="css"} ch{primary}
+	ID      int               `json:"id,omitempty"`      // sql{primary}  #readonly
+	Role    role.Role         `json:"role,omitempty"`    // sql{unique="css"}
 	Key     uuid.UUID         `json:"key,omitempty"`     // sql{unique="css"}
 	Created time.Time         `json:"created,omitempty"` //
 	IP      net.IP            `json:"ip,omitempty"`      //
@@ -1093,8 +1098,8 @@ const (
 
 // string index
 const (
-	AngelFieldID      = "id"      // int sql{primary} ch{primary}  #readonly
-	AngelFieldRole    = "role"    // role.Role sql{unique="css"} ch{primary}
+	AngelFieldID      = "id"      // int sql{primary}  #readonly
+	AngelFieldRole    = "role"    // role.Role sql{unique="css"}
 	AngelFieldKey     = "key"     // uuid.UUID sql{unique="css"}
 	AngelFieldCreated = "created" // time.Time
 	AngelFieldIP      = "ip"      // net.IP
@@ -1801,14 +1806,14 @@ const angelCHCreateTable = `create table if not exists angel (
 	smalls      UInt8,
 	name        String,
 	about       Array(String),
-	ipes        JSON,
+	ipes        Array(IPv4),
 	music       Array(Int64),
 	links       Map(String, String),
 	stats       Map(String, Int64)
 )
-engine = MergeTree()
-order by (id, role)
-primary key (id, role)`
+engine = ReplacingMergeTree(role)
+order by tuple()
+partition by toYYYYMM(created)`
 
 // CreateTable creates table if not exists
 func (a *AngelCQL) CreateTable() error {

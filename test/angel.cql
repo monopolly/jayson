@@ -7,11 +7,11 @@ create table if not exists angel (
 	smalls      UInt8,
 	name        String,
 	about       Array(String),
-	ipes        JSON,
+	ipes        Array(IPv4),
 	music       Array(Int64),
 	links       Map(String, String),
 	stats       Map(String, Int64)
 )
-engine = MergeTree()
-order by (id, role)
-primary key (id, role);
+engine = ReplacingMergeTree(role)
+order by tuple()
+partition by toYYYYMM(created);

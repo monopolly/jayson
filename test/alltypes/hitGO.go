@@ -41,7 +41,6 @@ import (
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
 	test                          Generate go tests for generated model
-	ttl="created + interval 30 day" Clickhouse ttl: rows are removed after the time
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
@@ -81,9 +80,15 @@ import (
 	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
 
 	Clickhouse:
+	ip                            ch{ip} IPv4 column for ip address
+	ip6                           ch{ip6} IPv6 column for ip address
 	low                           ch{low} Wrap field type in LowCardinality(...)
-	primary"                      ch{primary} Make primary key
-	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
+	name=""                       ch{name="col"} Name of column
+	order                         ch{order} Sorting key: order by (name). No order by without the tag
+	primary                       ch{primary} Primary key, several fields make a composite key
+	skip                          ch{skip} No column for the field
+	type=""                       ch{type="UInt8"} Clickhouse type of column
+	unix                          ch{unix} DateTime column for number field with unix time
 
 	PROTO:
 	name="field"                  Rewrite proto field name
@@ -108,7 +113,7 @@ import (
 		Clean(before time.Time) error
 	}
 
-	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created) ttl="created + interval 30 day"
+	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created)
 	MergeTree                                   default: rows sorted by key, for most tables
 	ReplacingMergeTree(ver)                     removes duplicates of key on merge, keeps the row with max ver (or the last one)
 	SummingMergeTree(a, b)                      sums number columns of rows with the same key
@@ -130,12 +135,13 @@ func NewHit() (a *Hit) {
 	return
 }
 
-// 144 bytes (go padding)
+// 160 bytes (go padding)
 type Hit struct {
-	ID      int               `json:"id,omitempty"`      // ch{primary}
+	ID      int               `json:"id,omitempty"`      // ch{primary order}
 	User    int               `json:"user,omitempty"`    //
-	Country string            `json:"country,omitempty"` // ch{low}
-	IP      string            `json:"ip,omitempty"`      //
+	Country string            `json:"country,omitempty"` // ch{low order}
+	IP      string            `json:"ip,omitempty"`      // ch{ip}
+	Ip6     string            `json:"ip6,omitempty"`     // ch{ip6}
 	Path    string            `json:"path,omitempty"`    //
 	Ok      bool              `json:"ok,omitempty"`      //
 	Views   int64             `json:"views,omitempty"`   //
@@ -157,6 +163,7 @@ const (
 	HitIndexUser
 	HitIndexCountry
 	HitIndexIP
+	HitIndexIp6
 	HitIndexPath
 	HitIndexOk
 	HitIndexViews
@@ -171,10 +178,11 @@ const (
 
 // string index
 const (
-	HitFieldID      = "id"      // int ch{primary}
+	HitFieldID      = "id"      // int ch{primary order}
 	HitFieldUser    = "user"    // int
-	HitFieldCountry = "country" // string ch{low}
-	HitFieldIP      = "ip"      // string
+	HitFieldCountry = "country" // string ch{low order}
+	HitFieldIP      = "ip"      // string ch{ip}
+	HitFieldIp6     = "ip6"     // string ch{ip6}
 	HitFieldPath    = "path"    // string
 	HitFieldOk      = "ok"      // bool
 	HitFieldViews   = "views"   // int64
@@ -189,7 +197,7 @@ const (
 
 // index func
 func HitIndexes() []HitIndexTyped {
-	return []HitIndexTyped{HitIndexID, HitIndexUser, HitIndexCountry, HitIndexIP, HitIndexPath, HitIndexOk, HitIndexViews, HitIndexCreated, HitIndexTags, HitIndexCodes, HitIndexSizes, HitIndexAttrs, HitIndexCounts, HitIndexFrom}
+	return []HitIndexTyped{HitIndexID, HitIndexUser, HitIndexCountry, HitIndexIP, HitIndexIp6, HitIndexPath, HitIndexOk, HitIndexViews, HitIndexCreated, HitIndexTags, HitIndexCodes, HitIndexSizes, HitIndexAttrs, HitIndexCounts, HitIndexFrom}
 
 }
 
@@ -204,6 +212,8 @@ func (a HitIndexTyped) String() string {
 		return "country"
 	case HitIndexIP:
 		return "ip"
+	case HitIndexIp6:
+		return "ip6"
 	case HitIndexPath:
 		return "path"
 	case HitIndexOk:
@@ -240,6 +250,8 @@ func (a HitIndexTyped) SQLName() string {
 		return "country"
 	case HitIndexIP:
 		return "ip"
+	case HitIndexIp6:
+		return "ip6"
 	case HitIndexPath:
 		return "path"
 	case HitIndexOk:
@@ -276,6 +288,8 @@ func (a HitIndexTyped) ClickhouseName() string {
 		return "country"
 	case HitIndexIP:
 		return "ip"
+	case HitIndexIp6:
+		return "ip6"
 	case HitIndexPath:
 		return "path"
 	case HitIndexOk:
@@ -311,6 +325,8 @@ func (a HitIndexTyped) Type() string {
 	case HitIndexCountry:
 		return "string"
 	case HitIndexIP:
+		return "string"
+	case HitIndexIp6:
 		return "string"
 	case HitIndexPath:
 		return "string"
@@ -348,6 +364,8 @@ func (a HitIndexTyped) Title() string {
 		return "Country"
 	case HitIndexIP:
 		return "IP"
+	case HitIndexIp6:
+		return "Ip6"
 	case HitIndexPath:
 		return "Path"
 	case HitIndexOk:
@@ -392,6 +410,8 @@ func HitKeyIndex(key string) HitIndexTyped {
 		return HitIndexCountry
 	case "ip":
 		return HitIndexIP
+	case "ip6":
+		return HitIndexIp6
 	case "path":
 		return HitIndexPath
 	case "ok":
@@ -420,7 +440,7 @@ func HitKeyIndex(key string) HitIndexTyped {
 // valid struct key check
 func HitValidKey(key string) bool {
 	switch key {
-	case "id", "user", "country", "ip", "path", "ok", "views", "created", "tags", "codes", "sizes", "attrs", "counts", "from":
+	case "id", "user", "country", "ip", "ip6", "path", "ok", "views", "created", "tags", "codes", "sizes", "attrs", "counts", "from":
 		return true
 	default:
 		return false
@@ -429,7 +449,7 @@ func HitValidKey(key string) bool {
 
 // Tuple create an array from struct
 func (a *Hit) Tuple() (r []any) {
-	return []any{a.ID, a.User, a.Country, a.IP, a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, a.Counts, a.From}
+	return []any{a.ID, a.User, a.Country, a.IP, a.Ip6, a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, a.Counts, a.From}
 }
 
 // get struct value with function
@@ -443,6 +463,8 @@ func (a *Hit) Get(k string) (v any) {
 		return a.Country //string
 	case "ip":
 		return a.IP //string
+	case "ip6":
+		return a.Ip6 //string
 	case "path":
 		return a.Path //string
 	case "ok":
@@ -478,6 +500,8 @@ func (a *Hit) String(k string) (v string) {
 		return fmt.Sprint(a.Country) //string
 	case "ip":
 		return fmt.Sprint(a.IP) //string
+	case "ip6":
+		return fmt.Sprint(a.Ip6) //string
 	case "path":
 		return fmt.Sprint(a.Path) //string
 	case "ok":
@@ -509,6 +533,7 @@ func (a *Hit) Map() map[string]any {
 		"user":    a.User,
 		"country": a.Country,
 		"ip":      a.IP,
+		"ip6":     a.Ip6,
 		"path":    a.Path,
 		"ok":      a.Ok,
 		"views":   a.Views,
@@ -543,7 +568,7 @@ func ParseHit(v []byte) (a Hit, err error) {
 
 // Tuple create an array from struct for clickhouse
 func (a *Hit) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.User, a.Country, net.ParseIP(a.IP), a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, func() map[string]int64 {
+	return []any{a.ID, a.User, a.Country, net.ParseIP(a.IP), net.ParseIP(a.Ip6), a.Path, a.Ok, a.Views, a.Created, a.Tags, a.Codes, a.Sizes, a.Attrs, func() map[string]int64 {
 		r := make(map[string]int64, len(a.Counts))
 		for k, v := range a.Counts {
 			r[string(k)] = int64(v)
@@ -596,7 +621,7 @@ func (a *HitCQL) Fields() []HitIndexTyped {
 // ---------------------------------------------------------------------------
 
 // all columns
-var hitCHFields = []HitIndexTyped{HitIndexID, HitIndexUser, HitIndexCountry, HitIndexIP, HitIndexPath, HitIndexOk, HitIndexViews, HitIndexCreated, HitIndexTags, HitIndexCodes, HitIndexSizes, HitIndexAttrs, HitIndexCounts, HitIndexFrom}
+var hitCHFields = []HitIndexTyped{HitIndexID, HitIndexUser, HitIndexCountry, HitIndexIP, HitIndexIp6, HitIndexPath, HitIndexOk, HitIndexViews, HitIndexCreated, HitIndexTags, HitIndexCodes, HitIndexSizes, HitIndexAttrs, HitIndexCounts, HitIndexFrom}
 
 // column names
 var hitCHColumns = [...]string{
@@ -604,6 +629,7 @@ var hitCHColumns = [...]string{
 	HitIndexUser:    "iuser",
 	HitIndexCountry: "country",
 	HitIndexIP:      "ip",
+	HitIndexIp6:     "ip6",
 	HitIndexPath:    "path",
 	HitIndexOk:      "ok",
 	HitIndexViews:   "views",
@@ -616,7 +642,7 @@ var hitCHColumns = [...]string{
 	HitIndexFrom:    "ifrom",
 }
 
-const hitCHSelectAll = "id, iuser, country, ip, path, ok, views, created, tags, codes, sizes, attrs, counts, ifrom"
+const hitCHSelectAll = "id, iuser, country, ip, ip6, path, ok, views, created, tags, codes, sizes, attrs, counts, ifrom"
 
 // mutations wait until the data is changed
 const hitCHSync = " settings mutations_sync = 1"
@@ -687,7 +713,7 @@ func (a *HitCQL) Insert(v ...Hit) error {
 
 // send writes rows by one batch
 func (a *HitCQL) send(list []Hit) error {
-	batch, err := a.conn.PrepareBatch(context.Background(), "insert into hits (id, iuser, country, ip, path, ok, views, created, tags, codes, sizes, attrs, counts, ifrom)")
+	batch, err := a.conn.PrepareBatch(context.Background(), "insert into hits (id, iuser, country, ip, ip6, path, ok, views, created, tags, codes, sizes, attrs, counts, ifrom)")
 	if err != nil {
 		return err
 	}
@@ -934,6 +960,7 @@ const hitCHCreateTable = `create table if not exists hits (
 	iuser       Int64,
 	country     LowCardinality(String),
 	ip          IPv4,
+	ip6         IPv6,
 	path        String,
 	ok          Bool,
 	views       Int64,
@@ -946,10 +973,9 @@ const hitCHCreateTable = `create table if not exists hits (
 	ifrom       String
 )
 engine = ReplacingMergeTree(views)
-order by (id)
 primary key (id)
-partition by toYYYYMM(created)
-ttl created + interval 10 year`
+order by (id, country)
+partition by toYYYYMM(created)`
 
 // CreateTable creates table if not exists
 func (a *HitCQL) CreateTable() error {
@@ -974,6 +1000,8 @@ func (a *Hit) clickhouseSet(f HitIndexTyped, v any) {
 		hitCHAssign(reflect.ValueOf(&a.Country).Elem(), reflect.ValueOf(v))
 	case HitIndexIP:
 		hitCHAssign(reflect.ValueOf(&a.IP).Elem(), reflect.ValueOf(v))
+	case HitIndexIp6:
+		hitCHAssign(reflect.ValueOf(&a.Ip6).Elem(), reflect.ValueOf(v))
 	case HitIndexPath:
 		hitCHAssign(reflect.ValueOf(&a.Path).Elem(), reflect.ValueOf(v))
 	case HitIndexOk:

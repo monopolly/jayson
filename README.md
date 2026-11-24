@@ -278,11 +278,11 @@ fields := UserReadonlyList()   // []UserIndexTyped{UserIndexID}
 The same model, the same style of API. `EventCQL` also buffers rows in memory and writes them in batches.
 
 ```go
-// go ch=events
+// go ch=events engine=ReplacingMergeTree(id) partition=intDiv(id,1000000)
 type event struct {
-	id      uint64 // ch{primary}
-	country string // ch{low}
-	ip      string // ch{type=ip}
+	id      uint64 // ch{primary order}
+	country string // ch{low order}
+	ip      string // ch{ip}
 	path    string
 	tags    []string
 }
@@ -312,13 +312,18 @@ top, err := ch.Top("DE")                 // own query
 err = ch.Delete(1)
 ```
 
-The engine is set in the struct options. The key is built from `ch{primary}` fields for engines of the
-`MergeTree` family; `Log`, `Memory` and `Null` get no key.
+The table is described by field tags and two struct options:
 
-```go
-// go ch=events engine=ReplacingMergeTree(updated) partition=toYYYYMM(created) ttl="created + interval 90 day"
-```
+| Where | Tag | Result |
+| --- | --- | --- |
+| field | `ch{primary}` | `primary key (id)`, several fields make a composite key |
+| field | `ch{order}` | `order by (id, country)`, no `order by` without the tag |
+| field | `ch{low}` | `LowCardinality(String)` |
+| field | `ch{ip}`, `ch{ip6}` | `IPv4`, `IPv6` |
+| struct | `engine=ReplacingMergeTree(id)` | engine, `MergeTree` by default |
+| struct | `partition=toYYYYMM(created)` | `partition by` |
 
+In ClickHouse the primary key must be a prefix of the sorting key: put `order` on the `primary` fields first.
 The header of every generated file with the `ch` option lists the engines with a short description.
 
 ClickHouse is an insert and select database: there are no update methods. `Delete` is a mutation and waits
@@ -397,7 +402,6 @@ type news struct {
 | `ch` / `ch=news` | ClickHouse class `NewsCQL` and the `.cql` file. |
 | `engine=ReplacingMergeTree(updated)` | ClickHouse engine, `MergeTree` by default. |
 | `partition=toYYYYMM(created)` | ClickHouse `partition by`. |
-| `ttl="created + interval 30 day"` | ClickHouse `ttl`. A value with spaces is written in quotes. |
 | `proto` / `proto=NewsProto` | `.proto` file and protobuf Go code. |
 | `ee` | PostgreSQL and ClickHouse methods return `errors.E` instead of `error`. |
 | `gotiny`, `msgp` | gotiny and MessagePack encoding. |
@@ -430,7 +434,8 @@ title string // sql{index} js{name="headline"} #readonly @public
 | `sql{noinsert}` | Do not send the field in `Insert`. |
 | `sql{ver="2"}`, `sql{renames="old"}` | Migration lines in the `.sql` file. |
 | `sql{skip}` | No column for the field. |
-| `ch{primary}`, `ch{low}`, `ch{type=ip}`, `ch{skip}` | ClickHouse key, `LowCardinality`, `IPv4`, skip. |
+| `ch{primary}`, `ch{order}`, `ch{low}`, `ch{ip}`, `ch{ip6}` | ClickHouse primary key, sorting key, `LowCardinality`, `IPv4`, `IPv6`. |
+| `ch{type="UInt8"}`, `ch{name="col"}`, `ch{unix}`, `ch{skip}` | ClickHouse type, column name, `DateTime` for unix time, skip. |
 | `proto{name="..."}`, `proto{type="..."}`, `proto{skip}` | Protobuf field name, type, skip. |
 | `go{name="..."}`, `go{type="..."}` | Go field name and type. |
 | `js{name="..."}` | JSON key. |

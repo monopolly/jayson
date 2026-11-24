@@ -1,10 +1,10 @@
 package examples
 
-// go ch=events
+// go ch=events engine=ReplacingMergeTree(id) partition=intDiv(id,1000000)
 type event struct {
-	id      uint64 // ch{primary}
-	country string // ch{low}
-	ip      string // ch{type=ip}
+	id      uint64 // ch{primary order}
+	country string // ch{low order}
+	ip      string // ch{ip}
 	path    string
 	tags    []string
 }

@@ -6,64 +6,57 @@ import (
 	"github.com/monopolly/jayson/tools"
 )
 
-// sql options
+// clickhouse options: ch{primary} ch{order} ch{low} ch{ip} ch{ip6} ch{unix} ch{skip} ch{type="UInt8"} ch{name="col"}
 func (a *Field) parseClickhouseOptions(v string) {
 
-	a.Clickhouse.Type = tools.Between(v, `type="`, `"`)
-	if a.Clickhouse.Type == "" {
-		a.Clickhouse.Type = tools.Value(v, "type=")
+	// flags and values: primary low type="UInt8"
+	flags := map[string]bool{}
+	for _, x := range strings.FieldsFunc(sqlTagValue.ReplaceAllString(v, " "), func(r rune) bool { return r == ' ' || r == ',' || r == '\t' }) {
+		flags[x] = true
 	}
-	a.Clickhouse.Skip = strings.Contains(v, "skip")
-	a.Clickhouse.Low = strings.Contains(v, "low")
-	a.Clickhouse.Primary = strings.Contains(v, "primary")
-	if !a.Clickhouse.Primary {
-		a.Clickhouse.Primary = strings.Contains(v, "!!")
-	}
-	a.Clickhouse.Unix = strings.Contains(v, "unix")
 
-	name := tools.Between(v, `name="`, `"`)
-	if name != "" {
+	a.Clickhouse.Skip = flags["skip"]
+	a.Clickhouse.Low = flags["low"]
+	a.Clickhouse.Primary = flags["primary"] || flags["!!"]
+	a.Clickhouse.Order = flags["order"]
+	a.Clickhouse.Unix = flags["unix"]
+	a.Clickhouse.Type = tools.Between(v, `type="`, `"`)
+
+	if name := tools.Between(v, `name="`, `"`); name != "" {
 		a.Clickhouse.Name = name
 	}
 
-	a.normalizeClickhouseIPType()
+	// ip address: ch{ip} IPv4, ch{ip6} IPv6, net.IP and netip.Addr without tag are IPv4
+	goType := strings.TrimPrefix(a.GoType(), "[]")
+	switch {
+	case flags["ip6"]:
+		a.Clickhouse.IP, a.Clickhouse.Type = true, "IPv6"
+	case flags["ip"], a.Clickhouse.Type == "" && (goType == "net.IP" || goType == "netip.Addr"):
+		a.Clickhouse.IP, a.Clickhouse.Type = true, "IPv4"
+	}
+	if a.Clickhouse.IP && strings.HasPrefix(a.GoType(), "[]") {
+		a.Clickhouse.Type = "Array(" + a.Clickhouse.Type + ")"
+	}
 
-	// go type to postgres type
+	// go type to clickhouse type
 	if a.Clickhouse.Type == "" {
 		a.Clickhouse.Type = clickhouse.Type(a)
 	}
 
-	// help
-	// helps.Clickhouse[`type="uint256"`] = `Rewrite sql type for field. Ex: type="jsonb"`
-	// helps.Clickhouse["skip"] = "Skip field for sql queries"
-	helps.Clickhouse[`primary"`] = `ch{primary} Make primary key`
-	// helps.Clickhouse["unix"] = "Set DateTime type"
+	helps.Clickhouse["primary"] = "ch{primary} Primary key, several fields make a composite key"
+	helps.Clickhouse["order"] = "ch{order} Sorting key: order by (name). No order by without the tag"
 	helps.Clickhouse["low"] = "ch{low} Wrap field type in LowCardinality(...)"
-	helps.Clickhouse[`type=ip`] = `ch{type=ip} Use ClickHouse IPv4 type for IP address fields`
-	// helps.Clickhouse[`type=ipv4`] = `Use ClickHouse IPv4 type for IP address fields`
-
-}
-
-func (a *Field) normalizeClickhouseIPType() {
-	t := strings.ToLower(strings.Trim(a.Clickhouse.Type, `"',`))
-	switch t {
-	case "ip", "ipv4", "ip4", "ipv6", "ip6":
-		a.Clickhouse.IP = true
-		a.Clickhouse.Type = "IPv4"
-	case "":
-		if strings.EqualFold(a.Name, "ip") || strings.EqualFold(a.Clickhouse.Name, "ip") {
-			a.Clickhouse.IP = true
-			a.Clickhouse.Type = "IPv4"
-		}
-	}
+	helps.Clickhouse["ip"] = "ch{ip} IPv4 column for ip address"
+	helps.Clickhouse["ip6"] = "ch{ip6} IPv6 column for ip address"
+	helps.Clickhouse["unix"] = "ch{unix} DateTime column for number field with unix time"
+	helps.Clickhouse[`type=""`] = `ch{type="UInt8"} Clickhouse type of column`
+	helps.Clickhouse[`name=""`] = `ch{name="col"} Name of column`
+	helps.Clickhouse["skip"] = "ch{skip} No column for the field"
 }
 
 func hasClickhouseIPFields() bool {
 	for _, x := range fields {
-		if x.Clickhouse.Skip {
-			continue
-		}
-		if x.Clickhouse.IP {
+		if !x.Clickhouse.Skip && x.Clickhouse.IP {
 			return true
 		}
 	}

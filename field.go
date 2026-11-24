@@ -73,6 +73,7 @@ type Field struct {
 		Type    string //new sql type https://clickhouse.com/docs/sql-reference/data-types/int-uint
 		Skip    bool   //skip in sql table
 		Primary bool   //primary key fields PRIMARY KEY(category_id, sale_date)
+		Order   bool   //sorting key: order by (name)
 		Unix    bool   //primary key fields PRIMARY KEY(category_id, sale_date)
 		Low     bool   //low cardinality
 		IP      bool   //IPv4/IPv6 field

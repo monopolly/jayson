@@ -36,12 +36,12 @@ func TestClickhouse(t *testing.T) {
 	if err := db.CreateTable(); err != nil {
 		t.Fatal("table:", err)
 	}
-	// options engine, partition, ttl
+	// options engine and partition, tags primary, order, ip, ip6
 	var ddl string
 	if err := conn.QueryRow(context.Background(), "show create table hits").Scan(&ddl); err != nil {
 		t.Fatal(err)
 	}
-	for _, x := range []string{"ReplacingMergeTree(views)", "PARTITION BY toYYYYMM(created)", "TTL created + toIntervalYear(10)", "ORDER BY (id)"} {
+	for _, x := range []string{"ReplacingMergeTree(views)", "PARTITION BY toYYYYMM(created)", "PRIMARY KEY (id)", "ORDER BY (id, country)", "`ip` IPv4", "`ip6` IPv6"} {
 		if !strings.Contains(ddl, x) {
 			t.Errorf("no %q in table:\n%s", x, ddl)
 		}
@@ -56,7 +56,7 @@ func TestClickhouse(t *testing.T) {
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	want := Hit{
-		ID: 1, User: 7, Country: "DE", IP: "10.0.0.1", Path: "/a", Ok: true, Views: 10, Created: now,
+		ID: 1, User: 7, Country: "DE", IP: "10.0.0.1", Ip6: "2001:db8::1", Path: "/a", Ok: true, Views: 10, Created: now,
 		Tags: []string{"a", "b"}, Codes: []int{1, 2}, Sizes: []uint{3},
 		Attrs: map[string]string{"k": "v"}, Counts: map[string]int{"n": 1}, From: "google",
 	}

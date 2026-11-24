@@ -40,7 +40,6 @@ import (
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
 	test                          Generate go tests for generated model
-	ttl="created + interval 30 day" Clickhouse ttl: rows are removed after the time
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
@@ -80,9 +79,15 @@ import (
 	ver="v4"                      Create an alter table record in SQL file. Add new column. With new version in comment. Ex: ver="2"
 
 	Clickhouse:
+	ip                            ch{ip} IPv4 column for ip address
+	ip6                           ch{ip6} IPv6 column for ip address
 	low                           ch{low} Wrap field type in LowCardinality(...)
-	primary"                      ch{primary} Make primary key
-	type=ip                       ch{type=ip} Use ClickHouse IPv4 type for IP address fields
+	name=""                       ch{name="col"} Name of column
+	order                         ch{order} Sorting key: order by (name). No order by without the tag
+	primary                       ch{primary} Primary key, several fields make a composite key
+	skip                          ch{skip} No column for the field
+	type=""                       ch{type="UInt8"} Clickhouse type of column
+	unix                          ch{unix} DateTime column for number field with unix time
 
 	PROTO:
 	name="field"                  Rewrite proto field name
@@ -107,7 +112,7 @@ import (
 		Clean(before time.Time) error
 	}
 
-	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created) ttl="created + interval 30 day"
+	CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created)
 	MergeTree                                   default: rows sorted by key, for most tables
 	ReplacingMergeTree(ver)                     removes duplicates of key on merge, keeps the row with max ver (or the last one)
 	SummingMergeTree(a, b)                      sums number columns of rows with the same key
@@ -123,9 +128,9 @@ import (
 
 // 64 bytes (go padding)
 type Event struct {
-	ID      uint64   `json:"id,omitempty"`      // ch{primary}
-	Country string   `json:"country,omitempty"` // ch{low}
-	IP      string   `json:"ip,omitempty"`      // ch{type=ip}
+	ID      uint64   `json:"id,omitempty"`      // ch{primary order}
+	Country string   `json:"country,omitempty"` // ch{low order}
+	IP      string   `json:"ip,omitempty"`      // ch{ip}
 	Path    string   `json:"path,omitempty"`    //
 	Tags    []string `json:"tags,omitempty"`    //
 }
@@ -144,9 +149,9 @@ const (
 
 // string index
 const (
-	EventFieldID      = "id"      // uint64 ch{primary}
-	EventFieldCountry = "country" // string ch{low}
-	EventFieldIP      = "ip"      // string ch{type=ip}
+	EventFieldID      = "id"      // uint64 ch{primary order}
+	EventFieldCountry = "country" // string ch{low order}
+	EventFieldIP      = "ip"      // string ch{ip}
 	EventFieldPath    = "path"    // string
 	EventFieldTags    = "tags"    // []string
 )
@@ -680,9 +685,10 @@ const eventCHCreateTable = `create table if not exists events (
 	path        String,
 	tags        Array(String)
 )
-engine = MergeTree()
-order by (id)
-primary key (id)`
+engine = ReplacingMergeTree(id)
+primary key (id)
+order by (id, country)
+partition by intDiv(id,1000000)`
 
 // CreateTable creates table if not exists
 func (a *EventCQL) CreateTable() error {

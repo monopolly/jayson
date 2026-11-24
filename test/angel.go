@@ -8,10 +8,10 @@ import (
 	"github.com/monopolly/jayson/test/role"
 )
 
-// go sql ch
+// go sql ch engine=ReplacingMergeTree(role) partition=toYYYYMM(created)
 type angel struct {
-	id      int       // sql{primary} ch{primary}  #readonly
-	role    role.Role // sql{unique="css"} ch{primary}
+	id      int       // sql{primary}  #readonly
+	role    role.Role // sql{unique="css"}
 	key     uuid.UUID // sql{unique="css"}
 	created time.Time
 	ip      net.IP

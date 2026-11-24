@@ -203,7 +203,7 @@ func Benchmark%[1]sGotinyUnmarshal(b *testing.B) {
 
 func testValue(x *Field) string {
 	t := testType(x)
-	if x.Clickhouse.IP || strings.EqualFold(x.Name, "ip") {
+	if x.Clickhouse.IP {
 		return `"127.0.0.1"`
 	}
 	switch t {
@@ -270,7 +270,7 @@ func testValue(x *Field) string {
 
 func protoTestValue(x *Field) string {
 	t := testType(x)
-	if x.Clickhouse.IP || strings.EqualFold(x.Name, "ip") {
+	if x.Clickhouse.IP {
 		return `"127.0.0.1"`
 	}
 	switch t {
