@@ -41,6 +41,7 @@ import (
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
 	debug                         Debug mode
+	ee                            Errors of sql methods are errors.E of github.com/monopolly/errors: errors.PGX(err)
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	gotiny                        Create gotiny marshal/unmarshal
 	lock                          Lock model for generation. Can't change model.

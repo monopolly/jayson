@@ -82,7 +82,11 @@ func render() {
 	// clickhouse
 	if settings.Clickhouse.Table != "" {
 		A("sql table", settings.Clickhouse.Table)
-		goFile.Write(clickhouse.Generate())
+		code := clickhouse.Generate()
+		if settings.SQL.Table != "" && settings.SQL.EE {
+			code = stdErrorsAlias(code)
+		}
+		goFile.Write(code)
 		saveFile(settings.File.clickhouse, clickhouse.File())
 	}
 

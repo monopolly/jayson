@@ -2,7 +2,7 @@ package news
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/monopolly/errors"
 	"github.com/monopolly/jayson/test/role"
 )
 
@@ -31,6 +32,7 @@ import (
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
 	debug                         Debug mode
+	ee                            Errors of sql methods are errors.E of github.com/monopolly/errors: errors.PGX(err)
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	gotiny                        Create gotiny marshal/unmarshal
 	lock                          Lock model for generation. Can't change model.
@@ -474,7 +476,7 @@ type AngelSQL struct {
 }
 
 // NewAngelSQL creates queries on pool, table and indexes if not exist
-func NewAngelSQL(pool *pgxpool.Pool) (*AngelSQL, error) {
+func NewAngelSQL(pool *pgxpool.Pool) (*AngelSQL, errors.E) {
 	a := &AngelSQL{pool: pool, db: pool}
 	if err := a.CreateTable(); err != nil {
 		return nil, err
@@ -495,10 +497,10 @@ func (a *AngelSQL) Pool() *pgxpool.Pool {
 //		_, err := conn.Exec(context.Background(), "vacuum angel")
 //		return err
 //	})
-func (a *AngelSQL) Conn(f func(conn *pgxpool.Conn) error) error {
+func (a *AngelSQL) Conn(f func(conn *pgxpool.Conn) errors.E) errors.E {
 	conn, err := a.pool.Acquire(context.Background())
 	if err != nil {
-		return err
+		return errors.PGX(err)
 	}
 	defer conn.Release()
 	return f(conn)
@@ -515,8 +517,13 @@ func (a *AngelSQL) Conn(f func(conn *pgxpool.Conn) error) error {
 //	})
 //
 // Begin of TX(tx) makes a savepoint
-func (a *AngelSQL) Begin(f func(tx pgx.Tx) error) error {
-	return pgx.BeginFunc(context.Background(), a.db, f)
+func (a *AngelSQL) Begin(f func(tx pgx.Tx) errors.E) errors.E {
+	return angelSQLErr(pgx.BeginFunc(context.Background(), a.db, func(tx pgx.Tx) error {
+		if err := f(tx); err != nil {
+			return err
+		}
+		return nil
+	}))
 }
 
 // TX returns queries in transaction tx
@@ -617,7 +624,7 @@ func angelSQLSelect(fields []AngelIndexTyped) (string, []AngelIndexTyped, error)
 // angelSQLSet returns "a = $1, b = $2" in stable order, placeholders from $start
 func angelSQLSet(v map[AngelIndexTyped]any, start int) (string, []any, error) {
 	if len(v) == 0 {
-		return "", nil, errors.New("angel: no values")
+		return "", nil, stderrors.New("angel: no values")
 	}
 	var b strings.Builder
 	args := make([]any, 0, len(v))
@@ -776,19 +783,16 @@ func (a *AngelSQL) queryRow(fields []AngelIndexTyped, tail string, args ...any) 
 	return
 }
 
-// Get returns row by id
-func (a *AngelSQL) Get(id int, fields ...AngelIndexTyped) (Angel, error) {
+func (a *AngelSQL) stdGet(id int, fields ...AngelIndexTyped) (Angel, error) {
 	return a.queryRow(fields, " where id = $1", id)
 }
 
-// Exists checks row by id
-func (a *AngelSQL) Exists(id int) (has bool, err error) {
+func (a *AngelSQL) stdExists(id int) (has bool, err error) {
 	err = a.db.QueryRow(context.Background(), "select exists (select 1 from angel where id = $1)", id).Scan(&has)
 	return
 }
 
-// GetBy returns first row with field = v
-func (a *AngelSQL) GetBy(field AngelIndexTyped, v any, fields ...AngelIndexTyped) (res Angel, err error) {
+func (a *AngelSQL) stdGetBy(field AngelIndexTyped, v any, fields ...AngelIndexTyped) (res Angel, err error) {
 	col, err := angelSQLColumn(field)
 	if err != nil {
 		return
@@ -796,15 +800,11 @@ func (a *AngelSQL) GetBy(field AngelIndexTyped, v any, fields ...AngelIndexTyped
 	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
 }
 
-// GetWhere returns first row by condition
-//
-//	db.GetWhere(nil, "title = $1 order by created desc", "James")
-func (a *AngelSQL) GetWhere(fields []AngelIndexTyped, where string, args ...any) (Angel, error) {
+func (a *AngelSQL) stdGetWhere(fields []AngelIndexTyped, where string, args ...any) (Angel, error) {
 	return a.queryRow(fields, " where "+where+" limit 1", args...)
 }
 
-// Has checks row with field = v
-func (a *AngelSQL) Has(field AngelIndexTyped, v any) (has bool, err error) {
+func (a *AngelSQL) stdHas(field AngelIndexTyped, v any) (has bool, err error) {
 	col, err := angelSQLColumn(field)
 	if err != nil {
 		return
@@ -813,34 +813,27 @@ func (a *AngelSQL) Has(field AngelIndexTyped, v any) (has bool, err error) {
 	return
 }
 
-// All returns all rows
-func (a *AngelSQL) All(fields ...AngelIndexTyped) ([]Angel, error) {
+func (a *AngelSQL) stdAll(fields ...AngelIndexTyped) ([]Angel, error) {
 	return a.query(fields, " order by id")
 }
 
-// List returns page of rows
-func (a *AngelSQL) List(limit, offset int, fields ...AngelIndexTyped) ([]Angel, error) {
+func (a *AngelSQL) stdList(limit, offset int, fields ...AngelIndexTyped) ([]Angel, error) {
 	return a.query(fields, " order by id limit $1 offset $2", limit, offset)
 }
 
-// Select returns rows by condition, all rows when where is empty
-//
-//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
-func (a *AngelSQL) Select(fields []AngelIndexTyped, where string, args ...any) ([]Angel, error) {
+func (a *AngelSQL) stdSelect(fields []AngelIndexTyped, where string, args ...any) ([]Angel, error) {
 	if where != "" {
 		where = " where " + where
 	}
 	return a.query(fields, where, args...)
 }
 
-// Count returns count of rows
-func (a *AngelSQL) Count() (count int, err error) {
+func (a *AngelSQL) stdCount() (count int, err error) {
 	err = a.db.QueryRow(context.Background(), "select count(*) from angel").Scan(&count)
 	return
 }
 
-// CountWhere returns count of rows by condition
-func (a *AngelSQL) CountWhere(where string, args ...any) (count int, err error) {
+func (a *AngelSQL) stdCountWhere(where string, args ...any) (count int, err error) {
 	err = a.db.QueryRow(context.Background(), "select count(*) from angel where "+where, args...).Scan(&count)
 	return
 }
@@ -853,39 +846,33 @@ const angelSQLInsert = "insert into angel (id, role, key, created, smalls, name,
 
 const angelSQLInsertFull = "insert into angel (id, role, key, created, smalls, name, about, music, links, stats) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 
-// Insert adds row
-func (a *AngelSQL) Insert(v *Angel) error {
+func (a *AngelSQL) stdInsert(v *Angel) error {
 	_, err := a.db.Exec(context.Background(), angelSQLInsert, v.sqlInsertArgs()...)
 	return err
 }
 
-// InsertNoConflict adds row, false when row exists
-func (a *AngelSQL) InsertNoConflict(v *Angel) (inserted bool, err error) {
+func (a *AngelSQL) stdInsertNoConflict(v *Angel) (inserted bool, err error) {
 	tag, err := a.db.Exec(context.Background(), angelSQLInsert+" on conflict do nothing", v.sqlInsertArgs()...)
 	return tag.RowsAffected() > 0, err
 }
 
-// InsertFull adds row with all columns as is: generated and noinsert columns too
-func (a *AngelSQL) InsertFull(v *Angel) error {
+func (a *AngelSQL) stdInsertFull(v *Angel) error {
 	_, err := a.db.Exec(context.Background(), angelSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
-// Upsert adds row with all columns or updates existing row by (id)
-func (a *AngelSQL) Upsert(v *Angel) error {
+func (a *AngelSQL) stdUpsert(v *Angel) error {
 	_, err := a.db.Exec(context.Background(), "insert into angel (id, role, key, created, smalls, name, about, music, links, stats) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) on conflict (id) do update set role = excluded.role, key = excluded.key, created = excluded.created, smalls = excluded.smalls, name = excluded.name, about = excluded.about, music = excluded.music, links = excluded.links, stats = excluded.stats", v.sqlAllArgs()...)
 	return err
 }
 
-// InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
-func (a *AngelSQL) InsertMany(list []Angel) (int64, error) {
+func (a *AngelSQL) stdInsertMany(list []Angel) (int64, error) {
 	return a.db.CopyFrom(context.Background(), pgx.Identifier{"angel"}, angelSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
 		return list[i].sqlInsertArgs(), nil
 	}))
 }
 
-// InsertBatch adds rows in one round trip
-func (a *AngelSQL) InsertBatch(list []*Angel) error {
+func (a *AngelSQL) stdInsertBatch(list []*Angel) error {
 	if len(list) == 0 {
 		return nil
 	}
@@ -908,8 +895,7 @@ func (a *AngelSQL) InsertBatch(list []*Angel) error {
 // update, delete
 // ---------------------------------------------------------------------------
 
-// Update sets field of row, pgx.ErrNoRows when row not found
-func (a *AngelSQL) Update(id int, field AngelIndexTyped, v any) error {
+func (a *AngelSQL) stdUpdate(id int, field AngelIndexTyped, v any) error {
 	col, err := angelSQLColumn(field)
 	if err != nil {
 		return err
@@ -917,8 +903,7 @@ func (a *AngelSQL) Update(id int, field AngelIndexTyped, v any) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set "+col+" = $1 where id = $2", v, id))
 }
 
-// Updates sets fields of row, pgx.ErrNoRows when row not found
-func (a *AngelSQL) Updates(id int, v map[AngelIndexTyped]any) error {
+func (a *AngelSQL) stdUpdates(id int, v map[AngelIndexTyped]any) error {
 	set, args, err := angelSQLSet(v, 1)
 	if err != nil {
 		return err
@@ -926,8 +911,7 @@ func (a *AngelSQL) Updates(id int, v map[AngelIndexTyped]any) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
-// Save updates row from struct by v.ID: listed fields or all columns
-func (a *AngelSQL) Save(v *Angel, fields ...AngelIndexTyped) error {
+func (a *AngelSQL) stdSave(v *Angel, fields ...AngelIndexTyped) error {
 	if len(fields) == 0 {
 		fields = angelSQLFields
 	}
@@ -944,8 +928,7 @@ func (a *AngelSQL) Save(v *Angel, fields ...AngelIndexTyped) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(AngelIndexID))...))
 }
 
-// Inc adds v to number field: views = views + 1
-func (a *AngelSQL) Inc(id int, field AngelIndexTyped, v any) error {
+func (a *AngelSQL) stdInc(id int, field AngelIndexTyped, v any) error {
 	col, err := angelSQLColumn(field)
 	if err != nil {
 		return err
@@ -953,16 +936,12 @@ func (a *AngelSQL) Inc(id int, field AngelIndexTyped, v any) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set "+col+" = coalesce("+col+", 0) + $1 where id = $2", v, id))
 }
 
-// Delete removes row by id
-func (a *AngelSQL) Delete(id int) error {
+func (a *AngelSQL) stdDelete(id int) error {
 	_, err := a.db.Exec(context.Background(), "delete from angel where id = $1", id)
 	return err
 }
 
-// UpdateWhere sets field of rows by condition, returns count of rows
-//
-//	db.UpdateWhere(IndexActive, false, "created < $1", date)
-func (a *AngelSQL) UpdateWhere(field AngelIndexTyped, v any, where string, args ...any) (int64, error) {
+func (a *AngelSQL) stdUpdateWhere(field AngelIndexTyped, v any, where string, args ...any) (int64, error) {
 	col, err := angelSQLColumn(field)
 	if err != nil {
 		return 0, err
@@ -971,8 +950,7 @@ func (a *AngelSQL) UpdateWhere(field AngelIndexTyped, v any, where string, args 
 	return tag.RowsAffected(), err
 }
 
-// UpdatesWhere sets fields of rows by condition, returns count of rows
-func (a *AngelSQL) UpdatesWhere(v map[AngelIndexTyped]any, where string, args ...any) (int64, error) {
+func (a *AngelSQL) stdUpdatesWhere(v map[AngelIndexTyped]any, where string, args ...any) (int64, error) {
 	set, vals, err := angelSQLSet(v, len(args)+1)
 	if err != nil {
 		return 0, err
@@ -981,69 +959,56 @@ func (a *AngelSQL) UpdatesWhere(v map[AngelIndexTyped]any, where string, args ..
 	return tag.RowsAffected(), err
 }
 
-// DeleteWhere removes rows by condition, returns count of rows
-func (a *AngelSQL) DeleteWhere(where string, args ...any) (int64, error) {
+func (a *AngelSQL) stdDeleteWhere(where string, args ...any) (int64, error) {
 	tag, err := a.db.Exec(context.Background(), "delete from angel where "+where, args...)
 	return tag.RowsAffected(), err
 }
 
-// AboutAppend adds values to array about
-func (a *AngelSQL) AboutAppend(id int, v ...string) error {
+func (a *AngelSQL) stdAboutAppend(id int, v ...string) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set about = coalesce(about, '{}') || $1::text[] where id = $2", v, id))
 }
 
-// AboutRemove removes all entries of v from array about
-func (a *AngelSQL) AboutRemove(id int, v string) error {
+func (a *AngelSQL) stdAboutRemove(id int, v string) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set about = array_remove(about, $1::text) where id = $2", v, id))
 }
 
-// MusicAppend adds values to array music
-func (a *AngelSQL) MusicAppend(id int, v ...int) error {
+func (a *AngelSQL) stdMusicAppend(id int, v ...int) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set music = coalesce(music, '{}') || $1::bigint[] where id = $2", v, id))
 }
 
-// MusicRemove removes all entries of v from array music
-func (a *AngelSQL) MusicRemove(id int, v int) error {
+func (a *AngelSQL) stdMusicRemove(id int, v int) error {
 	return angelSQLAffected(a.db.Exec(context.Background(), "update angel set music = array_remove(music, $1::bigint) where id = $2", v, id))
 }
 
-// LinksUpdate sets key of jsonb links
-func (a *AngelSQL) LinksUpdate(id int, k string, v string) error {
+func (a *AngelSQL) stdLinksUpdate(id int, k string, v string) error {
 	return a.jsonSet(id, "links", fmt.Sprint(k), v)
 }
 
-// LinksMerge adds keys to jsonb links: existing keys are replaced
-func (a *AngelSQL) LinksMerge(id int, v map[string]string) error {
+func (a *AngelSQL) stdLinksMerge(id int, v map[string]string) error {
 	return a.jsonMerge(id, "links", "{}", v)
 }
 
-// LinksDelete removes key of jsonb links
-func (a *AngelSQL) LinksDelete(id int, k string) error {
+func (a *AngelSQL) stdLinksDelete(id int, k string) error {
 	return a.jsonDelete(id, "links", fmt.Sprint(k))
 }
 
-// LinksRename renames key of jsonb links, pgx.ErrNoRows when key not found
-func (a *AngelSQL) LinksRename(id int, k, newK string) error {
+func (a *AngelSQL) stdLinksRename(id int, k, newK string) error {
 	return a.jsonRename(id, "links", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// StatsUpdate sets key of jsonb stats
-func (a *AngelSQL) StatsUpdate(id int, k string, v int) error {
+func (a *AngelSQL) stdStatsUpdate(id int, k string, v int) error {
 	return a.jsonSet(id, "stats", fmt.Sprint(k), v)
 }
 
-// StatsMerge adds keys to jsonb stats: existing keys are replaced
-func (a *AngelSQL) StatsMerge(id int, v map[string]int) error {
+func (a *AngelSQL) stdStatsMerge(id int, v map[string]int) error {
 	return a.jsonMerge(id, "stats", "{}", v)
 }
 
-// StatsDelete removes key of jsonb stats
-func (a *AngelSQL) StatsDelete(id int, k string) error {
+func (a *AngelSQL) stdStatsDelete(id int, k string) error {
 	return a.jsonDelete(id, "stats", fmt.Sprint(k))
 }
 
-// StatsRename renames key of jsonb stats, pgx.ErrNoRows when key not found
-func (a *AngelSQL) StatsRename(id int, k, newK string) error {
+func (a *AngelSQL) stdStatsRename(id int, k, newK string) error {
 	return a.jsonRename(id, "stats", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
@@ -1079,26 +1044,22 @@ func (a *AngelSQL) jsonRename(id int, col, k, newK string) error {
 // own functions from interface of model file
 // ---------------------------------------------------------------------------
 
-// Creds: where role = @role and key = @key limit 1
-func (a *AngelSQL) Creds(role role.Role, key uuid.UUID) (res Angel, err error) {
+func (a *AngelSQL) stdCreds(role role.Role, key uuid.UUID) (res Angel, err error) {
 	res, err = a.queryRow(nil, " where role = $1 and key = $2 limit 1", role, key)
 	return
 }
 
-// Role: select role from angels where id = @id
-func (a *AngelSQL) Role(id int) (res role.Role, err error) {
+func (a *AngelSQL) stdRole(id int) (res role.Role, err error) {
 	err = a.db.QueryRow(context.Background(), "select role from angels where id = $1", id).Scan(&res)
 	return
 }
 
-// Music: select music from angels where id = @id
-func (a *AngelSQL) Music(id int) (res []int, err error) {
+func (a *AngelSQL) stdMusic(id int) (res []int, err error) {
 	err = a.db.QueryRow(context.Background(), "select music from angels where id = $1", id).Scan(&res)
 	return
 }
 
-// Touch: update angels set created = now() where id = @id
-func (a *AngelSQL) Touch(id int) (err error) {
+func (a *AngelSQL) stdTouch(id int) (err error) {
 	_, err = a.db.Exec(context.Background(), "update angels set created = now() where id = $1", id)
 	return
 }
@@ -1273,8 +1234,7 @@ func (q *AngelQuery) Render() (tail string, fields []AngelIndexTyped, args []any
 	return b.String(), fields, args, nil
 }
 
-// Search returns rows by query
-func (a *AngelSQL) Search(q *AngelQuery) ([]Angel, error) {
+func (a *AngelSQL) stdSearch(q *AngelQuery) ([]Angel, error) {
 	tail, fields, args, err := q.Render()
 	if err != nil {
 		return nil, err
@@ -1303,18 +1263,271 @@ const angelSQLCreateTable = `create table if not exists angel (
 // indexes from tags: sql{index}, sql{idx="group"}, sql{search="group"}
 var angelSQLIndexes = []string{}
 
-// CreateTable creates table if not exists
-func (a *AngelSQL) CreateTable() error {
+func (a *AngelSQL) stdCreateTable() error {
 	_, err := a.db.Exec(context.Background(), angelSQLCreateTable)
 	return err
 }
 
-// CreateIndexes creates indexes if not exist
-func (a *AngelSQL) CreateIndexes() error {
+func (a *AngelSQL) stdCreateIndexes() error {
 	for _, q := range angelSQLIndexes {
 		if _, err := a.db.Exec(context.Background(), q); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// errors: every error of sql method is errors.E
+// ---------------------------------------------------------------------------
+
+// angelSQLErr converts error of postgres to errors.E
+func angelSQLErr(err error) errors.E {
+	if err == nil {
+		return nil
+	}
+	if e, ok := err.(errors.E); ok {
+		return e
+	}
+	return errors.PGX(err)
+}
+
+// Get returns row by id
+func (a *AngelSQL) Get(id int, fields ...AngelIndexTyped) (Angel, errors.E) {
+	res, err := a.stdGet(id, fields...)
+	return res, angelSQLErr(err)
+}
+
+// Exists checks row by id
+func (a *AngelSQL) Exists(id int) (bool, errors.E) {
+	res, err := a.stdExists(id)
+	return res, angelSQLErr(err)
+}
+
+// GetBy returns first row with field = v
+func (a *AngelSQL) GetBy(field AngelIndexTyped, v any, fields ...AngelIndexTyped) (Angel, errors.E) {
+	res, err := a.stdGetBy(field, v, fields...)
+	return res, angelSQLErr(err)
+}
+
+// GetWhere returns first row by condition
+//
+//	db.GetWhere(nil, "title = $1 order by created desc", "James")
+func (a *AngelSQL) GetWhere(fields []AngelIndexTyped, where string, args ...any) (Angel, errors.E) {
+	res, err := a.stdGetWhere(fields, where, args...)
+	return res, angelSQLErr(err)
+}
+
+// Has checks row with field = v
+func (a *AngelSQL) Has(field AngelIndexTyped, v any) (bool, errors.E) {
+	res, err := a.stdHas(field, v)
+	return res, angelSQLErr(err)
+}
+
+// All returns all rows
+func (a *AngelSQL) All(fields ...AngelIndexTyped) ([]Angel, errors.E) {
+	res, err := a.stdAll(fields...)
+	return res, angelSQLErr(err)
+}
+
+// List returns page of rows
+func (a *AngelSQL) List(limit, offset int, fields ...AngelIndexTyped) ([]Angel, errors.E) {
+	res, err := a.stdList(limit, offset, fields...)
+	return res, angelSQLErr(err)
+}
+
+// Select returns rows by condition, all rows when where is empty
+//
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *AngelSQL) Select(fields []AngelIndexTyped, where string, args ...any) ([]Angel, errors.E) {
+	res, err := a.stdSelect(fields, where, args...)
+	return res, angelSQLErr(err)
+}
+
+// Count returns count of rows
+func (a *AngelSQL) Count() (int, errors.E) {
+	res, err := a.stdCount()
+	return res, angelSQLErr(err)
+}
+
+// CountWhere returns count of rows by condition
+func (a *AngelSQL) CountWhere(where string, args ...any) (int, errors.E) {
+	res, err := a.stdCountWhere(where, args...)
+	return res, angelSQLErr(err)
+}
+
+// Insert adds row
+func (a *AngelSQL) Insert(v *Angel) errors.E {
+	return angelSQLErr(a.stdInsert(v))
+}
+
+// InsertNoConflict adds row, false when row exists
+func (a *AngelSQL) InsertNoConflict(v *Angel) (bool, errors.E) {
+	res, err := a.stdInsertNoConflict(v)
+	return res, angelSQLErr(err)
+}
+
+// InsertFull adds row with all columns as is: generated and noinsert columns too
+func (a *AngelSQL) InsertFull(v *Angel) errors.E {
+	return angelSQLErr(a.stdInsertFull(v))
+}
+
+// Upsert adds row with all columns or updates existing row by (id)
+func (a *AngelSQL) Upsert(v *Angel) errors.E {
+	return angelSQLErr(a.stdUpsert(v))
+}
+
+// InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
+func (a *AngelSQL) InsertMany(list []Angel) (int64, errors.E) {
+	res, err := a.stdInsertMany(list)
+	return res, angelSQLErr(err)
+}
+
+// InsertBatch adds rows in one round trip
+func (a *AngelSQL) InsertBatch(list []*Angel) errors.E {
+	return angelSQLErr(a.stdInsertBatch(list))
+}
+
+// Update sets field of row, pgx.ErrNoRows when row not found
+func (a *AngelSQL) Update(id int, field AngelIndexTyped, v any) errors.E {
+	return angelSQLErr(a.stdUpdate(id, field, v))
+}
+
+// Updates sets fields of row, pgx.ErrNoRows when row not found
+func (a *AngelSQL) Updates(id int, v map[AngelIndexTyped]any) errors.E {
+	return angelSQLErr(a.stdUpdates(id, v))
+}
+
+// Save updates row from struct by v.ID: listed fields or all columns
+func (a *AngelSQL) Save(v *Angel, fields ...AngelIndexTyped) errors.E {
+	return angelSQLErr(a.stdSave(v, fields...))
+}
+
+// Inc adds v to number field: views = views + 1
+func (a *AngelSQL) Inc(id int, field AngelIndexTyped, v any) errors.E {
+	return angelSQLErr(a.stdInc(id, field, v))
+}
+
+// Delete removes row by id
+func (a *AngelSQL) Delete(id int) errors.E {
+	return angelSQLErr(a.stdDelete(id))
+}
+
+// UpdateWhere sets field of rows by condition, returns count of rows
+//
+//	db.UpdateWhere(IndexActive, false, "created < $1", date)
+func (a *AngelSQL) UpdateWhere(field AngelIndexTyped, v any, where string, args ...any) (int64, errors.E) {
+	res, err := a.stdUpdateWhere(field, v, where, args...)
+	return res, angelSQLErr(err)
+}
+
+// UpdatesWhere sets fields of rows by condition, returns count of rows
+func (a *AngelSQL) UpdatesWhere(v map[AngelIndexTyped]any, where string, args ...any) (int64, errors.E) {
+	res, err := a.stdUpdatesWhere(v, where, args...)
+	return res, angelSQLErr(err)
+}
+
+// DeleteWhere removes rows by condition, returns count of rows
+func (a *AngelSQL) DeleteWhere(where string, args ...any) (int64, errors.E) {
+	res, err := a.stdDeleteWhere(where, args...)
+	return res, angelSQLErr(err)
+}
+
+// AboutAppend adds values to array about
+func (a *AngelSQL) AboutAppend(id int, v ...string) errors.E {
+	return angelSQLErr(a.stdAboutAppend(id, v...))
+}
+
+// AboutRemove removes all entries of v from array about
+func (a *AngelSQL) AboutRemove(id int, v string) errors.E {
+	return angelSQLErr(a.stdAboutRemove(id, v))
+}
+
+// MusicAppend adds values to array music
+func (a *AngelSQL) MusicAppend(id int, v ...int) errors.E {
+	return angelSQLErr(a.stdMusicAppend(id, v...))
+}
+
+// MusicRemove removes all entries of v from array music
+func (a *AngelSQL) MusicRemove(id int, v int) errors.E {
+	return angelSQLErr(a.stdMusicRemove(id, v))
+}
+
+// LinksUpdate sets key of jsonb links
+func (a *AngelSQL) LinksUpdate(id int, k string, v string) errors.E {
+	return angelSQLErr(a.stdLinksUpdate(id, k, v))
+}
+
+// LinksMerge adds keys to jsonb links: existing keys are replaced
+func (a *AngelSQL) LinksMerge(id int, v map[string]string) errors.E {
+	return angelSQLErr(a.stdLinksMerge(id, v))
+}
+
+// LinksDelete removes key of jsonb links
+func (a *AngelSQL) LinksDelete(id int, k string) errors.E {
+	return angelSQLErr(a.stdLinksDelete(id, k))
+}
+
+// LinksRename renames key of jsonb links, pgx.ErrNoRows when key not found
+func (a *AngelSQL) LinksRename(id int, k, newK string) errors.E {
+	return angelSQLErr(a.stdLinksRename(id, k, newK))
+}
+
+// StatsUpdate sets key of jsonb stats
+func (a *AngelSQL) StatsUpdate(id int, k string, v int) errors.E {
+	return angelSQLErr(a.stdStatsUpdate(id, k, v))
+}
+
+// StatsMerge adds keys to jsonb stats: existing keys are replaced
+func (a *AngelSQL) StatsMerge(id int, v map[string]int) errors.E {
+	return angelSQLErr(a.stdStatsMerge(id, v))
+}
+
+// StatsDelete removes key of jsonb stats
+func (a *AngelSQL) StatsDelete(id int, k string) errors.E {
+	return angelSQLErr(a.stdStatsDelete(id, k))
+}
+
+// StatsRename renames key of jsonb stats, pgx.ErrNoRows when key not found
+func (a *AngelSQL) StatsRename(id int, k, newK string) errors.E {
+	return angelSQLErr(a.stdStatsRename(id, k, newK))
+}
+
+// Creds: where role = @role and key = @key limit 1
+func (a *AngelSQL) Creds(role role.Role, key uuid.UUID) (Angel, errors.E) {
+	res, err := a.stdCreds(role, key)
+	return res, angelSQLErr(err)
+}
+
+// Role: select role from angels where id = @id
+func (a *AngelSQL) Role(id int) (role.Role, errors.E) {
+	res, err := a.stdRole(id)
+	return res, angelSQLErr(err)
+}
+
+// Music: select music from angels where id = @id
+func (a *AngelSQL) Music(id int) ([]int, errors.E) {
+	res, err := a.stdMusic(id)
+	return res, angelSQLErr(err)
+}
+
+// Touch: update angels set created = now() where id = @id
+func (a *AngelSQL) Touch(id int) errors.E {
+	return angelSQLErr(a.stdTouch(id))
+}
+
+// Search returns rows by query
+func (a *AngelSQL) Search(q *AngelQuery) ([]Angel, errors.E) {
+	res, err := a.stdSearch(q)
+	return res, angelSQLErr(err)
+}
+
+// CreateTable creates table if not exists
+func (a *AngelSQL) CreateTable() errors.E {
+	return angelSQLErr(a.stdCreateTable())
+}
+
+// CreateIndexes creates indexes if not exist
+func (a *AngelSQL) CreateIndexes() errors.E {
+	return angelSQLErr(a.stdCreateIndexes())
 }
