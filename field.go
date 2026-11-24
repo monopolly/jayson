@@ -74,6 +74,7 @@ type Field struct {
 		Skip    bool   //skip in sql table
 		Primary bool   //primary key fields PRIMARY KEY(category_id, sale_date)
 		Order   bool   //sorting key: order by (name)
+		TTL     string //life time of rows by this time field: 1h, 30d
 		Unix    bool   //primary key fields PRIMARY KEY(category_id, sale_date)
 		Low     bool   //low cardinality
 		IP      bool   //IPv4/IPv6 field

@@ -22,6 +22,14 @@ func (a *Field) parseClickhouseOptions(v string) {
 	a.Clickhouse.Unix = flags["unix"]
 	a.Clickhouse.Type = tools.Between(v, `type="`, `"`)
 
+	// ttl of rows by time field: ch{ttl=30d}
+	a.Clickhouse.TTL = tools.Between(v, `ttl="`, `"`)
+	for x := range flags {
+		if value, ok := strings.CutPrefix(x, "ttl="); ok {
+			a.Clickhouse.TTL = value
+		}
+	}
+
 	if name := tools.Between(v, `name="`, `"`); name != "" {
 		a.Clickhouse.Name = name
 	}
@@ -48,6 +56,7 @@ func (a *Field) parseClickhouseOptions(v string) {
 	helps.Clickhouse["low"] = "ch{low} Wrap field type in LowCardinality(...)"
 	helps.Clickhouse["ip"] = "ch{ip} IPv4 column for ip address"
 	helps.Clickhouse["ip6"] = "ch{ip6} IPv6 column for ip address"
+	helps.Clickhouse["ttl=30d"] = "ch{ttl=30d} Rows are removed after the time from this time field: 30s, 10m, 1h, 1d, 2w, 6M, 1y"
 	helps.Clickhouse["unix"] = "ch{unix} DateTime column for number field with unix time"
 	helps.Clickhouse[`type=""`] = `ch{type="UInt8"} Clickhouse type of column`
 	helps.Clickhouse[`name=""`] = `ch{name="col"} Name of column`

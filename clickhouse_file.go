@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -121,13 +122,44 @@ func (a *Clickhouse) engineSQL(primary []string) string {
 		if len(order) > 0 {
 			list = append(list, fmt.Sprintf("order by (%s)", strings.Join(order, ", ")))
 		}
-		// MergeTree needs a key
+		// MergeTree needs a key: without it all rows are equal, ReplacingMergeTree keeps one row
 		if len(primary) == 0 && len(order) == 0 {
-			list = append(list, "order by tuple()")
+			panic(fmt.Sprintf("clickhouse %s: engine %s needs a key, add ch{primary} or ch{order} to fields. Ex: id int // ch{primary order}", settings.Clickhouse.Table, name))
 		}
 	}
 	if settings.Clickhouse.Partition != "" {
 		list = append(list, "partition by "+settings.Clickhouse.Partition)
 	}
+	if ttl := a.ttlSQL(); ttl != "" {
+		list = append(list, ttl)
+	}
 	return strings.Join(list, "\n")
+}
+
+// units of ch{ttl=30d}
+var clickhouseTTLUnits = map[string]string{
+	"s": "second", "m": "minute", "h": "hour", "d": "day", "w": "week", "M": "month", "y": "year",
+}
+
+var clickhouseTTL = regexp.MustCompile(`^(\d+)([smhdwMy])$`)
+
+// ttl created + interval 30 day
+func (a *Clickhouse) ttlSQL() (res string) {
+	for _, x := range fields {
+		if x.Clickhouse.Skip || x.Clickhouse.TTL == "" {
+			continue
+		}
+		if res != "" {
+			panic(fmt.Sprintf("clickhouse %s: only one field with ch{ttl}", settings.Clickhouse.Table))
+		}
+		p := clickhouseTTL.FindStringSubmatch(x.Clickhouse.TTL)
+		if p == nil {
+			panic(fmt.Sprintf("clickhouse field %s: ttl=%s is wrong, use number and unit: 30s, 10m, 1h, 1d, 2w, 6M, 1y", x.Name, x.Clickhouse.TTL))
+		}
+		if !strings.HasPrefix(x.Clickhouse.Type, "Date") {
+			panic(fmt.Sprintf("clickhouse field %s: ttl needs a time field (time.Time or ch{unix}), type is %s", x.Name, x.Clickhouse.Type))
+		}
+		res = fmt.Sprintf("ttl %s + interval %s %s", x.Clickhouse.Name, p[1], clickhouseTTLUnits[p[2]])
+	}
+	return
 }

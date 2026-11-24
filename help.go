@@ -154,7 +154,7 @@ func helpExamples() (list []string) {
 	Clean(before time.Time) error
 }`, name, item, table), "\n")...)
 
-		list = append(list, "", "CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created)")
+		list = append(list, "", "CLICKHOUSE ENGINES: engine=ReplacingMergeTree(updated) partition=toYYYYMM(created). Key is required: ch{primary} or ch{order}")
 		for _, x := range clickhouseEngines {
 			list = append(list, fmt.Sprintf("%s%s%s", x[0], strings.Repeat(" ", max(1, 44-len(x[0]))), x[1]))
 		}

@@ -12,7 +12,7 @@ type hit struct {
 	path    string
 	ok      bool
 	views   int64
-	created time.Time
+	created time.Time // ch{ttl=30d}
 	tags    []string
 	codes   []int
 	sizes   []uint

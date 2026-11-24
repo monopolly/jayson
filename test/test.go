@@ -9,7 +9,7 @@ import (
 
 // go sql ch proto msgp gotiny
 type news struct {
-	inc int // sql{inc}  #readonly
+	inc int // sql{inc} ch{primary order} #readonly
 
 	role role.Role
 

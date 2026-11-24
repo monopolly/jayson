@@ -62,4 +62,5 @@ create table if not exists news (
 	public_field_me3           Int64
 )
 engine = MergeTree()
-order by tuple();
+primary key (inc)
+order by (inc);

@@ -18,4 +18,5 @@ create table if not exists hits (
 engine = ReplacingMergeTree(views)
 primary key (id)
 order by (id, country)
-partition by toYYYYMM(created);
+partition by toYYYYMM(created)
+ttl created + interval 30 day;

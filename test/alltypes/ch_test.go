@@ -41,7 +41,7 @@ func TestClickhouse(t *testing.T) {
 	if err := conn.QueryRow(context.Background(), "show create table hits").Scan(&ddl); err != nil {
 		t.Fatal(err)
 	}
-	for _, x := range []string{"ReplacingMergeTree(views)", "PARTITION BY toYYYYMM(created)", "PRIMARY KEY (id)", "ORDER BY (id, country)", "`ip` IPv4", "`ip6` IPv6"} {
+	for _, x := range []string{"ReplacingMergeTree(views)", "PARTITION BY toYYYYMM(created)", "PRIMARY KEY (id)", "ORDER BY (id, country)", "TTL created + toIntervalDay(30)", "`ip` IPv4", "`ip6` IPv6"} {
 		if !strings.Contains(ddl, x) {
 			t.Errorf("no %q in table:\n%s", x, ddl)
 		}

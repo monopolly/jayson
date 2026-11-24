@@ -320,9 +320,11 @@ The table is described by field tags and two struct options:
 | field | `ch{order}` | `order by (id, country)`, no `order by` without the tag |
 | field | `ch{low}` | `LowCardinality(String)` |
 | field | `ch{ip}`, `ch{ip6}` | `IPv4`, `IPv6` |
+| field | `ch{ttl=30d}` | `ttl created + interval 30 day` on a time field: `30s`, `10m`, `1h`, `1d`, `2w`, `6M`, `1y` |
 | struct | `engine=ReplacingMergeTree(id)` | engine, `MergeTree` by default |
 | struct | `partition=toYYYYMM(created)` | `partition by` |
 
+Engines of the `MergeTree` family need a key: generation stops when no field has `ch{primary}` or `ch{order}`.
 In ClickHouse the primary key must be a prefix of the sorting key: put `order` on the `primary` fields first.
 The header of every generated file with the `ch` option lists the engines with a short description.
 
@@ -434,7 +436,7 @@ title string // sql{index} js{name="headline"} #readonly @public
 | `sql{noinsert}` | Do not send the field in `Insert`. |
 | `sql{ver="2"}`, `sql{renames="old"}` | Migration lines in the `.sql` file. |
 | `sql{skip}` | No column for the field. |
-| `ch{primary}`, `ch{order}`, `ch{low}`, `ch{ip}`, `ch{ip6}` | ClickHouse primary key, sorting key, `LowCardinality`, `IPv4`, `IPv6`. |
+| `ch{primary}`, `ch{order}`, `ch{low}`, `ch{ip}`, `ch{ip6}`, `ch{ttl=30d}` | ClickHouse primary key, sorting key, `LowCardinality`, `IPv4`, `IPv6`, life time of rows. |
 | `ch{type="UInt8"}`, `ch{name="col"}`, `ch{unix}`, `ch{skip}` | ClickHouse type, column name, `DateTime` for unix time, skip. |
 | `proto{name="..."}`, `proto{type="..."}`, `proto{skip}` | Protobuf field name, type, skip. |
 | `go{name="..."}`, `go{type="..."}` | Go field name and type. |
