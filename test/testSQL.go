@@ -14,9 +14,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NewsDB is a database handle: *pgxpool.Pool, *pgx.Conn or pgx.Tx
+// NewsDB runs queries: *pgxpool.Pool or pgx.Tx
 type NewsDB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
@@ -29,38 +30,86 @@ type NewsDB interface {
 // NewsSQL sql queries of table news
 //
 // Rules:
+//   - safe for concurrent use: queries run on pgxpool, the class keeps no state
 //   - not found row is pgx.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "title = $1 and views > $2"
 type NewsSQL struct {
-	db NewsDB
+	pool *pgxpool.Pool
+	db   NewsDB // pool, or transaction after With
 }
 
-// NewNewsSQL creates queries on pool, connection or transaction
-func NewNewsSQL(db NewsDB) *NewsSQL {
-	return &NewsSQL{db: db}
+// NewNewsSQL creates queries on pool
+func NewNewsSQL(pool *pgxpool.Pool) *NewsSQL {
+	return &NewsSQL{pool: pool, db: pool}
 }
 
-// With returns queries on another handle: transaction or connection
-func (a *NewsSQL) With(db NewsDB) *NewsSQL {
-	return &NewsSQL{db: db}
+// Pool returns pool
+func (a *NewsSQL) Pool() *pgxpool.Pool {
+	return a.pool
 }
 
-// DB returns current handle
+// DB returns current query runner: pool, or transaction inside of Tx and With.
+// Use it in own methods to work in and out of transaction
+//
+//	func (a *NewsSQL) Top(ctx context.Context) (n int, err error) {
+//		err = a.DB().QueryRow(ctx, "select count(*) from news").Scan(&n)
+//		return
+//	}
 func (a *NewsSQL) DB() NewsDB {
 	return a.db
+}
+
+// Conn runs f on a connection of pool, for own queries.
+// Connection is always taken from pool: inside of transaction use DB()
+//
+//	err := db.Conn(ctx, func(conn *pgxpool.Conn) error {
+//		_, err := conn.Exec(ctx, "vacuum news")
+//		return err
+//	})
+func (a *NewsSQL) Conn(ctx context.Context, f func(conn *pgxpool.Conn) error) error {
+	conn, err := a.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	return f(conn)
+}
+
+// Begin starts transaction. Use With(tx) of every model to run queries in it
+//
+//	tx, err := news.Begin(ctx)
+//	if err != nil {
+//		return err
+//	}
+//	defer tx.Rollback(ctx) // no-op after commit
+//	if err = news.With(tx).Insert(ctx, &item); err != nil {
+//		return err
+//	}
+//	if err = users.With(tx).Update(ctx, id, UserIndexNews, item.ID); err != nil {
+//		return err
+//	}
+//	return tx.Commit(ctx)
+func (a *NewsSQL) Begin(ctx context.Context) (pgx.Tx, error) {
+	return a.db.Begin(ctx)
+}
+
+// With returns queries in transaction tx
+func (a *NewsSQL) With(tx pgx.Tx) *NewsSQL {
+	return &NewsSQL{pool: a.pool, db: tx}
 }
 
 // Tx runs f in transaction: commit on nil, rollback on error.
 // Inside of transaction it makes a savepoint
 //
-//	err := db.Tx(ctx, func(tx *NewsSQL) error {
-//		return tx.Delete(ctx, id)
+//	err := news.Tx(ctx, func(tx pgx.Tx) error {
+//		if err := news.With(tx).Delete(ctx, id); err != nil {
+//			return err
+//		}
+//		return users.With(tx).Increment(ctx, user, UserIndexNews, -1)
 //	})
-func (a *NewsSQL) Tx(ctx context.Context, f func(tx *NewsSQL) error) error {
-	return pgx.BeginFunc(ctx, a.db, func(tx pgx.Tx) error {
-		return f(&NewsSQL{db: tx})
-	})
+func (a *NewsSQL) Tx(ctx context.Context, f func(tx pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, a.db, f)
 }
 
 // TableName returns sql table name
@@ -78,201 +127,201 @@ func (a *NewsSQL) Fields() []NewsIndexTyped {
 // ---------------------------------------------------------------------------
 
 // all sql columns
-var newsSQLFields = []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexList_ints, NewsIndexList_string, NewsIndexList_float, NewsIndexMap_string_string, NewsIndexMap_string_bytes, NewsIndexMap_string_bool, NewsIndexMap_string_int, NewsIndexMap_string_float64, NewsIndexMap_string_any, NewsIndexMap_int_string, NewsIndexMap_int_int, NewsIndexMap_int_bool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMAST_UPPER_GO, NewsIndexIntToSmallInt, NewsIndexSql_unique_u1_1, NewsIndexSql_unique_u1_2, NewsIndexSql_index1_1, NewsIndexSql_index1_2, NewsIndexSql_index1_3, NewsIndexSql_keys_1, NewsIndexSql_keys_2, NewsIndexSql_keys_3, NewsIndexSql_search, NewsIndexSql_get, NewsIndexSql_unique_x1, NewsIndexSql_unique_x2, NewsIndexSql_unique_x1_x2, NewsIndexSql_primary, NewsIndexSql_jsonb_index, NewsIndexTime_duration, NewsIndexGo_type_int_to_strings, NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3, NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+var newsSQLFields = []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
 
 // columns of insert
 var newsSQLInsertColumns = []string{"role", "key", "t", "d", "ints", "ints8", "ints16", "ints32", "ints64", "uints", "uints8", "uints16", "uints32", "uints64", "floats32", "floats64", "bools", "byte1", "bytes", "list_ints", "list_string", "list_float", "map_string_string", "map_string_bytes", "map_string_bool", "map_string_int", "map_string_float64", "map_string_any", "map_int_string", "map_int_int", "map_int_bool", "renameSQL_OK", "renameGO", "renameJS", "mast_upper_go", "intToSmallInt", "sql_unique_u1_1", "sql_unique_u1_2", "sql_index1_1", "sql_index1_2", "sql_index1_3", "sql_keys_1", "sql_keys_2", "sql_keys_3", "sql_search", "sql_get", "sql_unique_x1", "sql_unique_x2", "sql_unique_x1_x2", "sql_primary", "sql_jsonb_index", "time_duration", "go_type_int_to_strings", "public_field1", "public_field2", "public_field3", "public_field_me1", "public_field_me2", "public_field_me3"}
 
 // sql column names
 var newsSQLColumns = [...]string{
-	NewsIndexInc:                    "inc",
-	NewsIndexRole:                   "role",
-	NewsIndexKey:                    "key",
-	NewsIndexT:                      "t",
-	NewsIndexD:                      "d",
-	NewsIndexInts:                   "ints",
-	NewsIndexInts8:                  "ints8",
-	NewsIndexInts16:                 "ints16",
-	NewsIndexInts32:                 "ints32",
-	NewsIndexInts64:                 "ints64",
-	NewsIndexUints:                  "uints",
-	NewsIndexUints8:                 "uints8",
-	NewsIndexUints16:                "uints16",
-	NewsIndexUints32:                "uints32",
-	NewsIndexUints64:                "uints64",
-	NewsIndexFloats32:               "floats32",
-	NewsIndexFloats64:               "floats64",
-	NewsIndexBools:                  "bools",
-	NewsIndexByte1:                  "byte1",
-	NewsIndexBytes:                  "bytes",
-	NewsIndexList_ints:              "list_ints",
-	NewsIndexList_string:            "list_string",
-	NewsIndexList_float:             "list_float",
-	NewsIndexMap_string_string:      "map_string_string",
-	NewsIndexMap_string_bytes:       "map_string_bytes",
-	NewsIndexMap_string_bool:        "map_string_bool",
-	NewsIndexMap_string_int:         "map_string_int",
-	NewsIndexMap_string_float64:     "map_string_float64",
-	NewsIndexMap_string_any:         "map_string_any",
-	NewsIndexMap_int_string:         "map_int_string",
-	NewsIndexMap_int_int:            "map_int_int",
-	NewsIndexMap_int_bool:           "map_int_bool",
-	NewsIndexRenameSQL:              "renameSQL_OK",
-	NewsIndexRenameGO_OK:            "renameGO",
-	NewsIndexRenameJS:               "renameJS",
-	NewsIndexMAST_UPPER_GO:          "mast_upper_go",
-	NewsIndexIntToSmallInt:          "intToSmallInt",
-	NewsIndexSql_unique_u1_1:        "sql_unique_u1_1",
-	NewsIndexSql_unique_u1_2:        "sql_unique_u1_2",
-	NewsIndexSql_index1_1:           "sql_index1_1",
-	NewsIndexSql_index1_2:           "sql_index1_2",
-	NewsIndexSql_index1_3:           "sql_index1_3",
-	NewsIndexSql_keys_1:             "sql_keys_1",
-	NewsIndexSql_keys_2:             "sql_keys_2",
-	NewsIndexSql_keys_3:             "sql_keys_3",
-	NewsIndexSql_search:             "sql_search",
-	NewsIndexSql_get:                "sql_get",
-	NewsIndexSql_unique_x1:          "sql_unique_x1",
-	NewsIndexSql_unique_x2:          "sql_unique_x2",
-	NewsIndexSql_unique_x1_x2:       "sql_unique_x1_x2",
-	NewsIndexSql_primary:            "sql_primary",
-	NewsIndexSql_jsonb_index:        "sql_jsonb_index",
-	NewsIndexTime_duration:          "time_duration",
-	NewsIndexGo_type_int_to_strings: "go_type_int_to_strings",
-	NewsIndexPublic_field1:          "public_field1",
-	NewsIndexPublic_field2:          "public_field2",
-	NewsIndexPublic_field3:          "public_field3",
-	NewsIndexPublic_field_me1:       "public_field_me1",
-	NewsIndexPublic_field_me2:       "public_field_me2",
-	NewsIndexPublic_field_me3:       "public_field_me3",
+	NewsIndexInc:                "inc",
+	NewsIndexRole:               "role",
+	NewsIndexKey:                "key",
+	NewsIndexT:                  "t",
+	NewsIndexD:                  "d",
+	NewsIndexInts:               "ints",
+	NewsIndexInts8:              "ints8",
+	NewsIndexInts16:             "ints16",
+	NewsIndexInts32:             "ints32",
+	NewsIndexInts64:             "ints64",
+	NewsIndexUints:              "uints",
+	NewsIndexUints8:             "uints8",
+	NewsIndexUints16:            "uints16",
+	NewsIndexUints32:            "uints32",
+	NewsIndexUints64:            "uints64",
+	NewsIndexFloats32:           "floats32",
+	NewsIndexFloats64:           "floats64",
+	NewsIndexBools:              "bools",
+	NewsIndexByte1:              "byte1",
+	NewsIndexBytes:              "bytes",
+	NewsIndexListInts:           "list_ints",
+	NewsIndexListString:         "list_string",
+	NewsIndexListFloat:          "list_float",
+	NewsIndexMapStringString:    "map_string_string",
+	NewsIndexMapStringBytes:     "map_string_bytes",
+	NewsIndexMapStringBool:      "map_string_bool",
+	NewsIndexMapStringInt:       "map_string_int",
+	NewsIndexMapStringFloat64:   "map_string_float64",
+	NewsIndexMapStringAny:       "map_string_any",
+	NewsIndexMapIntString:       "map_int_string",
+	NewsIndexMapIntInt:          "map_int_int",
+	NewsIndexMapIntBool:         "map_int_bool",
+	NewsIndexRenameSQL:          "renameSQL_OK",
+	NewsIndexRenameGO_OK:        "renameGO",
+	NewsIndexRenameJS:           "renameJS",
+	NewsIndexMASTUPPERGO:        "mast_upper_go",
+	NewsIndexIntToSmallInt:      "intToSmallInt",
+	NewsIndexSqlUniqueU11:       "sql_unique_u1_1",
+	NewsIndexSqlUniqueU12:       "sql_unique_u1_2",
+	NewsIndexSqlIndex11:         "sql_index1_1",
+	NewsIndexSqlIndex12:         "sql_index1_2",
+	NewsIndexSqlIndex13:         "sql_index1_3",
+	NewsIndexSqlKeys1:           "sql_keys_1",
+	NewsIndexSqlKeys2:           "sql_keys_2",
+	NewsIndexSqlKeys3:           "sql_keys_3",
+	NewsIndexSqlSearch:          "sql_search",
+	NewsIndexSqlGet:             "sql_get",
+	NewsIndexSqlUniqueX1:        "sql_unique_x1",
+	NewsIndexSqlUniqueX2:        "sql_unique_x2",
+	NewsIndexSqlUniqueX1X2:      "sql_unique_x1_x2",
+	NewsIndexSqlPrimary:         "sql_primary",
+	NewsIndexSqlJsonbIndex:      "sql_jsonb_index",
+	NewsIndexTimeDuration:       "time_duration",
+	NewsIndexGoTypeIntToStrings: "go_type_int_to_strings",
+	NewsIndexPublicField1:       "public_field1",
+	NewsIndexPublicField2:       "public_field2",
+	NewsIndexPublicField3:       "public_field3",
+	NewsIndexPublicFieldMe1:     "public_field_me1",
+	NewsIndexPublicFieldMe2:     "public_field_me2",
+	NewsIndexPublicFieldMe3:     "public_field_me3",
 }
 
 // select expressions: null of scalar column is zero value
 var newsSQLSelects = [...]string{
-	NewsIndexInc:                    "coalesce(inc, 0)",
-	NewsIndexRole:                   "coalesce(role, 0)",
-	NewsIndexKey:                    "key",
-	NewsIndexT:                      "coalesce(t, '0001-01-01 00:00:00+00')",
-	NewsIndexD:                      "coalesce(d, 0)",
-	NewsIndexInts:                   "coalesce(ints, 0)",
-	NewsIndexInts8:                  "coalesce(ints8, 0)",
-	NewsIndexInts16:                 "coalesce(ints16, 0)",
-	NewsIndexInts32:                 "coalesce(ints32, 0)",
-	NewsIndexInts64:                 "coalesce(ints64, 0)",
-	NewsIndexUints:                  "coalesce(uints, 0)",
-	NewsIndexUints8:                 "coalesce(uints8, 0)",
-	NewsIndexUints16:                "coalesce(uints16, 0)",
-	NewsIndexUints32:                "coalesce(uints32, 0)",
-	NewsIndexUints64:                "coalesce(uints64, 0)",
-	NewsIndexFloats32:               "coalesce(floats32, 0)",
-	NewsIndexFloats64:               "coalesce(floats64, 0)",
-	NewsIndexBools:                  "coalesce(bools, false)",
-	NewsIndexByte1:                  "coalesce(byte1, 0)",
-	NewsIndexBytes:                  "bytes",
-	NewsIndexList_ints:              "list_ints",
-	NewsIndexList_string:            "list_string",
-	NewsIndexList_float:             "list_float",
-	NewsIndexMap_string_string:      "map_string_string",
-	NewsIndexMap_string_bytes:       "map_string_bytes",
-	NewsIndexMap_string_bool:        "map_string_bool",
-	NewsIndexMap_string_int:         "map_string_int",
-	NewsIndexMap_string_float64:     "map_string_float64",
-	NewsIndexMap_string_any:         "map_string_any",
-	NewsIndexMap_int_string:         "map_int_string",
-	NewsIndexMap_int_int:            "map_int_int",
-	NewsIndexMap_int_bool:           "map_int_bool",
-	NewsIndexRenameSQL:              "coalesce(renameSQL_OK, '')",
-	NewsIndexRenameGO_OK:            "coalesce(renameGO, '')",
-	NewsIndexRenameJS:               "coalesce(renameJS, '')",
-	NewsIndexMAST_UPPER_GO:          "coalesce(mast_upper_go, '')",
-	NewsIndexIntToSmallInt:          "coalesce(intToSmallInt, 0)",
-	NewsIndexSql_unique_u1_1:        "coalesce(sql_unique_u1_1, 0)",
-	NewsIndexSql_unique_u1_2:        "coalesce(sql_unique_u1_2, 0)",
-	NewsIndexSql_index1_1:           "coalesce(sql_index1_1, 0)",
-	NewsIndexSql_index1_2:           "coalesce(sql_index1_2, 0)",
-	NewsIndexSql_index1_3:           "coalesce(sql_index1_3, 0)",
-	NewsIndexSql_keys_1:             "coalesce(sql_keys_1, 0)",
-	NewsIndexSql_keys_2:             "coalesce(sql_keys_2, 0)",
-	NewsIndexSql_keys_3:             "coalesce(sql_keys_3, 0)",
-	NewsIndexSql_search:             "coalesce(sql_search, '')",
-	NewsIndexSql_get:                "coalesce(sql_get, '')",
-	NewsIndexSql_unique_x1:          "coalesce(sql_unique_x1, 0)",
-	NewsIndexSql_unique_x2:          "coalesce(sql_unique_x2, 0)",
-	NewsIndexSql_unique_x1_x2:       "coalesce(sql_unique_x1_x2, 0)",
-	NewsIndexSql_primary:            "coalesce(sql_primary, 0)",
-	NewsIndexSql_jsonb_index:        "sql_jsonb_index",
-	NewsIndexTime_duration:          "coalesce(time_duration, 0)",
-	NewsIndexGo_type_int_to_strings: "go_type_int_to_strings",
-	NewsIndexPublic_field1:          "coalesce(public_field1, 0)",
-	NewsIndexPublic_field2:          "coalesce(public_field2, 0)",
-	NewsIndexPublic_field3:          "coalesce(public_field3, 0)",
-	NewsIndexPublic_field_me1:       "coalesce(public_field_me1, 0)",
-	NewsIndexPublic_field_me2:       "coalesce(public_field_me2, 0)",
-	NewsIndexPublic_field_me3:       "coalesce(public_field_me3, 0)",
+	NewsIndexInc:                "coalesce(inc, 0)",
+	NewsIndexRole:               "coalesce(role, 0)",
+	NewsIndexKey:                "key",
+	NewsIndexT:                  "coalesce(t, '0001-01-01 00:00:00+00')",
+	NewsIndexD:                  "coalesce(d, 0)",
+	NewsIndexInts:               "coalesce(ints, 0)",
+	NewsIndexInts8:              "coalesce(ints8, 0)",
+	NewsIndexInts16:             "coalesce(ints16, 0)",
+	NewsIndexInts32:             "coalesce(ints32, 0)",
+	NewsIndexInts64:             "coalesce(ints64, 0)",
+	NewsIndexUints:              "coalesce(uints, 0)",
+	NewsIndexUints8:             "coalesce(uints8, 0)",
+	NewsIndexUints16:            "coalesce(uints16, 0)",
+	NewsIndexUints32:            "coalesce(uints32, 0)",
+	NewsIndexUints64:            "coalesce(uints64, 0)",
+	NewsIndexFloats32:           "coalesce(floats32, 0)",
+	NewsIndexFloats64:           "coalesce(floats64, 0)",
+	NewsIndexBools:              "coalesce(bools, false)",
+	NewsIndexByte1:              "coalesce(byte1, 0)",
+	NewsIndexBytes:              "bytes",
+	NewsIndexListInts:           "list_ints",
+	NewsIndexListString:         "list_string",
+	NewsIndexListFloat:          "list_float",
+	NewsIndexMapStringString:    "map_string_string",
+	NewsIndexMapStringBytes:     "map_string_bytes",
+	NewsIndexMapStringBool:      "map_string_bool",
+	NewsIndexMapStringInt:       "map_string_int",
+	NewsIndexMapStringFloat64:   "map_string_float64",
+	NewsIndexMapStringAny:       "map_string_any",
+	NewsIndexMapIntString:       "map_int_string",
+	NewsIndexMapIntInt:          "map_int_int",
+	NewsIndexMapIntBool:         "map_int_bool",
+	NewsIndexRenameSQL:          "coalesce(renameSQL_OK, '')",
+	NewsIndexRenameGO_OK:        "coalesce(renameGO, '')",
+	NewsIndexRenameJS:           "coalesce(renameJS, '')",
+	NewsIndexMASTUPPERGO:        "coalesce(mast_upper_go, '')",
+	NewsIndexIntToSmallInt:      "coalesce(intToSmallInt, 0)",
+	NewsIndexSqlUniqueU11:       "coalesce(sql_unique_u1_1, 0)",
+	NewsIndexSqlUniqueU12:       "coalesce(sql_unique_u1_2, 0)",
+	NewsIndexSqlIndex11:         "coalesce(sql_index1_1, 0)",
+	NewsIndexSqlIndex12:         "coalesce(sql_index1_2, 0)",
+	NewsIndexSqlIndex13:         "coalesce(sql_index1_3, 0)",
+	NewsIndexSqlKeys1:           "coalesce(sql_keys_1, 0)",
+	NewsIndexSqlKeys2:           "coalesce(sql_keys_2, 0)",
+	NewsIndexSqlKeys3:           "coalesce(sql_keys_3, 0)",
+	NewsIndexSqlSearch:          "coalesce(sql_search, '')",
+	NewsIndexSqlGet:             "coalesce(sql_get, '')",
+	NewsIndexSqlUniqueX1:        "coalesce(sql_unique_x1, 0)",
+	NewsIndexSqlUniqueX2:        "coalesce(sql_unique_x2, 0)",
+	NewsIndexSqlUniqueX1X2:      "coalesce(sql_unique_x1_x2, 0)",
+	NewsIndexSqlPrimary:         "coalesce(sql_primary, 0)",
+	NewsIndexSqlJsonbIndex:      "sql_jsonb_index",
+	NewsIndexTimeDuration:       "coalesce(time_duration, 0)",
+	NewsIndexGoTypeIntToStrings: "go_type_int_to_strings",
+	NewsIndexPublicField1:       "coalesce(public_field1, 0)",
+	NewsIndexPublicField2:       "coalesce(public_field2, 0)",
+	NewsIndexPublicField3:       "coalesce(public_field3, 0)",
+	NewsIndexPublicFieldMe1:     "coalesce(public_field_me1, 0)",
+	NewsIndexPublicFieldMe2:     "coalesce(public_field_me2, 0)",
+	NewsIndexPublicFieldMe3:     "coalesce(public_field_me3, 0)",
 }
 
 // sql column types
 var newsSQLTypes = [...]string{
-	NewsIndexInc:                    "bigint",
-	NewsIndexRole:                   "bigint",
-	NewsIndexKey:                    "uuid",
-	NewsIndexT:                      "timestamptz",
-	NewsIndexD:                      "bigint",
-	NewsIndexInts:                   "bigint",
-	NewsIndexInts8:                  "smallint",
-	NewsIndexInts16:                 "smallint",
-	NewsIndexInts32:                 "integer",
-	NewsIndexInts64:                 "bigint",
-	NewsIndexUints:                  "numeric(20,0)",
-	NewsIndexUints8:                 "smallint",
-	NewsIndexUints16:                "integer",
-	NewsIndexUints32:                "bigint",
-	NewsIndexUints64:                "numeric(20,0)",
-	NewsIndexFloats32:               "real",
-	NewsIndexFloats64:               "double precision",
-	NewsIndexBools:                  "boolean",
-	NewsIndexByte1:                  "smallint",
-	NewsIndexBytes:                  "bytea",
-	NewsIndexList_ints:              "bigint[]",
-	NewsIndexList_string:            "text[]",
-	NewsIndexList_float:             "double precision[]",
-	NewsIndexMap_string_string:      "jsonb",
-	NewsIndexMap_string_bytes:       "jsonb",
-	NewsIndexMap_string_bool:        "jsonb",
-	NewsIndexMap_string_int:         "jsonb",
-	NewsIndexMap_string_float64:     "jsonb",
-	NewsIndexMap_string_any:         "jsonb",
-	NewsIndexMap_int_string:         "jsonb",
-	NewsIndexMap_int_int:            "jsonb",
-	NewsIndexMap_int_bool:           "jsonb",
-	NewsIndexRenameSQL:              "text",
-	NewsIndexRenameGO_OK:            "text",
-	NewsIndexRenameJS:               "text",
-	NewsIndexMAST_UPPER_GO:          "text",
-	NewsIndexIntToSmallInt:          "smallint",
-	NewsIndexSql_unique_u1_1:        "bigint",
-	NewsIndexSql_unique_u1_2:        "bigint",
-	NewsIndexSql_index1_1:           "bigint",
-	NewsIndexSql_index1_2:           "bigint",
-	NewsIndexSql_index1_3:           "bigint",
-	NewsIndexSql_keys_1:             "bigint",
-	NewsIndexSql_keys_2:             "bigint",
-	NewsIndexSql_keys_3:             "bigint",
-	NewsIndexSql_search:             "text",
-	NewsIndexSql_get:                "text",
-	NewsIndexSql_unique_x1:          "bigint",
-	NewsIndexSql_unique_x2:          "bigint",
-	NewsIndexSql_unique_x1_x2:       "bigint",
-	NewsIndexSql_primary:            "double precision",
-	NewsIndexSql_jsonb_index:        "jsonb",
-	NewsIndexTime_duration:          "bigint",
-	NewsIndexGo_type_int_to_strings: "text[]",
-	NewsIndexPublic_field1:          "bigint",
-	NewsIndexPublic_field2:          "bigint",
-	NewsIndexPublic_field3:          "bigint",
-	NewsIndexPublic_field_me1:       "bigint",
-	NewsIndexPublic_field_me2:       "bigint",
-	NewsIndexPublic_field_me3:       "bigint",
+	NewsIndexInc:                "bigint",
+	NewsIndexRole:               "bigint",
+	NewsIndexKey:                "uuid",
+	NewsIndexT:                  "timestamptz",
+	NewsIndexD:                  "bigint",
+	NewsIndexInts:               "bigint",
+	NewsIndexInts8:              "smallint",
+	NewsIndexInts16:             "smallint",
+	NewsIndexInts32:             "integer",
+	NewsIndexInts64:             "bigint",
+	NewsIndexUints:              "numeric(20,0)",
+	NewsIndexUints8:             "smallint",
+	NewsIndexUints16:            "integer",
+	NewsIndexUints32:            "bigint",
+	NewsIndexUints64:            "numeric(20,0)",
+	NewsIndexFloats32:           "real",
+	NewsIndexFloats64:           "double precision",
+	NewsIndexBools:              "boolean",
+	NewsIndexByte1:              "smallint",
+	NewsIndexBytes:              "bytea",
+	NewsIndexListInts:           "bigint[]",
+	NewsIndexListString:         "text[]",
+	NewsIndexListFloat:          "double precision[]",
+	NewsIndexMapStringString:    "jsonb",
+	NewsIndexMapStringBytes:     "jsonb",
+	NewsIndexMapStringBool:      "jsonb",
+	NewsIndexMapStringInt:       "jsonb",
+	NewsIndexMapStringFloat64:   "jsonb",
+	NewsIndexMapStringAny:       "jsonb",
+	NewsIndexMapIntString:       "jsonb",
+	NewsIndexMapIntInt:          "jsonb",
+	NewsIndexMapIntBool:         "jsonb",
+	NewsIndexRenameSQL:          "text",
+	NewsIndexRenameGO_OK:        "text",
+	NewsIndexRenameJS:           "text",
+	NewsIndexMASTUPPERGO:        "text",
+	NewsIndexIntToSmallInt:      "smallint",
+	NewsIndexSqlUniqueU11:       "bigint",
+	NewsIndexSqlUniqueU12:       "bigint",
+	NewsIndexSqlIndex11:         "bigint",
+	NewsIndexSqlIndex12:         "bigint",
+	NewsIndexSqlIndex13:         "bigint",
+	NewsIndexSqlKeys1:           "bigint",
+	NewsIndexSqlKeys2:           "bigint",
+	NewsIndexSqlKeys3:           "bigint",
+	NewsIndexSqlSearch:          "text",
+	NewsIndexSqlGet:             "text",
+	NewsIndexSqlUniqueX1:        "bigint",
+	NewsIndexSqlUniqueX2:        "bigint",
+	NewsIndexSqlUniqueX1X2:      "bigint",
+	NewsIndexSqlPrimary:         "double precision",
+	NewsIndexSqlJsonbIndex:      "jsonb",
+	NewsIndexTimeDuration:       "bigint",
+	NewsIndexGoTypeIntToStrings: "text[]",
+	NewsIndexPublicField1:       "bigint",
+	NewsIndexPublicField2:       "bigint",
+	NewsIndexPublicField3:       "bigint",
+	NewsIndexPublicFieldMe1:     "bigint",
+	NewsIndexPublicFieldMe2:     "bigint",
+	NewsIndexPublicFieldMe3:     "bigint",
 }
 
 const newsSQLSelectAll = "coalesce(inc, 0), coalesce(role, 0), key, coalesce(t, '0001-01-01 00:00:00+00'), coalesce(d, 0), coalesce(ints, 0), coalesce(ints8, 0), coalesce(ints16, 0), coalesce(ints32, 0), coalesce(ints64, 0), coalesce(uints, 0), coalesce(uints8, 0), coalesce(uints16, 0), coalesce(uints32, 0), coalesce(uints64, 0), coalesce(floats32, 0), coalesce(floats64, 0), coalesce(bools, false), coalesce(byte1, 0), bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, coalesce(renameSQL_OK, ''), coalesce(renameGO, ''), coalesce(renameJS, ''), coalesce(mast_upper_go, ''), coalesce(intToSmallInt, 0), coalesce(sql_unique_u1_1, 0), coalesce(sql_unique_u1_2, 0), coalesce(sql_index1_1, 0), coalesce(sql_index1_2, 0), coalesce(sql_index1_3, 0), coalesce(sql_keys_1, 0), coalesce(sql_keys_2, 0), coalesce(sql_keys_3, 0), coalesce(sql_search, ''), coalesce(sql_get, ''), coalesce(sql_unique_x1, 0), coalesce(sql_unique_x2, 0), coalesce(sql_unique_x1_x2, 0), coalesce(sql_primary, 0), sql_jsonb_index, coalesce(time_duration, 0), go_type_int_to_strings, coalesce(public_field1, 0), coalesce(public_field2, 0), coalesce(public_field3, 0), coalesce(public_field_me1, 0), coalesce(public_field_me2, 0), coalesce(public_field_me3, 0)"
@@ -304,13 +353,13 @@ func newsSQLSelect(fields []NewsIndexTyped) (string, []NewsIndexTyped, error) {
 }
 
 // newsSQLSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func newsSQLSet(values map[NewsIndexTyped]any, start int) (string, []any, error) {
-	if len(values) == 0 {
+func newsSQLSet(v map[NewsIndexTyped]any, start int) (string, []any, error) {
+	if len(v) == 0 {
 		return "", nil, errors.New("news: no values")
 	}
 	var b strings.Builder
-	args := make([]any, 0, len(values))
-	for i, f := range slices.Sorted(maps.Keys(values)) {
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
 		col, err := newsSQLColumn(f)
 		if err != nil {
 			return "", nil, err
@@ -321,7 +370,7 @@ func newsSQLSet(values map[NewsIndexTyped]any, start int) (string, []any, error)
 		b.WriteString(col)
 		b.WriteString(" = $")
 		b.WriteString(strconv.Itoa(start + i))
-		args = append(args, values[f])
+		args = append(args, v[f])
 	}
 	return b.String(), args, nil
 }
@@ -391,86 +440,86 @@ func (a *News) sqlDest(fields []NewsIndexTyped) []any {
 			dest[i] = &a.Byte1
 		case NewsIndexBytes:
 			dest[i] = &a.Bytes
-		case NewsIndexList_ints:
-			dest[i] = &a.List_ints
-		case NewsIndexList_string:
-			dest[i] = &a.List_string
-		case NewsIndexList_float:
-			dest[i] = &a.List_float
-		case NewsIndexMap_string_string:
-			dest[i] = &a.Map_string_string
-		case NewsIndexMap_string_bytes:
-			dest[i] = &a.Map_string_bytes
-		case NewsIndexMap_string_bool:
-			dest[i] = &a.Map_string_bool
-		case NewsIndexMap_string_int:
-			dest[i] = &a.Map_string_int
-		case NewsIndexMap_string_float64:
-			dest[i] = &a.Map_string_float64
-		case NewsIndexMap_string_any:
-			dest[i] = &a.Map_string_any
-		case NewsIndexMap_int_string:
-			dest[i] = &a.Map_int_string
-		case NewsIndexMap_int_int:
-			dest[i] = &a.Map_int_int
-		case NewsIndexMap_int_bool:
-			dest[i] = &a.Map_int_bool
+		case NewsIndexListInts:
+			dest[i] = &a.ListInts
+		case NewsIndexListString:
+			dest[i] = &a.ListString
+		case NewsIndexListFloat:
+			dest[i] = &a.ListFloat
+		case NewsIndexMapStringString:
+			dest[i] = &a.MapStringString
+		case NewsIndexMapStringBytes:
+			dest[i] = &a.MapStringBytes
+		case NewsIndexMapStringBool:
+			dest[i] = &a.MapStringBool
+		case NewsIndexMapStringInt:
+			dest[i] = &a.MapStringInt
+		case NewsIndexMapStringFloat64:
+			dest[i] = &a.MapStringFloat64
+		case NewsIndexMapStringAny:
+			dest[i] = &a.MapStringAny
+		case NewsIndexMapIntString:
+			dest[i] = &a.MapIntString
+		case NewsIndexMapIntInt:
+			dest[i] = &a.MapIntInt
+		case NewsIndexMapIntBool:
+			dest[i] = &a.MapIntBool
 		case NewsIndexRenameSQL:
 			dest[i] = &a.RenameSQL
 		case NewsIndexRenameGO_OK:
 			dest[i] = &a.RenameGO_OK
 		case NewsIndexRenameJS:
 			dest[i] = &a.RenameJS
-		case NewsIndexMAST_UPPER_GO:
-			dest[i] = &a.MAST_UPPER_GO
+		case NewsIndexMASTUPPERGO:
+			dest[i] = &a.MASTUPPERGO
 		case NewsIndexIntToSmallInt:
 			dest[i] = &a.IntToSmallInt
-		case NewsIndexSql_unique_u1_1:
-			dest[i] = &a.Sql_unique_u1_1
-		case NewsIndexSql_unique_u1_2:
-			dest[i] = &a.Sql_unique_u1_2
-		case NewsIndexSql_index1_1:
-			dest[i] = &a.Sql_index1_1
-		case NewsIndexSql_index1_2:
-			dest[i] = &a.Sql_index1_2
-		case NewsIndexSql_index1_3:
-			dest[i] = &a.Sql_index1_3
-		case NewsIndexSql_keys_1:
-			dest[i] = &a.Sql_keys_1
-		case NewsIndexSql_keys_2:
-			dest[i] = &a.Sql_keys_2
-		case NewsIndexSql_keys_3:
-			dest[i] = &a.Sql_keys_3
-		case NewsIndexSql_search:
-			dest[i] = &a.Sql_search
-		case NewsIndexSql_get:
-			dest[i] = &a.Sql_get
-		case NewsIndexSql_unique_x1:
-			dest[i] = &a.Sql_unique_x1
-		case NewsIndexSql_unique_x2:
-			dest[i] = &a.Sql_unique_x2
-		case NewsIndexSql_unique_x1_x2:
-			dest[i] = &a.Sql_unique_x1_x2
-		case NewsIndexSql_primary:
-			dest[i] = &a.Sql_primary
-		case NewsIndexSql_jsonb_index:
-			dest[i] = &a.Sql_jsonb_index
-		case NewsIndexTime_duration:
-			dest[i] = &a.Time_duration
-		case NewsIndexGo_type_int_to_strings:
-			dest[i] = &a.Go_type_int_to_strings
-		case NewsIndexPublic_field1:
-			dest[i] = &a.Public_field1
-		case NewsIndexPublic_field2:
-			dest[i] = &a.Public_field2
-		case NewsIndexPublic_field3:
-			dest[i] = &a.Public_field3
-		case NewsIndexPublic_field_me1:
-			dest[i] = &a.Public_field_me1
-		case NewsIndexPublic_field_me2:
-			dest[i] = &a.Public_field_me2
-		case NewsIndexPublic_field_me3:
-			dest[i] = &a.Public_field_me3
+		case NewsIndexSqlUniqueU11:
+			dest[i] = &a.SqlUniqueU11
+		case NewsIndexSqlUniqueU12:
+			dest[i] = &a.SqlUniqueU12
+		case NewsIndexSqlIndex11:
+			dest[i] = &a.SqlIndex11
+		case NewsIndexSqlIndex12:
+			dest[i] = &a.SqlIndex12
+		case NewsIndexSqlIndex13:
+			dest[i] = &a.SqlIndex13
+		case NewsIndexSqlKeys1:
+			dest[i] = &a.SqlKeys1
+		case NewsIndexSqlKeys2:
+			dest[i] = &a.SqlKeys2
+		case NewsIndexSqlKeys3:
+			dest[i] = &a.SqlKeys3
+		case NewsIndexSqlSearch:
+			dest[i] = &a.SqlSearch
+		case NewsIndexSqlGet:
+			dest[i] = &a.SqlGet
+		case NewsIndexSqlUniqueX1:
+			dest[i] = &a.SqlUniqueX1
+		case NewsIndexSqlUniqueX2:
+			dest[i] = &a.SqlUniqueX2
+		case NewsIndexSqlUniqueX1X2:
+			dest[i] = &a.SqlUniqueX1X2
+		case NewsIndexSqlPrimary:
+			dest[i] = &a.SqlPrimary
+		case NewsIndexSqlJsonbIndex:
+			dest[i] = &a.SqlJsonbIndex
+		case NewsIndexTimeDuration:
+			dest[i] = &a.TimeDuration
+		case NewsIndexGoTypeIntToStrings:
+			dest[i] = &a.GoTypeIntToStrings
+		case NewsIndexPublicField1:
+			dest[i] = &a.PublicField1
+		case NewsIndexPublicField2:
+			dest[i] = &a.PublicField2
+		case NewsIndexPublicField3:
+			dest[i] = &a.PublicField3
+		case NewsIndexPublicFieldMe1:
+			dest[i] = &a.PublicFieldMe1
+		case NewsIndexPublicFieldMe2:
+			dest[i] = &a.PublicFieldMe2
+		case NewsIndexPublicFieldMe3:
+			dest[i] = &a.PublicFieldMe3
 		}
 	}
 	return dest
@@ -519,86 +568,86 @@ func (a *News) sqlValue(f NewsIndexTyped) any {
 		return a.Byte1
 	case NewsIndexBytes:
 		return a.Bytes
-	case NewsIndexList_ints:
-		return a.List_ints
-	case NewsIndexList_string:
-		return a.List_string
-	case NewsIndexList_float:
-		return a.List_float
-	case NewsIndexMap_string_string:
-		return a.Map_string_string
-	case NewsIndexMap_string_bytes:
-		return a.Map_string_bytes
-	case NewsIndexMap_string_bool:
-		return a.Map_string_bool
-	case NewsIndexMap_string_int:
-		return a.Map_string_int
-	case NewsIndexMap_string_float64:
-		return a.Map_string_float64
-	case NewsIndexMap_string_any:
-		return a.Map_string_any
-	case NewsIndexMap_int_string:
-		return a.Map_int_string
-	case NewsIndexMap_int_int:
-		return a.Map_int_int
-	case NewsIndexMap_int_bool:
-		return a.Map_int_bool
+	case NewsIndexListInts:
+		return a.ListInts
+	case NewsIndexListString:
+		return a.ListString
+	case NewsIndexListFloat:
+		return a.ListFloat
+	case NewsIndexMapStringString:
+		return a.MapStringString
+	case NewsIndexMapStringBytes:
+		return a.MapStringBytes
+	case NewsIndexMapStringBool:
+		return a.MapStringBool
+	case NewsIndexMapStringInt:
+		return a.MapStringInt
+	case NewsIndexMapStringFloat64:
+		return a.MapStringFloat64
+	case NewsIndexMapStringAny:
+		return a.MapStringAny
+	case NewsIndexMapIntString:
+		return a.MapIntString
+	case NewsIndexMapIntInt:
+		return a.MapIntInt
+	case NewsIndexMapIntBool:
+		return a.MapIntBool
 	case NewsIndexRenameSQL:
 		return a.RenameSQL
 	case NewsIndexRenameGO_OK:
 		return a.RenameGO_OK
 	case NewsIndexRenameJS:
 		return a.RenameJS
-	case NewsIndexMAST_UPPER_GO:
-		return a.MAST_UPPER_GO
+	case NewsIndexMASTUPPERGO:
+		return a.MASTUPPERGO
 	case NewsIndexIntToSmallInt:
 		return a.IntToSmallInt
-	case NewsIndexSql_unique_u1_1:
-		return a.Sql_unique_u1_1
-	case NewsIndexSql_unique_u1_2:
-		return a.Sql_unique_u1_2
-	case NewsIndexSql_index1_1:
-		return a.Sql_index1_1
-	case NewsIndexSql_index1_2:
-		return a.Sql_index1_2
-	case NewsIndexSql_index1_3:
-		return a.Sql_index1_3
-	case NewsIndexSql_keys_1:
-		return a.Sql_keys_1
-	case NewsIndexSql_keys_2:
-		return a.Sql_keys_2
-	case NewsIndexSql_keys_3:
-		return a.Sql_keys_3
-	case NewsIndexSql_search:
-		return a.Sql_search
-	case NewsIndexSql_get:
-		return a.Sql_get
-	case NewsIndexSql_unique_x1:
-		return a.Sql_unique_x1
-	case NewsIndexSql_unique_x2:
-		return a.Sql_unique_x2
-	case NewsIndexSql_unique_x1_x2:
-		return a.Sql_unique_x1_x2
-	case NewsIndexSql_primary:
-		return a.Sql_primary
-	case NewsIndexSql_jsonb_index:
-		return a.Sql_jsonb_index
-	case NewsIndexTime_duration:
-		return a.Time_duration
-	case NewsIndexGo_type_int_to_strings:
-		return a.Go_type_int_to_strings
-	case NewsIndexPublic_field1:
-		return a.Public_field1
-	case NewsIndexPublic_field2:
-		return a.Public_field2
-	case NewsIndexPublic_field3:
-		return a.Public_field3
-	case NewsIndexPublic_field_me1:
-		return a.Public_field_me1
-	case NewsIndexPublic_field_me2:
-		return a.Public_field_me2
-	case NewsIndexPublic_field_me3:
-		return a.Public_field_me3
+	case NewsIndexSqlUniqueU11:
+		return a.SqlUniqueU11
+	case NewsIndexSqlUniqueU12:
+		return a.SqlUniqueU12
+	case NewsIndexSqlIndex11:
+		return a.SqlIndex11
+	case NewsIndexSqlIndex12:
+		return a.SqlIndex12
+	case NewsIndexSqlIndex13:
+		return a.SqlIndex13
+	case NewsIndexSqlKeys1:
+		return a.SqlKeys1
+	case NewsIndexSqlKeys2:
+		return a.SqlKeys2
+	case NewsIndexSqlKeys3:
+		return a.SqlKeys3
+	case NewsIndexSqlSearch:
+		return a.SqlSearch
+	case NewsIndexSqlGet:
+		return a.SqlGet
+	case NewsIndexSqlUniqueX1:
+		return a.SqlUniqueX1
+	case NewsIndexSqlUniqueX2:
+		return a.SqlUniqueX2
+	case NewsIndexSqlUniqueX1X2:
+		return a.SqlUniqueX1X2
+	case NewsIndexSqlPrimary:
+		return a.SqlPrimary
+	case NewsIndexSqlJsonbIndex:
+		return a.SqlJsonbIndex
+	case NewsIndexTimeDuration:
+		return a.TimeDuration
+	case NewsIndexGoTypeIntToStrings:
+		return a.GoTypeIntToStrings
+	case NewsIndexPublicField1:
+		return a.PublicField1
+	case NewsIndexPublicField2:
+		return a.PublicField2
+	case NewsIndexPublicField3:
+		return a.PublicField3
+	case NewsIndexPublicFieldMe1:
+		return a.PublicFieldMe1
+	case NewsIndexPublicFieldMe2:
+		return a.PublicFieldMe2
+	case NewsIndexPublicFieldMe3:
+		return a.PublicFieldMe3
 	}
 	return nil
 }
@@ -625,46 +674,46 @@ func (a *News) sqlInsertArgs() []any {
 		a.Bools,
 		a.Byte1,
 		a.Bytes,
-		a.List_ints,
-		a.List_string,
-		a.List_float,
-		a.Map_string_string,
-		a.Map_string_bytes,
-		a.Map_string_bool,
-		a.Map_string_int,
-		a.Map_string_float64,
-		a.Map_string_any,
-		a.Map_int_string,
-		a.Map_int_int,
-		a.Map_int_bool,
+		a.ListInts,
+		a.ListString,
+		a.ListFloat,
+		a.MapStringString,
+		a.MapStringBytes,
+		a.MapStringBool,
+		a.MapStringInt,
+		a.MapStringFloat64,
+		a.MapStringAny,
+		a.MapIntString,
+		a.MapIntInt,
+		a.MapIntBool,
 		a.RenameSQL,
 		a.RenameGO_OK,
 		a.RenameJS,
-		a.MAST_UPPER_GO,
+		a.MASTUPPERGO,
 		a.IntToSmallInt,
-		a.Sql_unique_u1_1,
-		a.Sql_unique_u1_2,
-		a.Sql_index1_1,
-		a.Sql_index1_2,
-		a.Sql_index1_3,
-		a.Sql_keys_1,
-		a.Sql_keys_2,
-		a.Sql_keys_3,
-		a.Sql_search,
-		a.Sql_get,
-		a.Sql_unique_x1,
-		a.Sql_unique_x2,
-		a.Sql_unique_x1_x2,
-		a.Sql_primary,
-		a.Sql_jsonb_index,
-		a.Time_duration,
-		a.Go_type_int_to_strings,
-		a.Public_field1,
-		a.Public_field2,
-		a.Public_field3,
-		a.Public_field_me1,
-		a.Public_field_me2,
-		a.Public_field_me3,
+		a.SqlUniqueU11,
+		a.SqlUniqueU12,
+		a.SqlIndex11,
+		a.SqlIndex12,
+		a.SqlIndex13,
+		a.SqlKeys1,
+		a.SqlKeys2,
+		a.SqlKeys3,
+		a.SqlSearch,
+		a.SqlGet,
+		a.SqlUniqueX1,
+		a.SqlUniqueX2,
+		a.SqlUniqueX1X2,
+		a.SqlPrimary,
+		a.SqlJsonbIndex,
+		a.TimeDuration,
+		a.GoTypeIntToStrings,
+		a.PublicField1,
+		a.PublicField2,
+		a.PublicField3,
+		a.PublicFieldMe1,
+		a.PublicFieldMe2,
+		a.PublicFieldMe3,
 	}
 }
 
@@ -691,46 +740,46 @@ func (a *News) sqlAllArgs() []any {
 		a.Bools,
 		a.Byte1,
 		a.Bytes,
-		a.List_ints,
-		a.List_string,
-		a.List_float,
-		a.Map_string_string,
-		a.Map_string_bytes,
-		a.Map_string_bool,
-		a.Map_string_int,
-		a.Map_string_float64,
-		a.Map_string_any,
-		a.Map_int_string,
-		a.Map_int_int,
-		a.Map_int_bool,
+		a.ListInts,
+		a.ListString,
+		a.ListFloat,
+		a.MapStringString,
+		a.MapStringBytes,
+		a.MapStringBool,
+		a.MapStringInt,
+		a.MapStringFloat64,
+		a.MapStringAny,
+		a.MapIntString,
+		a.MapIntInt,
+		a.MapIntBool,
 		a.RenameSQL,
 		a.RenameGO_OK,
 		a.RenameJS,
-		a.MAST_UPPER_GO,
+		a.MASTUPPERGO,
 		a.IntToSmallInt,
-		a.Sql_unique_u1_1,
-		a.Sql_unique_u1_2,
-		a.Sql_index1_1,
-		a.Sql_index1_2,
-		a.Sql_index1_3,
-		a.Sql_keys_1,
-		a.Sql_keys_2,
-		a.Sql_keys_3,
-		a.Sql_search,
-		a.Sql_get,
-		a.Sql_unique_x1,
-		a.Sql_unique_x2,
-		a.Sql_unique_x1_x2,
-		a.Sql_primary,
-		a.Sql_jsonb_index,
-		a.Time_duration,
-		a.Go_type_int_to_strings,
-		a.Public_field1,
-		a.Public_field2,
-		a.Public_field3,
-		a.Public_field_me1,
-		a.Public_field_me2,
-		a.Public_field_me3,
+		a.SqlUniqueU11,
+		a.SqlUniqueU12,
+		a.SqlIndex11,
+		a.SqlIndex12,
+		a.SqlIndex13,
+		a.SqlKeys1,
+		a.SqlKeys2,
+		a.SqlKeys3,
+		a.SqlSearch,
+		a.SqlGet,
+		a.SqlUniqueX1,
+		a.SqlUniqueX2,
+		a.SqlUniqueX1X2,
+		a.SqlPrimary,
+		a.SqlJsonbIndex,
+		a.TimeDuration,
+		a.GoTypeIntToStrings,
+		a.PublicField1,
+		a.PublicField2,
+		a.PublicField3,
+		a.PublicFieldMe1,
+		a.PublicFieldMe2,
+		a.PublicFieldMe3,
 	}
 }
 
@@ -793,23 +842,23 @@ func (a *NewsSQL) Exists(ctx context.Context, id int) (has bool, err error) {
 	return
 }
 
-// GetBy returns first row with field = value
-func (a *NewsSQL) GetBy(ctx context.Context, field NewsIndexTyped, value any, fields ...NewsIndexTyped) (v News, err error) {
+// GetBy returns first row with field = v
+func (a *NewsSQL) GetBy(ctx context.Context, field NewsIndexTyped, v any, fields ...NewsIndexTyped) (res News, err error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return
 	}
-	return a.queryRow(ctx, fields, " where "+col+" = $1 limit 1", value)
+	return a.queryRow(ctx, fields, " where "+col+" = $1 limit 1", v)
 }
 
-// GetBySql_search returns first row by sql_search
-func (a *NewsSQL) GetBySql_search(ctx context.Context, value string, fields ...NewsIndexTyped) (News, error) {
-	return a.queryRow(ctx, fields, " where sql_search = $1 limit 1", value)
+// GetBySqlSearch returns first row by sql_search
+func (a *NewsSQL) GetBySqlSearch(ctx context.Context, v string, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(ctx, fields, " where sql_search = $1 limit 1", v)
 }
 
-// GetBySql_get returns first row by sql_get
-func (a *NewsSQL) GetBySql_get(ctx context.Context, value string, fields ...NewsIndexTyped) (News, error) {
-	return a.queryRow(ctx, fields, " where sql_get = $1 limit 1", value)
+// GetBySqlGet returns first row by sql_get
+func (a *NewsSQL) GetBySqlGet(ctx context.Context, v string, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(ctx, fields, " where sql_get = $1 limit 1", v)
 }
 
 // GetWhere returns first row by condition
@@ -819,13 +868,13 @@ func (a *NewsSQL) GetWhere(ctx context.Context, fields []NewsIndexTyped, where s
 	return a.queryRow(ctx, fields, " where "+where+" limit 1", args...)
 }
 
-// Has checks row with field = value
-func (a *NewsSQL) Has(ctx context.Context, field NewsIndexTyped, value any) (has bool, err error) {
+// Has checks row with field = v
+func (a *NewsSQL) Has(ctx context.Context, field NewsIndexTyped, v any) (has bool, err error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(ctx, "select exists (select 1 from news where "+col+" = $1)", value).Scan(&has)
+	err = a.db.QueryRow(ctx, "select exists (select 1 from news where "+col+" = $1)", v).Scan(&has)
 	return
 }
 
@@ -933,17 +982,17 @@ func (a *NewsSQL) InsertBatch(ctx context.Context, list []*News) error {
 // ---------------------------------------------------------------------------
 
 // Update sets field of row, pgx.ErrNoRows when row not found
-func (a *NewsSQL) Update(ctx context.Context, id int, field NewsIndexTyped, value any) error {
+func (a *NewsSQL) Update(ctx context.Context, id int, field NewsIndexTyped, v any) error {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = $1 where inc = $2", value, id))
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = $1 where inc = $2", v, id))
 }
 
 // Updates sets fields of row, pgx.ErrNoRows when row not found
-func (a *NewsSQL) Updates(ctx context.Context, id int, values map[NewsIndexTyped]any) error {
-	set, args, err := newsSQLSet(values, 1)
+func (a *NewsSQL) Updates(ctx context.Context, id int, v map[NewsIndexTyped]any) error {
+	set, args, err := newsSQLSet(v, 1)
 	if err != nil {
 		return err
 	}
@@ -968,13 +1017,13 @@ func (a *NewsSQL) Save(ctx context.Context, v *News, fields ...NewsIndexTyped) e
 	return newsSQLAffected(a.db.Exec(ctx, "update news set "+set+" where inc = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(NewsIndexInc))...))
 }
 
-// Increment adds delta to number field: views = views + 1
-func (a *NewsSQL) Increment(ctx context.Context, id int, field NewsIndexTyped, delta any) error {
+// Increment adds v to number field: views = views + 1
+func (a *NewsSQL) Increment(ctx context.Context, id int, field NewsIndexTyped, v any) error {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", 0) + $1 where inc = $2", delta, id))
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", 0) + $1 where inc = $2", v, id))
 }
 
 // Delete removes row by inc
@@ -986,18 +1035,18 @@ func (a *NewsSQL) Delete(ctx context.Context, id int) error {
 // UpdateWhere sets field of rows by condition, returns count of rows
 //
 //	db.UpdateWhere(ctx, IndexActive, false, "created < $1", date)
-func (a *NewsSQL) UpdateWhere(ctx context.Context, field NewsIndexTyped, value any, where string, args ...any) (int64, error) {
+func (a *NewsSQL) UpdateWhere(ctx context.Context, field NewsIndexTyped, v any, where string, args ...any) (int64, error) {
 	col, err := newsSQLColumn(field)
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(ctx, "update news set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), value)...)
+	tag, err := a.db.Exec(ctx, "update news set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
 	return tag.RowsAffected(), err
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
-func (a *NewsSQL) UpdatesWhere(ctx context.Context, values map[NewsIndexTyped]any, where string, args ...any) (int64, error) {
-	set, vals, err := newsSQLSet(values, len(args)+1)
+func (a *NewsSQL) UpdatesWhere(ctx context.Context, v map[NewsIndexTyped]any, where string, args ...any) (int64, error) {
+	set, vals, err := newsSQLSet(v, len(args)+1)
 	if err != nil {
 		return 0, err
 	}
@@ -1011,112 +1060,272 @@ func (a *NewsSQL) DeleteWhere(ctx context.Context, where string, args ...any) (i
 	return tag.RowsAffected(), err
 }
 
-// ---------------------------------------------------------------------------
-// arrays
-// ---------------------------------------------------------------------------
-
-// newsSQLArray returns column and element type of array field: tags, text
-func newsSQLArray(field NewsIndexTyped) (col, elem string, err error) {
-	if col, err = newsSQLColumn(field); err != nil {
-		return
-	}
-	elem, ok := strings.CutSuffix(newsSQLTypes[field], "[]")
-	if !ok || strings.HasSuffix(elem, "[]") {
-		err = fmt.Errorf("news: %s is not an array", col)
-	}
-	return
+// ListIntsAppend adds values to array list_ints
+func (a *NewsSQL) ListIntsAppend(ctx context.Context, id int, v ...int) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_ints = coalesce(list_ints, '{}') || $1::bigint[] where inc = $2", v, id))
 }
 
-// ArrayAppend adds values to array field: values is a slice
-//
-//	db.ArrayAppend(ctx, id, IndexTags, []string{"a", "b"})
-func (a *NewsSQL) ArrayAppend(ctx context.Context, id int, field NewsIndexTyped, values any) error {
-	col, elem, err := newsSQLArray(field)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", '{}') || $1::"+elem+"[] where inc = $2", values, id))
+// ListIntsRemove removes all entries of v from array list_ints
+func (a *NewsSQL) ListIntsRemove(ctx context.Context, id int, v int) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_ints = array_remove(list_ints, $1::bigint) where inc = $2", v, id))
 }
 
-// ArrayRemove removes all entries of value from array field
-func (a *NewsSQL) ArrayRemove(ctx context.Context, id int, field NewsIndexTyped, value any) error {
-	col, elem, err := newsSQLArray(field)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = array_remove("+col+", $1::"+elem+") where inc = $2", value, id))
+// ListStringAppend adds values to array list_string
+func (a *NewsSQL) ListStringAppend(ctx context.Context, id int, v ...string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_string = coalesce(list_string, '{}') || $1::text[] where inc = $2", v, id))
 }
 
-// ---------------------------------------------------------------------------
-// jsonb
-// ---------------------------------------------------------------------------
-
-// newsSQLJSON returns column of jsonb field
-func newsSQLJSON(field NewsIndexTyped) (col string, err error) {
-	if col, err = newsSQLColumn(field); err != nil {
-		return
-	}
-	if newsSQLTypes[field] != "jsonb" {
-		err = fmt.Errorf("news: %s is not jsonb", col)
-	}
-	return
+// ListStringRemove removes all entries of v from array list_string
+func (a *NewsSQL) ListStringRemove(ctx context.Context, id int, v string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_string = array_remove(list_string, $1::text) where inc = $2", v, id))
 }
 
-// JSONSet sets key of jsonb object field
-func (a *NewsSQL) JSONSet(ctx context.Context, id int, field NewsIndexTyped, key string, value any) error {
-	col, err := newsSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where inc = $3", key, b, id))
+// ListFloatAppend adds values to array list_float
+func (a *NewsSQL) ListFloatAppend(ctx context.Context, id int, v ...float64) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_float = coalesce(list_float, '{}') || $1::double precision[] where inc = $2", v, id))
 }
 
-// JSONMerge merges object to jsonb object field: existing keys are replaced
-func (a *NewsSQL) JSONMerge(ctx context.Context, id int, field NewsIndexTyped, values any) error {
-	col, err := newsSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", '{}'::jsonb) || $1::jsonb where inc = $2", b, id))
+// ListFloatRemove removes all entries of v from array list_float
+func (a *NewsSQL) ListFloatRemove(ctx context.Context, id int, v float64) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set list_float = array_remove(list_float, $1::double precision) where inc = $2", v, id))
 }
 
-// JSONAppend adds values to jsonb array field
-func (a *NewsSQL) JSONAppend(ctx context.Context, id int, field NewsIndexTyped, values ...any) error {
-	col, err := newsSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", '[]'::jsonb) || $1::jsonb where inc = $2", b, id))
+// MapStringStringUpdate sets key of jsonb map_string_string
+func (a *NewsSQL) MapStringStringUpdate(ctx context.Context, id int, k string, v string) error {
+	return a.jsonSet(ctx, id, "map_string_string", fmt.Sprint(k), v)
 }
 
-// JSONDeleteKey removes key of jsonb object field
-func (a *NewsSQL) JSONDeleteKey(ctx context.Context, id int, field NewsIndexTyped, key string) error {
-	col, err := newsSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = "+col+" - $1::text where inc = $2", key, id))
+// MapStringStringMerge adds keys to jsonb map_string_string: existing keys are replaced
+func (a *NewsSQL) MapStringStringMerge(ctx context.Context, id int, v map[string]string) error {
+	return a.jsonMerge(ctx, id, "map_string_string", "{}", v)
 }
 
-// JSONRenameKey renames key of jsonb object field, pgx.ErrNoRows when key not found
-func (a *NewsSQL) JSONRenameKey(ctx context.Context, id int, field NewsIndexTyped, key, newKey string) error {
-	col, err := newsSQLJSON(field)
+// MapStringStringDelete removes key of jsonb map_string_string
+func (a *NewsSQL) MapStringStringDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_string", fmt.Sprint(k))
+}
+
+// MapStringStringRename renames key of jsonb map_string_string, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringStringRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_string", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapStringBytesUpdate sets key of jsonb map_string_bytes
+func (a *NewsSQL) MapStringBytesUpdate(ctx context.Context, id int, k string, v []byte) error {
+	return a.jsonSet(ctx, id, "map_string_bytes", fmt.Sprint(k), v)
+}
+
+// MapStringBytesMerge adds keys to jsonb map_string_bytes: existing keys are replaced
+func (a *NewsSQL) MapStringBytesMerge(ctx context.Context, id int, v map[string][]byte) error {
+	return a.jsonMerge(ctx, id, "map_string_bytes", "{}", v)
+}
+
+// MapStringBytesDelete removes key of jsonb map_string_bytes
+func (a *NewsSQL) MapStringBytesDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_bytes", fmt.Sprint(k))
+}
+
+// MapStringBytesRename renames key of jsonb map_string_bytes, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringBytesRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_bytes", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapStringBoolUpdate sets key of jsonb map_string_bool
+func (a *NewsSQL) MapStringBoolUpdate(ctx context.Context, id int, k string, v bool) error {
+	return a.jsonSet(ctx, id, "map_string_bool", fmt.Sprint(k), v)
+}
+
+// MapStringBoolMerge adds keys to jsonb map_string_bool: existing keys are replaced
+func (a *NewsSQL) MapStringBoolMerge(ctx context.Context, id int, v map[string]bool) error {
+	return a.jsonMerge(ctx, id, "map_string_bool", "{}", v)
+}
+
+// MapStringBoolDelete removes key of jsonb map_string_bool
+func (a *NewsSQL) MapStringBoolDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_bool", fmt.Sprint(k))
+}
+
+// MapStringBoolRename renames key of jsonb map_string_bool, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringBoolRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_bool", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapStringIntUpdate sets key of jsonb map_string_int
+func (a *NewsSQL) MapStringIntUpdate(ctx context.Context, id int, k string, v int) error {
+	return a.jsonSet(ctx, id, "map_string_int", fmt.Sprint(k), v)
+}
+
+// MapStringIntMerge adds keys to jsonb map_string_int: existing keys are replaced
+func (a *NewsSQL) MapStringIntMerge(ctx context.Context, id int, v map[string]int) error {
+	return a.jsonMerge(ctx, id, "map_string_int", "{}", v)
+}
+
+// MapStringIntDelete removes key of jsonb map_string_int
+func (a *NewsSQL) MapStringIntDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_int", fmt.Sprint(k))
+}
+
+// MapStringIntRename renames key of jsonb map_string_int, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringIntRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_int", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapStringFloat64Update sets key of jsonb map_string_float64
+func (a *NewsSQL) MapStringFloat64Update(ctx context.Context, id int, k string, v float64) error {
+	return a.jsonSet(ctx, id, "map_string_float64", fmt.Sprint(k), v)
+}
+
+// MapStringFloat64Merge adds keys to jsonb map_string_float64: existing keys are replaced
+func (a *NewsSQL) MapStringFloat64Merge(ctx context.Context, id int, v map[string]float64) error {
+	return a.jsonMerge(ctx, id, "map_string_float64", "{}", v)
+}
+
+// MapStringFloat64Delete removes key of jsonb map_string_float64
+func (a *NewsSQL) MapStringFloat64Delete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_float64", fmt.Sprint(k))
+}
+
+// MapStringFloat64Rename renames key of jsonb map_string_float64, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringFloat64Rename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_float64", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapStringAnyUpdate sets key of jsonb map_string_any
+func (a *NewsSQL) MapStringAnyUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "map_string_any", fmt.Sprint(k), v)
+}
+
+// MapStringAnyMerge adds keys to jsonb map_string_any: existing keys are replaced
+func (a *NewsSQL) MapStringAnyMerge(ctx context.Context, id int, v map[string]any) error {
+	return a.jsonMerge(ctx, id, "map_string_any", "{}", v)
+}
+
+// MapStringAnyDelete removes key of jsonb map_string_any
+func (a *NewsSQL) MapStringAnyDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "map_string_any", fmt.Sprint(k))
+}
+
+// MapStringAnyRename renames key of jsonb map_string_any, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapStringAnyRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "map_string_any", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapIntStringUpdate sets key of jsonb map_int_string
+func (a *NewsSQL) MapIntStringUpdate(ctx context.Context, id int, k int, v string) error {
+	return a.jsonSet(ctx, id, "map_int_string", fmt.Sprint(k), v)
+}
+
+// MapIntStringMerge adds keys to jsonb map_int_string: existing keys are replaced
+func (a *NewsSQL) MapIntStringMerge(ctx context.Context, id int, v map[int]string) error {
+	return a.jsonMerge(ctx, id, "map_int_string", "{}", v)
+}
+
+// MapIntStringDelete removes key of jsonb map_int_string
+func (a *NewsSQL) MapIntStringDelete(ctx context.Context, id int, k int) error {
+	return a.jsonDelete(ctx, id, "map_int_string", fmt.Sprint(k))
+}
+
+// MapIntStringRename renames key of jsonb map_int_string, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapIntStringRename(ctx context.Context, id int, k, newK int) error {
+	return a.jsonRename(ctx, id, "map_int_string", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapIntIntUpdate sets key of jsonb map_int_int
+func (a *NewsSQL) MapIntIntUpdate(ctx context.Context, id int, k int, v int) error {
+	return a.jsonSet(ctx, id, "map_int_int", fmt.Sprint(k), v)
+}
+
+// MapIntIntMerge adds keys to jsonb map_int_int: existing keys are replaced
+func (a *NewsSQL) MapIntIntMerge(ctx context.Context, id int, v map[int]int) error {
+	return a.jsonMerge(ctx, id, "map_int_int", "{}", v)
+}
+
+// MapIntIntDelete removes key of jsonb map_int_int
+func (a *NewsSQL) MapIntIntDelete(ctx context.Context, id int, k int) error {
+	return a.jsonDelete(ctx, id, "map_int_int", fmt.Sprint(k))
+}
+
+// MapIntIntRename renames key of jsonb map_int_int, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapIntIntRename(ctx context.Context, id int, k, newK int) error {
+	return a.jsonRename(ctx, id, "map_int_int", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// MapIntBoolUpdate sets key of jsonb map_int_bool
+func (a *NewsSQL) MapIntBoolUpdate(ctx context.Context, id int, k int, v bool) error {
+	return a.jsonSet(ctx, id, "map_int_bool", fmt.Sprint(k), v)
+}
+
+// MapIntBoolMerge adds keys to jsonb map_int_bool: existing keys are replaced
+func (a *NewsSQL) MapIntBoolMerge(ctx context.Context, id int, v map[int]bool) error {
+	return a.jsonMerge(ctx, id, "map_int_bool", "{}", v)
+}
+
+// MapIntBoolDelete removes key of jsonb map_int_bool
+func (a *NewsSQL) MapIntBoolDelete(ctx context.Context, id int, k int) error {
+	return a.jsonDelete(ctx, id, "map_int_bool", fmt.Sprint(k))
+}
+
+// MapIntBoolRename renames key of jsonb map_int_bool, pgx.ErrNoRows when key not found
+func (a *NewsSQL) MapIntBoolRename(ctx context.Context, id int, k, newK int) error {
+	return a.jsonRename(ctx, id, "map_int_bool", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// SqlJsonbIndexUpdate sets key of jsonb sql_jsonb_index
+func (a *NewsSQL) SqlJsonbIndexUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "sql_jsonb_index", fmt.Sprint(k), v)
+}
+
+// SqlJsonbIndexMerge adds keys to jsonb sql_jsonb_index: existing keys are replaced
+func (a *NewsSQL) SqlJsonbIndexMerge(ctx context.Context, id int, v map[string]any) error {
+	return a.jsonMerge(ctx, id, "sql_jsonb_index", "{}", v)
+}
+
+// SqlJsonbIndexDelete removes key of jsonb sql_jsonb_index
+func (a *NewsSQL) SqlJsonbIndexDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "sql_jsonb_index", fmt.Sprint(k))
+}
+
+// SqlJsonbIndexRename renames key of jsonb sql_jsonb_index, pgx.ErrNoRows when key not found
+func (a *NewsSQL) SqlJsonbIndexRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "sql_jsonb_index", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// GoTypeIntToStringsAppend adds values to array go_type_int_to_strings
+func (a *NewsSQL) GoTypeIntToStringsAppend(ctx context.Context, id int, v ...string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set go_type_int_to_strings = coalesce(go_type_int_to_strings, '{}') || $1::text[] where inc = $2", v, id))
+}
+
+// GoTypeIntToStringsRemove removes all entries of v from array go_type_int_to_strings
+func (a *NewsSQL) GoTypeIntToStringsRemove(ctx context.Context, id int, v string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set go_type_int_to_strings = array_remove(go_type_int_to_strings, $1::text) where inc = $2", v, id))
+}
+
+// jsonSet sets key of jsonb column
+func (a *NewsSQL) jsonSet(ctx context.Context, id int, col, k string, v any) error {
+	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where inc = $3 and "+col+" ? $1::text", key, newKey, id))
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where inc = $3", k, b, id))
+}
+
+// jsonMerge concats json to jsonb column: object keys or array values
+func (a *NewsSQL) jsonMerge(ctx context.Context, id int, col, empty string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where inc = $2", b, id))
+}
+
+// jsonDelete removes key of jsonb column
+func (a *NewsSQL) jsonDelete(ctx context.Context, id int, col, k string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = "+col+" - $1::text where inc = $2", k, id))
+}
+
+// jsonRename renames key of jsonb column
+func (a *NewsSQL) jsonRename(ctx context.Context, id int, col, k, newK string) error {
+	return newsSQLAffected(a.db.Exec(ctx, "update news set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where inc = $3 and "+col+" ? $1::text", k, newK, id))
 }
 
 // ---------------------------------------------------------------------------
@@ -1160,11 +1369,11 @@ func NewNewsQuery() *NewsQuery {
 }
 
 // column returns sql column by key
-func (q *NewsQuery) column(key string) (string, NewsIndexTyped, error) {
-	if !NewsValidKey(key) {
-		return "", 0, fmt.Errorf("news: unknown field %q", key)
+func (q *NewsQuery) column(k string) (string, NewsIndexTyped, error) {
+	if !NewsValidKey(k) {
+		return "", 0, fmt.Errorf("news: unknown field %q", k)
 	}
-	f := NewsKeyIndex(key)
+	f := NewsKeyIndex(k)
 	col, err := newsSQLColumn(f)
 	return col, f, err
 }
@@ -1173,8 +1382,8 @@ func (q *NewsQuery) column(key string) (string, NewsIndexTyped, error) {
 // Sql text is stable for the same set of keys
 func (q *NewsQuery) Render() (tail string, fields []NewsIndexTyped, args []any, err error) {
 
-	for _, key := range q.Fields {
-		_, f, err := q.column(key)
+	for _, k := range q.Fields {
+		_, f, err := q.column(k)
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -1188,32 +1397,32 @@ func (q *NewsQuery) Render() (tail string, fields []NewsIndexTyped, args []any, 
 	}
 
 	// field op $n
-	add := func(key, op string, value any) error {
-		col, _, err := q.column(key)
+	add := func(k, op string, v any) error {
+		col, _, err := q.column(k)
 		if err != nil {
 			return err
 		}
-		args = append(args, value)
+		args = append(args, v)
 		and = append(and, fmt.Sprintf(op, col, len(args)))
 		return nil
 	}
 
-	for _, key := range slices.Sorted(maps.Keys(q.EQ)) {
-		v := q.EQ[key]
+	for _, k := range slices.Sorted(maps.Keys(q.EQ)) {
+		v := q.EQ[k]
 		if v == nil || v == "" {
 			continue
 		}
 		op := "%s = $%d"
-		if _, f, err := q.column(key); err == nil && f.Type() == "bool" {
+		if _, f, err := q.column(k); err == nil && f.Type() == "bool" {
 			op = "coalesce(%s, false) = $%d" // false is null too
 		}
-		if err = add(key, op, v); err != nil {
+		if err = add(k, op, v); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.NOT)) {
-		for _, v := range q.NOT[key] {
-			if err = add(key, "%s is distinct from $%d", v); err != nil {
+	for _, k := range slices.Sorted(maps.Keys(q.NOT)) {
+		for _, v := range q.NOT[k] {
+			if err = add(k, "%s is distinct from $%d", v); err != nil {
 				return
 			}
 		}
@@ -1224,37 +1433,37 @@ func (q *NewsQuery) Render() (tail string, fields []NewsIndexTyped, args []any, 
 	}{
 		{"%s > $%d", q.GT}, {"%s >= $%d", q.GTE}, {"%s < $%d", q.LT}, {"%s <= $%d", q.LTE},
 	} {
-		for _, key := range slices.Sorted(maps.Keys(x.values)) {
-			v := x.values[key]
+		for _, k := range slices.Sorted(maps.Keys(x.values)) {
+			v := x.values[k]
 			if v == nil || v == "" {
 				continue
 			}
-			if err = add(key, x.op, v); err != nil {
+			if err = add(k, x.op, v); err != nil {
 				return
 			}
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.Like)) {
-		if q.Like[key] == "" {
+	for _, k := range slices.Sorted(maps.Keys(q.Like)) {
+		if q.Like[k] == "" {
 			continue
 		}
-		if err = add(key, "%s ilike $%d", "%"+q.Like[key]+"%"); err != nil {
+		if err = add(k, "%s ilike $%d", "%"+q.Like[k]+"%"); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.IN)) {
-		if len(q.IN[key]) == 0 {
+	for _, k := range slices.Sorted(maps.Keys(q.IN)) {
+		if len(q.IN[k]) == 0 {
 			continue
 		}
-		if err = add(key, "%s = any($%d)", q.IN[key]); err != nil {
+		if err = add(k, "%s = any($%d)", q.IN[k]); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.INS)) {
-		if len(q.INS[key]) == 0 {
+	for _, k := range slices.Sorted(maps.Keys(q.INS)) {
+		if len(q.INS[k]) == 0 {
 			continue
 		}
-		if err = add(key, "%s = any($%d)", q.INS[key]); err != nil {
+		if err = add(k, "%s = any($%d)", q.INS[k]); err != nil {
 			return
 		}
 	}
@@ -1412,7 +1621,7 @@ func (a *NewsSQL) ResetSequence(ctx context.Context, add ...int64) error {
 }
 
 // SetSequence sets next inc
-func (a *NewsSQL) SetSequence(ctx context.Context, value int64) error {
-	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('news', 'inc'), $1, false)", value)
+func (a *NewsSQL) SetSequence(ctx context.Context, v int64) error {
+	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('news', 'inc'), $1, false)", v)
 	return err
 }

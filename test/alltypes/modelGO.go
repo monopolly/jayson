@@ -1805,14 +1805,12 @@ func (a *All) Iterate(f func(k AllIndexTyped, v any)) {
 
 // fast json marshal
 func (a *All) Pack() []byte {
-	var jsoner = jsoniter.ConfigCompatibleWithStandardLibrary
-	b, _ := jsoner.Marshal(a)
+	b, _ := jsoniter.Marshal(a)
 	return b
 }
 
 // fast json unmarshal
 func ParseAll(v []byte) (a All, err error) {
-	var jsoner = jsoniter.ConfigCompatibleWithStandardLibrary
-	err = jsoner.Unmarshal(v, &a)
+	err = jsoniter.Unmarshal(v, &a)
 	return
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/monopolly/jayson/test/role"
 	"github.com/niubaoshu/gotiny"
 	"github.com/vmihailenco/msgpack/v5"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -121,117 +122,117 @@ const (
 	NewsIndexBools
 	NewsIndexByte1
 	NewsIndexBytes
-	NewsIndexList_ints
-	NewsIndexList_string
-	NewsIndexList_float
-	NewsIndexMap_string_string
-	NewsIndexMap_string_bytes
-	NewsIndexMap_string_bool
-	NewsIndexMap_string_int
-	NewsIndexMap_string_float64
-	NewsIndexMap_string_any
-	NewsIndexMap_int_string
-	NewsIndexMap_int_int
-	NewsIndexMap_int_bool
+	NewsIndexListInts
+	NewsIndexListString
+	NewsIndexListFloat
+	NewsIndexMapStringString
+	NewsIndexMapStringBytes
+	NewsIndexMapStringBool
+	NewsIndexMapStringInt
+	NewsIndexMapStringFloat64
+	NewsIndexMapStringAny
+	NewsIndexMapIntString
+	NewsIndexMapIntInt
+	NewsIndexMapIntBool
 	NewsIndexRenameSQL
 	NewsIndexRenameGO_OK
 	NewsIndexRenameJS
-	NewsIndexMAST_UPPER_GO
+	NewsIndexMASTUPPERGO
 	NewsIndexIntToSmallInt
 	NewsIndexSkip
-	NewsIndexSql_unique_u1_1
-	NewsIndexSql_unique_u1_2
-	NewsIndexSql_index1_1
-	NewsIndexSql_index1_2
-	NewsIndexSql_index1_3
-	NewsIndexSql_keys_1
-	NewsIndexSql_keys_2
-	NewsIndexSql_keys_3
-	NewsIndexSql_search
-	NewsIndexSql_get
-	NewsIndexSql_unique_x1
-	NewsIndexSql_unique_x2
-	NewsIndexSql_unique_x1_x2
-	NewsIndexSql_primary
-	NewsIndexSql_jsonb_index
-	NewsIndexTime_duration
-	NewsIndexGo_type_int_to_strings
-	NewsIndexPublic_field1
-	NewsIndexPublic_field2
-	NewsIndexPublic_field3
-	NewsIndexPublic_field_me1
-	NewsIndexPublic_field_me2
-	NewsIndexPublic_field_me3
+	NewsIndexSqlUniqueU11
+	NewsIndexSqlUniqueU12
+	NewsIndexSqlIndex11
+	NewsIndexSqlIndex12
+	NewsIndexSqlIndex13
+	NewsIndexSqlKeys1
+	NewsIndexSqlKeys2
+	NewsIndexSqlKeys3
+	NewsIndexSqlSearch
+	NewsIndexSqlGet
+	NewsIndexSqlUniqueX1
+	NewsIndexSqlUniqueX2
+	NewsIndexSqlUniqueX1X2
+	NewsIndexSqlPrimary
+	NewsIndexSqlJsonbIndex
+	NewsIndexTimeDuration
+	NewsIndexGoTypeIntToStrings
+	NewsIndexPublicField1
+	NewsIndexPublicField2
+	NewsIndexPublicField3
+	NewsIndexPublicFieldMe1
+	NewsIndexPublicFieldMe2
+	NewsIndexPublicFieldMe3
 )
 
 // string index
 const (
-	NewsFieldInc                    = "inc"                    // int sql{inc}  #readonly
-	NewsFieldRole                   = "role"                   // Role
-	NewsFieldKey                    = "key"                    // uuid.UUID
-	NewsFieldT                      = "t"                      // time.Time
-	NewsFieldD                      = "d"                      // time.Duration
-	NewsFieldInts                   = "ints"                   // int
-	NewsFieldInts8                  = "ints8"                  // int8
-	NewsFieldInts16                 = "ints16"                 // int16
-	NewsFieldInts32                 = "ints32"                 // int32
-	NewsFieldInts64                 = "ints64"                 // int64
-	NewsFieldUints                  = "uints"                  // uint
-	NewsFieldUints8                 = "uints8"                 // uint8
-	NewsFieldUints16                = "uints16"                // uint16
-	NewsFieldUints32                = "uints32"                // uint32
-	NewsFieldUints64                = "uints64"                // uint64
-	NewsFieldFloats32               = "floats32"               // float32
-	NewsFieldFloats64               = "floats64"               // float64
-	NewsFieldBools                  = "bools"                  // bool
-	NewsFieldByte1                  = "byte1"                  // byte
-	NewsFieldBytes                  = "bytes"                  // []byte
-	NewsFieldList_ints              = "list_ints"              // []int
-	NewsFieldList_string            = "list_string"            // []string
-	NewsFieldList_float             = "list_float"             // []float64
-	NewsFieldMap_string_string      = "map_string_string"      // map[string]string
-	NewsFieldMap_string_bytes       = "map_string_bytes"       // map[string][]byte
-	NewsFieldMap_string_bool        = "map_string_bool"        // map[string]bool
-	NewsFieldMap_string_int         = "map_string_int"         // map[string]int
-	NewsFieldMap_string_float64     = "map_string_float64"     // map[string]float64
-	NewsFieldMap_string_any         = "map_string_any"         // map[string]any
-	NewsFieldMap_int_string         = "map_int_string"         // map[int]string
-	NewsFieldMap_int_int            = "map_int_int"            // map[int]int
-	NewsFieldMap_int_bool           = "map_int_bool"           // map[int]bool
-	NewsFieldRenameSQL              = "renameSQL"              // string sql{name="renameSQL_OK"}
-	NewsFieldRenameGO_OK            = "renameGO"               // string go{name="RenameGO_OK"}
-	NewsFieldRenameJS               = "renameJS_OK"            // string js{name="renameJS_OK"}
-	NewsFieldMAST_UPPER_GO          = "mast_upper_go"          // string go{up}
-	NewsFieldIntToSmallInt          = "intToSmallInt"          // int sql{type="smallint"} rename
-	NewsFieldSkip                   = "skip"                   // string sql{skip} swift{skip} js{skip}
-	NewsFieldSql_unique_u1_1        = "sql_unique_u1_1"        // int sql{unique="u1"}
-	NewsFieldSql_unique_u1_2        = "sql_unique_u1_2"        // int sql{unique="u1"}
-	NewsFieldSql_index1_1           = "sql_index1_1"           // int sql{idx="index1"}
-	NewsFieldSql_index1_2           = "sql_index1_2"           // int sql{idx="index1"}
-	NewsFieldSql_index1_3           = "sql_index1_3"           // int sql{idx="index1"}
-	NewsFieldSql_keys_1             = "sql_keys_1"             // int sql{keys="keys1"}
-	NewsFieldSql_keys_2             = "sql_keys_2"             // int sql{keys="keys1"}
-	NewsFieldSql_keys_3             = "sql_keys_3"             // int sql{keys="keys1"}
-	NewsFieldSql_search             = "sql_search"             // string sql{search="search" get}
-	NewsFieldSql_get                = "sql_get"                // string sql{get}
-	NewsFieldSql_unique_x1          = "sql_unique_x1"          // int sql{unique="x1"}
-	NewsFieldSql_unique_x2          = "sql_unique_x2"          // int sql{unique="x2"}
-	NewsFieldSql_unique_x1_x2       = "sql_unique_x1_x2"       // int sql{unique="x1", unique="x2"}
-	NewsFieldSql_primary            = "sql_primary"            // float64 sql{primarykey}
-	NewsFieldSql_jsonb_index        = "sql_jsonb_index"        // map[string]any sql{index}
-	NewsFieldTime_duration          = "time_duration"          // time.Duration
-	NewsFieldGo_type_int_to_strings = "go_type_int_to_strings" // int go{type="[]string"}
-	NewsFieldPublic_field1          = "public_field1"          // int @public
-	NewsFieldPublic_field2          = "public_field2"          // int @public
-	NewsFieldPublic_field3          = "public_field3"          // int @public
-	NewsFieldPublic_field_me1       = "public_field_me1"       // int @me
-	NewsFieldPublic_field_me2       = "public_field_me2"       // int @me
-	NewsFieldPublic_field_me3       = "public_field_me3"       // int @me
+	NewsFieldInc                = "inc"                    // int sql{inc}  #readonly
+	NewsFieldRole               = "role"                   // role.Role
+	NewsFieldKey                = "key"                    // uuid.UUID
+	NewsFieldT                  = "t"                      // time.Time
+	NewsFieldD                  = "d"                      // time.Duration
+	NewsFieldInts               = "ints"                   // int
+	NewsFieldInts8              = "ints8"                  // int8
+	NewsFieldInts16             = "ints16"                 // int16
+	NewsFieldInts32             = "ints32"                 // int32
+	NewsFieldInts64             = "ints64"                 // int64
+	NewsFieldUints              = "uints"                  // uint
+	NewsFieldUints8             = "uints8"                 // uint8
+	NewsFieldUints16            = "uints16"                // uint16
+	NewsFieldUints32            = "uints32"                // uint32
+	NewsFieldUints64            = "uints64"                // uint64
+	NewsFieldFloats32           = "floats32"               // float32
+	NewsFieldFloats64           = "floats64"               // float64
+	NewsFieldBools              = "bools"                  // bool
+	NewsFieldByte1              = "byte1"                  // byte
+	NewsFieldBytes              = "bytes"                  // []byte
+	NewsFieldListInts           = "list_ints"              // []int
+	NewsFieldListString         = "list_string"            // []string
+	NewsFieldListFloat          = "list_float"             // []float64
+	NewsFieldMapStringString    = "map_string_string"      // map[string]string
+	NewsFieldMapStringBytes     = "map_string_bytes"       // map[string][]byte
+	NewsFieldMapStringBool      = "map_string_bool"        // map[string]bool
+	NewsFieldMapStringInt       = "map_string_int"         // map[string]int
+	NewsFieldMapStringFloat64   = "map_string_float64"     // map[string]float64
+	NewsFieldMapStringAny       = "map_string_any"         // map[string]any
+	NewsFieldMapIntString       = "map_int_string"         // map[int]string
+	NewsFieldMapIntInt          = "map_int_int"            // map[int]int
+	NewsFieldMapIntBool         = "map_int_bool"           // map[int]bool
+	NewsFieldRenameSQL          = "renameSQL"              // string sql{name="renameSQL_OK"}
+	NewsFieldRenameGO_OK        = "renameGO"               // string go{name="RenameGO_OK"}
+	NewsFieldRenameJS           = "renameJS_OK"            // string js{name="renameJS_OK"}
+	NewsFieldMASTUPPERGO        = "mast_upper_go"          // string go{up}
+	NewsFieldIntToSmallInt      = "intToSmallInt"          // int sql{type="smallint"} rename
+	NewsFieldSkip               = "skip"                   // string sql{skip} swift{skip} js{skip}
+	NewsFieldSqlUniqueU11       = "sql_unique_u1_1"        // int sql{unique="u1"}
+	NewsFieldSqlUniqueU12       = "sql_unique_u1_2"        // int sql{unique="u1"}
+	NewsFieldSqlIndex11         = "sql_index1_1"           // int sql{idx="index1"}
+	NewsFieldSqlIndex12         = "sql_index1_2"           // int sql{idx="index1"}
+	NewsFieldSqlIndex13         = "sql_index1_3"           // int sql{idx="index1"}
+	NewsFieldSqlKeys1           = "sql_keys_1"             // int sql{keys="keys1"}
+	NewsFieldSqlKeys2           = "sql_keys_2"             // int sql{keys="keys1"}
+	NewsFieldSqlKeys3           = "sql_keys_3"             // int sql{keys="keys1"}
+	NewsFieldSqlSearch          = "sql_search"             // string sql{search="search" get}
+	NewsFieldSqlGet             = "sql_get"                // string sql{get}
+	NewsFieldSqlUniqueX1        = "sql_unique_x1"          // int sql{unique="x1"}
+	NewsFieldSqlUniqueX2        = "sql_unique_x2"          // int sql{unique="x2"}
+	NewsFieldSqlUniqueX1X2      = "sql_unique_x1_x2"       // int sql{unique="x1", unique="x2"}
+	NewsFieldSqlPrimary         = "sql_primary"            // float64 sql{primarykey}
+	NewsFieldSqlJsonbIndex      = "sql_jsonb_index"        // map[string]any sql{index}
+	NewsFieldTimeDuration       = "time_duration"          // time.Duration
+	NewsFieldGoTypeIntToStrings = "go_type_int_to_strings" // int go{type="[]string"}
+	NewsFieldPublicField1       = "public_field1"          // int @public
+	NewsFieldPublicField2       = "public_field2"          // int @public
+	NewsFieldPublicField3       = "public_field3"          // int @public
+	NewsFieldPublicFieldMe1     = "public_field_me1"       // int @me
+	NewsFieldPublicFieldMe2     = "public_field_me2"       // int @me
+	NewsFieldPublicFieldMe3     = "public_field_me3"       // int @me
 )
 
 // index func
 func NewsIndexes() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexList_ints, NewsIndexList_string, NewsIndexList_float, NewsIndexMap_string_string, NewsIndexMap_string_bytes, NewsIndexMap_string_bool, NewsIndexMap_string_int, NewsIndexMap_string_float64, NewsIndexMap_string_any, NewsIndexMap_int_string, NewsIndexMap_int_int, NewsIndexMap_int_bool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMAST_UPPER_GO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSql_unique_u1_1, NewsIndexSql_unique_u1_2, NewsIndexSql_index1_1, NewsIndexSql_index1_2, NewsIndexSql_index1_3, NewsIndexSql_keys_1, NewsIndexSql_keys_2, NewsIndexSql_keys_3, NewsIndexSql_search, NewsIndexSql_get, NewsIndexSql_unique_x1, NewsIndexSql_unique_x2, NewsIndexSql_unique_x1_x2, NewsIndexSql_primary, NewsIndexSql_jsonb_index, NewsIndexTime_duration, NewsIndexGo_type_int_to_strings, NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3, NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
 
 }
 
@@ -239,88 +240,88 @@ func NewsIndexes() []NewsIndexTyped {
 //
 //easyjson:json
 type News struct {
-	Inc                    int                `json:"inc,omitempty" msg:"inc,omitempty"`                                       // sql{inc}  #readonly
-	Role                   Role               `json:"role,omitempty" msg:"role,omitempty"`                                     //
-	Key                    uuid.UUID          `json:"key,omitempty" msg:"key,omitempty"`                                       //
-	T                      time.Time          `json:"t,omitempty" msg:"t,omitempty"`                                           //
-	D                      time.Duration      `json:"d,omitempty" msg:"d,omitempty"`                                           //
-	Ints                   int                `json:"ints,omitempty" msg:"ints,omitempty"`                                     //
-	Ints8                  int8               `json:"ints8,omitempty" msg:"ints8,omitempty"`                                   //
-	Ints16                 int16              `json:"ints16,omitempty" msg:"ints16,omitempty"`                                 //
-	Ints32                 int32              `json:"ints32,omitempty" msg:"ints32,omitempty"`                                 //
-	Ints64                 int64              `json:"ints64,omitempty" msg:"ints64,omitempty"`                                 //
-	Uints                  uint               `json:"uints,omitempty" msg:"uints,omitempty"`                                   //
-	Uints8                 uint8              `json:"uints8,omitempty" msg:"uints8,omitempty"`                                 //
-	Uints16                uint16             `json:"uints16,omitempty" msg:"uints16,omitempty"`                               //
-	Uints32                uint32             `json:"uints32,omitempty" msg:"uints32,omitempty"`                               //
-	Uints64                uint64             `json:"uints64,omitempty" msg:"uints64,omitempty"`                               //
-	Floats32               float32            `json:"floats32,omitempty" msg:"floats32,omitempty"`                             //
-	Floats64               float64            `json:"floats64,omitempty" msg:"floats64,omitempty"`                             //
-	Bools                  bool               `json:"bools,omitempty" msg:"bools,omitempty"`                                   //
-	Byte1                  byte               `json:"byte1,omitempty" msg:"byte1,omitempty"`                                   //
-	Bytes                  []byte             `json:"bytes,omitempty" msg:"bytes,omitempty"`                                   //
-	List_ints              []int              `json:"list_ints,omitempty" msg:"list_ints,omitempty"`                           //
-	List_string            []string           `json:"list_string,omitempty" msg:"list_string,omitempty"`                       //
-	List_float             []float64          `json:"list_float,omitempty" msg:"list_float,omitempty"`                         //
-	Map_string_string      map[string]string  `json:"map_string_string,omitempty" msg:"map_string_string,omitempty"`           //
-	Map_string_bytes       map[string][]byte  `json:"map_string_bytes,omitempty" msg:"map_string_bytes,omitempty"`             //
-	Map_string_bool        map[string]bool    `json:"map_string_bool,omitempty" msg:"map_string_bool,omitempty"`               //
-	Map_string_int         map[string]int     `json:"map_string_int,omitempty" msg:"map_string_int,omitempty"`                 //
-	Map_string_float64     map[string]float64 `json:"map_string_float64,omitempty" msg:"map_string_float64,omitempty"`         //
-	Map_string_any         map[string]any     `json:"map_string_any,omitempty" msg:"map_string_any,omitempty"`                 //
-	Map_int_string         map[int]string     `json:"map_int_string,omitempty" msg:"map_int_string,omitempty"`                 //
-	Map_int_int            map[int]int        `json:"map_int_int,omitempty" msg:"map_int_int,omitempty"`                       //
-	Map_int_bool           map[int]bool       `json:"map_int_bool,omitempty" msg:"map_int_bool,omitempty"`                     //
-	RenameSQL              string             `json:"renameSQL,omitempty" msg:"renameSQL,omitempty"`                           // sql{name="renameSQL_OK"}
-	RenameGO_OK            string             `json:"renameGO,omitempty" msg:"renameGO,omitempty"`                             // go{name="RenameGO_OK"}
-	RenameJS               string             `json:"renameJS_OK,omitempty" msg:"renameJS_OK,omitempty"`                       // js{name="renameJS_OK"}
-	MAST_UPPER_GO          string             `json:"mast_upper_go,omitempty" msg:"mast_upper_go,omitempty"`                   // go{up}
-	IntToSmallInt          int                `json:"intToSmallInt,omitempty" msg:"intToSmallInt,omitempty"`                   // sql{type="smallint"} rename
-	Skip                   string             `json:"skip,omitempty" msg:"skip,omitempty"`                                     // sql{skip} swift{skip} js{skip}
-	Sql_unique_u1_1        int                `json:"sql_unique_u1_1,omitempty" msg:"sql_unique_u1_1,omitempty"`               // sql{unique="u1"}
-	Sql_unique_u1_2        int                `json:"sql_unique_u1_2,omitempty" msg:"sql_unique_u1_2,omitempty"`               // sql{unique="u1"}
-	Sql_index1_1           int                `json:"sql_index1_1,omitempty" msg:"sql_index1_1,omitempty"`                     // sql{idx="index1"}
-	Sql_index1_2           int                `json:"sql_index1_2,omitempty" msg:"sql_index1_2,omitempty"`                     // sql{idx="index1"}
-	Sql_index1_3           int                `json:"sql_index1_3,omitempty" msg:"sql_index1_3,omitempty"`                     // sql{idx="index1"}
-	Sql_keys_1             int                `json:"sql_keys_1,omitempty" msg:"sql_keys_1,omitempty"`                         // sql{keys="keys1"}
-	Sql_keys_2             int                `json:"sql_keys_2,omitempty" msg:"sql_keys_2,omitempty"`                         // sql{keys="keys1"}
-	Sql_keys_3             int                `json:"sql_keys_3,omitempty" msg:"sql_keys_3,omitempty"`                         // sql{keys="keys1"}
-	Sql_search             string             `json:"sql_search,omitempty" msg:"sql_search,omitempty"`                         // sql{search="search" get}
-	Sql_get                string             `json:"sql_get,omitempty" msg:"sql_get,omitempty"`                               // sql{get}
-	Sql_unique_x1          int                `json:"sql_unique_x1,omitempty" msg:"sql_unique_x1,omitempty"`                   // sql{unique="x1"}
-	Sql_unique_x2          int                `json:"sql_unique_x2,omitempty" msg:"sql_unique_x2,omitempty"`                   // sql{unique="x2"}
-	Sql_unique_x1_x2       int                `json:"sql_unique_x1_x2,omitempty" msg:"sql_unique_x1_x2,omitempty"`             // sql{unique="x1", unique="x2"}
-	Sql_primary            float64            `json:"sql_primary,omitempty" msg:"sql_primary,omitempty"`                       // sql{primarykey}
-	Sql_jsonb_index        map[string]any     `json:"sql_jsonb_index,omitempty" msg:"sql_jsonb_index,omitempty"`               // sql{index}
-	Time_duration          time.Duration      `json:"time_duration,omitempty" msg:"time_duration,omitempty"`                   //
-	Go_type_int_to_strings []string           `json:"go_type_int_to_strings,omitempty" msg:"go_type_int_to_strings,omitempty"` // go{type="[]string"}
-	Public_field1          int                `json:"public_field1,omitempty" msg:"public_field1,omitempty"`                   // @public
-	Public_field2          int                `json:"public_field2,omitempty" msg:"public_field2,omitempty"`                   // @public
-	Public_field3          int                `json:"public_field3,omitempty" msg:"public_field3,omitempty"`                   // @public
-	Public_field_me1       int                `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"`             // @me
-	Public_field_me2       int                `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"`             // @me
-	Public_field_me3       int                `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"`             // @me
+	Inc                int                `json:"inc,omitempty" msg:"inc,omitempty"`                                       // sql{inc}  #readonly
+	Role               role.Role          `json:"role,omitempty" msg:"role,omitempty"`                                     //
+	Key                uuid.UUID          `json:"key,omitempty" msg:"key,omitempty"`                                       //
+	T                  time.Time          `json:"t,omitempty" msg:"t,omitempty"`                                           //
+	D                  time.Duration      `json:"d,omitempty" msg:"d,omitempty"`                                           //
+	Ints               int                `json:"ints,omitempty" msg:"ints,omitempty"`                                     //
+	Ints8              int8               `json:"ints8,omitempty" msg:"ints8,omitempty"`                                   //
+	Ints16             int16              `json:"ints16,omitempty" msg:"ints16,omitempty"`                                 //
+	Ints32             int32              `json:"ints32,omitempty" msg:"ints32,omitempty"`                                 //
+	Ints64             int64              `json:"ints64,omitempty" msg:"ints64,omitempty"`                                 //
+	Uints              uint               `json:"uints,omitempty" msg:"uints,omitempty"`                                   //
+	Uints8             uint8              `json:"uints8,omitempty" msg:"uints8,omitempty"`                                 //
+	Uints16            uint16             `json:"uints16,omitempty" msg:"uints16,omitempty"`                               //
+	Uints32            uint32             `json:"uints32,omitempty" msg:"uints32,omitempty"`                               //
+	Uints64            uint64             `json:"uints64,omitempty" msg:"uints64,omitempty"`                               //
+	Floats32           float32            `json:"floats32,omitempty" msg:"floats32,omitempty"`                             //
+	Floats64           float64            `json:"floats64,omitempty" msg:"floats64,omitempty"`                             //
+	Bools              bool               `json:"bools,omitempty" msg:"bools,omitempty"`                                   //
+	Byte1              byte               `json:"byte1,omitempty" msg:"byte1,omitempty"`                                   //
+	Bytes              []byte             `json:"bytes,omitempty" msg:"bytes,omitempty"`                                   //
+	ListInts           []int              `json:"list_ints,omitempty" msg:"list_ints,omitempty"`                           //
+	ListString         []string           `json:"list_string,omitempty" msg:"list_string,omitempty"`                       //
+	ListFloat          []float64          `json:"list_float,omitempty" msg:"list_float,omitempty"`                         //
+	MapStringString    map[string]string  `json:"map_string_string,omitempty" msg:"map_string_string,omitempty"`           //
+	MapStringBytes     map[string][]byte  `json:"map_string_bytes,omitempty" msg:"map_string_bytes,omitempty"`             //
+	MapStringBool      map[string]bool    `json:"map_string_bool,omitempty" msg:"map_string_bool,omitempty"`               //
+	MapStringInt       map[string]int     `json:"map_string_int,omitempty" msg:"map_string_int,omitempty"`                 //
+	MapStringFloat64   map[string]float64 `json:"map_string_float64,omitempty" msg:"map_string_float64,omitempty"`         //
+	MapStringAny       map[string]any     `json:"map_string_any,omitempty" msg:"map_string_any,omitempty"`                 //
+	MapIntString       map[int]string     `json:"map_int_string,omitempty" msg:"map_int_string,omitempty"`                 //
+	MapIntInt          map[int]int        `json:"map_int_int,omitempty" msg:"map_int_int,omitempty"`                       //
+	MapIntBool         map[int]bool       `json:"map_int_bool,omitempty" msg:"map_int_bool,omitempty"`                     //
+	RenameSQL          string             `json:"renameSQL,omitempty" msg:"renameSQL,omitempty"`                           // sql{name="renameSQL_OK"}
+	RenameGO_OK        string             `json:"renameGO,omitempty" msg:"renameGO,omitempty"`                             // go{name="RenameGO_OK"}
+	RenameJS           string             `json:"renameJS_OK,omitempty" msg:"renameJS_OK,omitempty"`                       // js{name="renameJS_OK"}
+	MASTUPPERGO        string             `json:"mast_upper_go,omitempty" msg:"mast_upper_go,omitempty"`                   // go{up}
+	IntToSmallInt      int                `json:"intToSmallInt,omitempty" msg:"intToSmallInt,omitempty"`                   // sql{type="smallint"} rename
+	Skip               string             `json:"skip,omitempty" msg:"skip,omitempty"`                                     // sql{skip} swift{skip} js{skip}
+	SqlUniqueU11       int                `json:"sql_unique_u1_1,omitempty" msg:"sql_unique_u1_1,omitempty"`               // sql{unique="u1"}
+	SqlUniqueU12       int                `json:"sql_unique_u1_2,omitempty" msg:"sql_unique_u1_2,omitempty"`               // sql{unique="u1"}
+	SqlIndex11         int                `json:"sql_index1_1,omitempty" msg:"sql_index1_1,omitempty"`                     // sql{idx="index1"}
+	SqlIndex12         int                `json:"sql_index1_2,omitempty" msg:"sql_index1_2,omitempty"`                     // sql{idx="index1"}
+	SqlIndex13         int                `json:"sql_index1_3,omitempty" msg:"sql_index1_3,omitempty"`                     // sql{idx="index1"}
+	SqlKeys1           int                `json:"sql_keys_1,omitempty" msg:"sql_keys_1,omitempty"`                         // sql{keys="keys1"}
+	SqlKeys2           int                `json:"sql_keys_2,omitempty" msg:"sql_keys_2,omitempty"`                         // sql{keys="keys1"}
+	SqlKeys3           int                `json:"sql_keys_3,omitempty" msg:"sql_keys_3,omitempty"`                         // sql{keys="keys1"}
+	SqlSearch          string             `json:"sql_search,omitempty" msg:"sql_search,omitempty"`                         // sql{search="search" get}
+	SqlGet             string             `json:"sql_get,omitempty" msg:"sql_get,omitempty"`                               // sql{get}
+	SqlUniqueX1        int                `json:"sql_unique_x1,omitempty" msg:"sql_unique_x1,omitempty"`                   // sql{unique="x1"}
+	SqlUniqueX2        int                `json:"sql_unique_x2,omitempty" msg:"sql_unique_x2,omitempty"`                   // sql{unique="x2"}
+	SqlUniqueX1X2      int                `json:"sql_unique_x1_x2,omitempty" msg:"sql_unique_x1_x2,omitempty"`             // sql{unique="x1", unique="x2"}
+	SqlPrimary         float64            `json:"sql_primary,omitempty" msg:"sql_primary,omitempty"`                       // sql{primarykey}
+	SqlJsonbIndex      map[string]any     `json:"sql_jsonb_index,omitempty" msg:"sql_jsonb_index,omitempty"`               // sql{index}
+	TimeDuration       time.Duration      `json:"time_duration,omitempty" msg:"time_duration,omitempty"`                   //
+	GoTypeIntToStrings []string           `json:"go_type_int_to_strings,omitempty" msg:"go_type_int_to_strings,omitempty"` // go{type="[]string"}
+	PublicField1       int                `json:"public_field1,omitempty" msg:"public_field1,omitempty"`                   // @public
+	PublicField2       int                `json:"public_field2,omitempty" msg:"public_field2,omitempty"`                   // @public
+	PublicField3       int                `json:"public_field3,omitempty" msg:"public_field3,omitempty"`                   // @public
+	PublicFieldMe1     int                `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"`             // @me
+	PublicFieldMe2     int                `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"`             // @me
+	PublicFieldMe3     int                `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"`             // @me
 }
 
 type NewsMe struct {
-	Public_field_me1 int `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"` // @me
-	Public_field_me2 int `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"` // @me
-	Public_field_me3 int `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"` // @me
+	PublicFieldMe1 int `json:"public_field_me1,omitempty" msg:"public_field_me1,omitempty"` // @me
+	PublicFieldMe2 int `json:"public_field_me2,omitempty" msg:"public_field_me2,omitempty"` // @me
+	PublicFieldMe3 int `json:"public_field_me3,omitempty" msg:"public_field_me3,omitempty"` // @me
 }
 
 func (a *News) NewsMe() (res *NewsMe) {
 	return &NewsMe{
-		Public_field_me1: a.Public_field_me1,
-		Public_field_me2: a.Public_field_me2,
-		Public_field_me3: a.Public_field_me3,
+		PublicFieldMe1: a.PublicFieldMe1,
+		PublicFieldMe2: a.PublicFieldMe2,
+		PublicFieldMe3: a.PublicFieldMe3,
 	}
 }
 
 func (a *NewsMe) News() (res *News) {
 	return &News{
-		Public_field_me1: a.Public_field_me1,
-		Public_field_me2: a.Public_field_me2,
-		Public_field_me3: a.Public_field_me3,
+		PublicFieldMe1: a.PublicFieldMe1,
+		PublicFieldMe2: a.PublicFieldMe2,
+		PublicFieldMe3: a.PublicFieldMe3,
 	}
 }
 
@@ -330,24 +331,24 @@ func (a *NewsMe) Pack() (res []byte) {
 }
 
 type NewsPublic struct {
-	Public_field1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
-	Public_field2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
-	Public_field3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
+	PublicField1 int `json:"public_field1,omitempty" msg:"public_field1,omitempty"` // @public
+	PublicField2 int `json:"public_field2,omitempty" msg:"public_field2,omitempty"` // @public
+	PublicField3 int `json:"public_field3,omitempty" msg:"public_field3,omitempty"` // @public
 }
 
 func (a *News) NewsPublic() (res *NewsPublic) {
 	return &NewsPublic{
-		Public_field1: a.Public_field1,
-		Public_field2: a.Public_field2,
-		Public_field3: a.Public_field3,
+		PublicField1: a.PublicField1,
+		PublicField2: a.PublicField2,
+		PublicField3: a.PublicField3,
 	}
 }
 
 func (a *NewsPublic) News() (res *News) {
 	return &News{
-		Public_field1: a.Public_field1,
-		Public_field2: a.Public_field2,
-		Public_field3: a.Public_field3,
+		PublicField1: a.PublicField1,
+		PublicField2: a.PublicField2,
+		PublicField3: a.PublicField3,
 	}
 }
 
@@ -359,27 +360,27 @@ func (a *NewsPublic) Pack() (res []byte) {
 // init struct
 func NewNews() (a *News) {
 	a = new(News)
-	a.Map_string_string = make(map[string]string)
-	a.Map_string_bytes = make(map[string][]byte)
-	a.Map_string_bool = make(map[string]bool)
-	a.Map_string_int = make(map[string]int)
-	a.Map_string_float64 = make(map[string]float64)
-	a.Map_string_any = make(map[string]any)
-	a.Map_int_string = make(map[int]string)
-	a.Map_int_int = make(map[int]int)
-	a.Map_int_bool = make(map[int]bool)
-	a.Sql_jsonb_index = make(map[string]any)
+	a.MapStringString = make(map[string]string)
+	a.MapStringBytes = make(map[string][]byte)
+	a.MapStringBool = make(map[string]bool)
+	a.MapStringInt = make(map[string]int)
+	a.MapStringFloat64 = make(map[string]float64)
+	a.MapStringAny = make(map[string]any)
+	a.MapIntString = make(map[int]string)
+	a.MapIntInt = make(map[int]int)
+	a.MapIntBool = make(map[int]bool)
+	a.SqlJsonbIndex = make(map[string]any)
 	return
 }
 
 // Tuple create an array from struct
 func (a *News) Tuple() (r []any) {
-	return []any{a.Inc, a.Role, a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.List_ints, a.List_string, a.List_float, a.Map_string_string, a.Map_string_bytes, a.Map_string_bool, a.Map_string_int, a.Map_string_float64, a.Map_string_any, a.Map_int_string, a.Map_int_int, a.Map_int_bool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MAST_UPPER_GO, a.IntToSmallInt, a.Skip, a.Sql_unique_u1_1, a.Sql_unique_u1_2, a.Sql_index1_1, a.Sql_index1_2, a.Sql_index1_3, a.Sql_keys_1, a.Sql_keys_2, a.Sql_keys_3, a.Sql_search, a.Sql_get, a.Sql_unique_x1, a.Sql_unique_x2, a.Sql_unique_x1_x2, a.Sql_primary, a.Sql_jsonb_index, a.Time_duration, a.Go_type_int_to_strings, a.Public_field1, a.Public_field2, a.Public_field3, a.Public_field_me1, a.Public_field_me2, a.Public_field_me3}
+	return []any{a.Inc, a.Role, a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, a.MapStringInt, a.MapStringFloat64, a.MapStringAny, a.MapIntString, a.MapIntInt, a.MapIntBool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
 }
 
 // Tuple create an array from struct for clickhouse
 func (a *News) clickhouseTuple() (r []any) {
-	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.List_ints, a.List_string, a.List_float, a.Map_string_string, a.Map_string_bytes, a.Map_string_bool, a.Map_string_int, a.Map_string_float64, a.Map_string_any, a.Map_int_string, a.Map_int_int, a.Map_int_bool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MAST_UPPER_GO, a.IntToSmallInt, a.Skip, a.Sql_unique_u1_1, a.Sql_unique_u1_2, a.Sql_index1_1, a.Sql_index1_2, a.Sql_index1_3, a.Sql_keys_1, a.Sql_keys_2, a.Sql_keys_3, a.Sql_search, a.Sql_get, a.Sql_unique_x1, a.Sql_unique_x2, a.Sql_unique_x1_x2, a.Sql_primary, a.Sql_jsonb_index, a.Time_duration, a.Go_type_int_to_strings, a.Public_field1, a.Public_field2, a.Public_field3, a.Public_field_me1, a.Public_field_me2, a.Public_field_me3}
+	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, a.MapStringInt, a.MapStringFloat64, a.MapStringAny, a.MapIntString, a.MapIntInt, a.MapIntBool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
 }
 
 // get struct value with function
@@ -388,7 +389,7 @@ func (a *News) Get(k string) (v any) {
 	case "inc":
 		return a.Inc //int
 	case "role":
-		return a.Role //Role
+		return a.Role //role.Role
 	case "key":
 		return a.Key //uuid.UUID
 	case "t":
@@ -426,29 +427,29 @@ func (a *News) Get(k string) (v any) {
 	case "bytes":
 		return a.Bytes //[]byte
 	case "list_ints":
-		return a.List_ints //[]int
+		return a.ListInts //[]int
 	case "list_string":
-		return a.List_string //[]string
+		return a.ListString //[]string
 	case "list_float":
-		return a.List_float //[]float64
+		return a.ListFloat //[]float64
 	case "map_string_string":
-		return a.Map_string_string //map[string]string
+		return a.MapStringString //map[string]string
 	case "map_string_bytes":
-		return a.Map_string_bytes //map[string][]byte
+		return a.MapStringBytes //map[string][]byte
 	case "map_string_bool":
-		return a.Map_string_bool //map[string]bool
+		return a.MapStringBool //map[string]bool
 	case "map_string_int":
-		return a.Map_string_int //map[string]int
+		return a.MapStringInt //map[string]int
 	case "map_string_float64":
-		return a.Map_string_float64 //map[string]float64
+		return a.MapStringFloat64 //map[string]float64
 	case "map_string_any":
-		return a.Map_string_any //map[string]any
+		return a.MapStringAny //map[string]any
 	case "map_int_string":
-		return a.Map_int_string //map[int]string
+		return a.MapIntString //map[int]string
 	case "map_int_int":
-		return a.Map_int_int //map[int]int
+		return a.MapIntInt //map[int]int
 	case "map_int_bool":
-		return a.Map_int_bool //map[int]bool
+		return a.MapIntBool //map[int]bool
 	case "renameSQL":
 		return a.RenameSQL //string
 	case "renameGO":
@@ -456,57 +457,57 @@ func (a *News) Get(k string) (v any) {
 	case "renameJS":
 		return a.RenameJS //string
 	case "mast_upper_go":
-		return a.MAST_UPPER_GO //string
+		return a.MASTUPPERGO //string
 	case "intToSmallInt":
 		return a.IntToSmallInt //int
 	case "skip":
 		return a.Skip //string
 	case "sql_unique_u1_1":
-		return a.Sql_unique_u1_1 //int
+		return a.SqlUniqueU11 //int
 	case "sql_unique_u1_2":
-		return a.Sql_unique_u1_2 //int
+		return a.SqlUniqueU12 //int
 	case "sql_index1_1":
-		return a.Sql_index1_1 //int
+		return a.SqlIndex11 //int
 	case "sql_index1_2":
-		return a.Sql_index1_2 //int
+		return a.SqlIndex12 //int
 	case "sql_index1_3":
-		return a.Sql_index1_3 //int
+		return a.SqlIndex13 //int
 	case "sql_keys_1":
-		return a.Sql_keys_1 //int
+		return a.SqlKeys1 //int
 	case "sql_keys_2":
-		return a.Sql_keys_2 //int
+		return a.SqlKeys2 //int
 	case "sql_keys_3":
-		return a.Sql_keys_3 //int
+		return a.SqlKeys3 //int
 	case "sql_search":
-		return a.Sql_search //string
+		return a.SqlSearch //string
 	case "sql_get":
-		return a.Sql_get //string
+		return a.SqlGet //string
 	case "sql_unique_x1":
-		return a.Sql_unique_x1 //int
+		return a.SqlUniqueX1 //int
 	case "sql_unique_x2":
-		return a.Sql_unique_x2 //int
+		return a.SqlUniqueX2 //int
 	case "sql_unique_x1_x2":
-		return a.Sql_unique_x1_x2 //int
+		return a.SqlUniqueX1X2 //int
 	case "sql_primary":
-		return a.Sql_primary //float64
+		return a.SqlPrimary //float64
 	case "sql_jsonb_index":
-		return a.Sql_jsonb_index //map[string]any
+		return a.SqlJsonbIndex //map[string]any
 	case "time_duration":
-		return a.Time_duration //time.Duration
+		return a.TimeDuration //time.Duration
 	case "go_type_int_to_strings":
-		return a.Go_type_int_to_strings //int
+		return a.GoTypeIntToStrings //int
 	case "public_field1":
-		return a.Public_field1 //int
+		return a.PublicField1 //int
 	case "public_field2":
-		return a.Public_field2 //int
+		return a.PublicField2 //int
 	case "public_field3":
-		return a.Public_field3 //int
+		return a.PublicField3 //int
 	case "public_field_me1":
-		return a.Public_field_me1 //int
+		return a.PublicFieldMe1 //int
 	case "public_field_me2":
-		return a.Public_field_me2 //int
+		return a.PublicFieldMe2 //int
 	case "public_field_me3":
-		return a.Public_field_me3 //int
+		return a.PublicFieldMe3 //int
 	}
 	return
 }
@@ -517,7 +518,7 @@ func (a *News) String(k string) (v string) {
 	case "inc":
 		return fmt.Sprint(a.Inc) //int
 	case "role":
-		return fmt.Sprint(a.Role) //Role
+		return fmt.Sprint(a.Role) //role.Role
 	case "key":
 		return fmt.Sprint(a.Key) //uuid.UUID
 	case "t":
@@ -555,29 +556,29 @@ func (a *News) String(k string) (v string) {
 	case "bytes":
 		return fmt.Sprint(a.Bytes) //[]byte
 	case "list_ints":
-		return fmt.Sprint(a.List_ints) //[]int
+		return fmt.Sprint(a.ListInts) //[]int
 	case "list_string":
-		return fmt.Sprint(a.List_string) //[]string
+		return fmt.Sprint(a.ListString) //[]string
 	case "list_float":
-		return fmt.Sprint(a.List_float) //[]float64
+		return fmt.Sprint(a.ListFloat) //[]float64
 	case "map_string_string":
-		return fmt.Sprint(a.Map_string_string) //map[string]string
+		return fmt.Sprint(a.MapStringString) //map[string]string
 	case "map_string_bytes":
-		return fmt.Sprint(a.Map_string_bytes) //map[string][]byte
+		return fmt.Sprint(a.MapStringBytes) //map[string][]byte
 	case "map_string_bool":
-		return fmt.Sprint(a.Map_string_bool) //map[string]bool
+		return fmt.Sprint(a.MapStringBool) //map[string]bool
 	case "map_string_int":
-		return fmt.Sprint(a.Map_string_int) //map[string]int
+		return fmt.Sprint(a.MapStringInt) //map[string]int
 	case "map_string_float64":
-		return fmt.Sprint(a.Map_string_float64) //map[string]float64
+		return fmt.Sprint(a.MapStringFloat64) //map[string]float64
 	case "map_string_any":
-		return fmt.Sprint(a.Map_string_any) //map[string]any
+		return fmt.Sprint(a.MapStringAny) //map[string]any
 	case "map_int_string":
-		return fmt.Sprint(a.Map_int_string) //map[int]string
+		return fmt.Sprint(a.MapIntString) //map[int]string
 	case "map_int_int":
-		return fmt.Sprint(a.Map_int_int) //map[int]int
+		return fmt.Sprint(a.MapIntInt) //map[int]int
 	case "map_int_bool":
-		return fmt.Sprint(a.Map_int_bool) //map[int]bool
+		return fmt.Sprint(a.MapIntBool) //map[int]bool
 	case "renameSQL":
 		return fmt.Sprint(a.RenameSQL) //string
 	case "renameGO":
@@ -585,67 +586,67 @@ func (a *News) String(k string) (v string) {
 	case "renameJS":
 		return fmt.Sprint(a.RenameJS) //string
 	case "mast_upper_go":
-		return fmt.Sprint(a.MAST_UPPER_GO) //string
+		return fmt.Sprint(a.MASTUPPERGO) //string
 	case "intToSmallInt":
 		return fmt.Sprint(a.IntToSmallInt) //int
 	case "skip":
 		return fmt.Sprint(a.Skip) //string
 	case "sql_unique_u1_1":
-		return fmt.Sprint(a.Sql_unique_u1_1) //int
+		return fmt.Sprint(a.SqlUniqueU11) //int
 	case "sql_unique_u1_2":
-		return fmt.Sprint(a.Sql_unique_u1_2) //int
+		return fmt.Sprint(a.SqlUniqueU12) //int
 	case "sql_index1_1":
-		return fmt.Sprint(a.Sql_index1_1) //int
+		return fmt.Sprint(a.SqlIndex11) //int
 	case "sql_index1_2":
-		return fmt.Sprint(a.Sql_index1_2) //int
+		return fmt.Sprint(a.SqlIndex12) //int
 	case "sql_index1_3":
-		return fmt.Sprint(a.Sql_index1_3) //int
+		return fmt.Sprint(a.SqlIndex13) //int
 	case "sql_keys_1":
-		return fmt.Sprint(a.Sql_keys_1) //int
+		return fmt.Sprint(a.SqlKeys1) //int
 	case "sql_keys_2":
-		return fmt.Sprint(a.Sql_keys_2) //int
+		return fmt.Sprint(a.SqlKeys2) //int
 	case "sql_keys_3":
-		return fmt.Sprint(a.Sql_keys_3) //int
+		return fmt.Sprint(a.SqlKeys3) //int
 	case "sql_search":
-		return fmt.Sprint(a.Sql_search) //string
+		return fmt.Sprint(a.SqlSearch) //string
 	case "sql_get":
-		return fmt.Sprint(a.Sql_get) //string
+		return fmt.Sprint(a.SqlGet) //string
 	case "sql_unique_x1":
-		return fmt.Sprint(a.Sql_unique_x1) //int
+		return fmt.Sprint(a.SqlUniqueX1) //int
 	case "sql_unique_x2":
-		return fmt.Sprint(a.Sql_unique_x2) //int
+		return fmt.Sprint(a.SqlUniqueX2) //int
 	case "sql_unique_x1_x2":
-		return fmt.Sprint(a.Sql_unique_x1_x2) //int
+		return fmt.Sprint(a.SqlUniqueX1X2) //int
 	case "sql_primary":
-		return fmt.Sprint(a.Sql_primary) //float64
+		return fmt.Sprint(a.SqlPrimary) //float64
 	case "sql_jsonb_index":
-		return fmt.Sprint(a.Sql_jsonb_index) //map[string]any
+		return fmt.Sprint(a.SqlJsonbIndex) //map[string]any
 	case "time_duration":
-		return fmt.Sprint(a.Time_duration) //time.Duration
+		return fmt.Sprint(a.TimeDuration) //time.Duration
 	case "go_type_int_to_strings":
-		return fmt.Sprint(a.Go_type_int_to_strings) //int
+		return fmt.Sprint(a.GoTypeIntToStrings) //int
 	case "public_field1":
-		return fmt.Sprint(a.Public_field1) //int
+		return fmt.Sprint(a.PublicField1) //int
 	case "public_field2":
-		return fmt.Sprint(a.Public_field2) //int
+		return fmt.Sprint(a.PublicField2) //int
 	case "public_field3":
-		return fmt.Sprint(a.Public_field3) //int
+		return fmt.Sprint(a.PublicField3) //int
 	case "public_field_me1":
-		return fmt.Sprint(a.Public_field_me1) //int
+		return fmt.Sprint(a.PublicFieldMe1) //int
 	case "public_field_me2":
-		return fmt.Sprint(a.Public_field_me2) //int
+		return fmt.Sprint(a.PublicFieldMe2) //int
 	case "public_field_me3":
-		return fmt.Sprint(a.Public_field_me3) //int
+		return fmt.Sprint(a.PublicFieldMe3) //int
 	}
 	return
 }
 
 func NewsMeList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+	return []NewsIndexTyped{NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
 }
 
 func NewsPublicList() []NewsIndexTyped {
-	return []NewsIndexTyped{NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3}
+	return []NewsIndexTyped{NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3}
 }
 
 func NewsReadonlyList() []NewsIndexTyped {
@@ -654,7 +655,7 @@ func NewsReadonlyList() []NewsIndexTyped {
 
 func (a NewsIndexTyped) Me() bool {
 	switch a {
-	case NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3:
+	case NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3:
 		return true
 	default:
 		return false
@@ -662,7 +663,7 @@ func (a NewsIndexTyped) Me() bool {
 }
 func (a NewsIndexTyped) Public() bool {
 	switch a {
-	case NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3:
+	case NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3:
 		return true
 	default:
 		return false
@@ -720,29 +721,29 @@ func (a NewsIndexTyped) String() string {
 		return "byte1"
 	case NewsIndexBytes:
 		return "bytes"
-	case NewsIndexList_ints:
+	case NewsIndexListInts:
 		return "list_ints"
-	case NewsIndexList_string:
+	case NewsIndexListString:
 		return "list_string"
-	case NewsIndexList_float:
+	case NewsIndexListFloat:
 		return "list_float"
-	case NewsIndexMap_string_string:
+	case NewsIndexMapStringString:
 		return "map_string_string"
-	case NewsIndexMap_string_bytes:
+	case NewsIndexMapStringBytes:
 		return "map_string_bytes"
-	case NewsIndexMap_string_bool:
+	case NewsIndexMapStringBool:
 		return "map_string_bool"
-	case NewsIndexMap_string_int:
+	case NewsIndexMapStringInt:
 		return "map_string_int"
-	case NewsIndexMap_string_float64:
+	case NewsIndexMapStringFloat64:
 		return "map_string_float64"
-	case NewsIndexMap_string_any:
+	case NewsIndexMapStringAny:
 		return "map_string_any"
-	case NewsIndexMap_int_string:
+	case NewsIndexMapIntString:
 		return "map_int_string"
-	case NewsIndexMap_int_int:
+	case NewsIndexMapIntInt:
 		return "map_int_int"
-	case NewsIndexMap_int_bool:
+	case NewsIndexMapIntBool:
 		return "map_int_bool"
 	case NewsIndexRenameSQL:
 		return "renameSQL"
@@ -750,57 +751,57 @@ func (a NewsIndexTyped) String() string {
 		return "renameGO"
 	case NewsIndexRenameJS:
 		return "renameJS"
-	case NewsIndexMAST_UPPER_GO:
+	case NewsIndexMASTUPPERGO:
 		return "mast_upper_go"
 	case NewsIndexIntToSmallInt:
 		return "intToSmallInt"
 	case NewsIndexSkip:
 		return "skip"
-	case NewsIndexSql_unique_u1_1:
+	case NewsIndexSqlUniqueU11:
 		return "sql_unique_u1_1"
-	case NewsIndexSql_unique_u1_2:
+	case NewsIndexSqlUniqueU12:
 		return "sql_unique_u1_2"
-	case NewsIndexSql_index1_1:
+	case NewsIndexSqlIndex11:
 		return "sql_index1_1"
-	case NewsIndexSql_index1_2:
+	case NewsIndexSqlIndex12:
 		return "sql_index1_2"
-	case NewsIndexSql_index1_3:
+	case NewsIndexSqlIndex13:
 		return "sql_index1_3"
-	case NewsIndexSql_keys_1:
+	case NewsIndexSqlKeys1:
 		return "sql_keys_1"
-	case NewsIndexSql_keys_2:
+	case NewsIndexSqlKeys2:
 		return "sql_keys_2"
-	case NewsIndexSql_keys_3:
+	case NewsIndexSqlKeys3:
 		return "sql_keys_3"
-	case NewsIndexSql_search:
+	case NewsIndexSqlSearch:
 		return "sql_search"
-	case NewsIndexSql_get:
+	case NewsIndexSqlGet:
 		return "sql_get"
-	case NewsIndexSql_unique_x1:
+	case NewsIndexSqlUniqueX1:
 		return "sql_unique_x1"
-	case NewsIndexSql_unique_x2:
+	case NewsIndexSqlUniqueX2:
 		return "sql_unique_x2"
-	case NewsIndexSql_unique_x1_x2:
+	case NewsIndexSqlUniqueX1X2:
 		return "sql_unique_x1_x2"
-	case NewsIndexSql_primary:
+	case NewsIndexSqlPrimary:
 		return "sql_primary"
-	case NewsIndexSql_jsonb_index:
+	case NewsIndexSqlJsonbIndex:
 		return "sql_jsonb_index"
-	case NewsIndexTime_duration:
+	case NewsIndexTimeDuration:
 		return "time_duration"
-	case NewsIndexGo_type_int_to_strings:
+	case NewsIndexGoTypeIntToStrings:
 		return "go_type_int_to_strings"
-	case NewsIndexPublic_field1:
+	case NewsIndexPublicField1:
 		return "public_field1"
-	case NewsIndexPublic_field2:
+	case NewsIndexPublicField2:
 		return "public_field2"
-	case NewsIndexPublic_field3:
+	case NewsIndexPublicField3:
 		return "public_field3"
-	case NewsIndexPublic_field_me1:
+	case NewsIndexPublicFieldMe1:
 		return "public_field_me1"
-	case NewsIndexPublic_field_me2:
+	case NewsIndexPublicFieldMe2:
 		return "public_field_me2"
-	case NewsIndexPublic_field_me3:
+	case NewsIndexPublicFieldMe3:
 		return "public_field_me3"
 	default:
 		return ""
@@ -850,29 +851,29 @@ func (a NewsIndexTyped) SQLName() string {
 		return "byte1"
 	case NewsIndexBytes:
 		return "bytes"
-	case NewsIndexList_ints:
+	case NewsIndexListInts:
 		return "list_ints"
-	case NewsIndexList_string:
+	case NewsIndexListString:
 		return "list_string"
-	case NewsIndexList_float:
+	case NewsIndexListFloat:
 		return "list_float"
-	case NewsIndexMap_string_string:
+	case NewsIndexMapStringString:
 		return "map_string_string"
-	case NewsIndexMap_string_bytes:
+	case NewsIndexMapStringBytes:
 		return "map_string_bytes"
-	case NewsIndexMap_string_bool:
+	case NewsIndexMapStringBool:
 		return "map_string_bool"
-	case NewsIndexMap_string_int:
+	case NewsIndexMapStringInt:
 		return "map_string_int"
-	case NewsIndexMap_string_float64:
+	case NewsIndexMapStringFloat64:
 		return "map_string_float64"
-	case NewsIndexMap_string_any:
+	case NewsIndexMapStringAny:
 		return "map_string_any"
-	case NewsIndexMap_int_string:
+	case NewsIndexMapIntString:
 		return "map_int_string"
-	case NewsIndexMap_int_int:
+	case NewsIndexMapIntInt:
 		return "map_int_int"
-	case NewsIndexMap_int_bool:
+	case NewsIndexMapIntBool:
 		return "map_int_bool"
 	case NewsIndexRenameSQL:
 		return "renameSQL_OK"
@@ -880,57 +881,57 @@ func (a NewsIndexTyped) SQLName() string {
 		return "renameGO"
 	case NewsIndexRenameJS:
 		return "renameJS"
-	case NewsIndexMAST_UPPER_GO:
+	case NewsIndexMASTUPPERGO:
 		return "mast_upper_go"
 	case NewsIndexIntToSmallInt:
 		return "intToSmallInt"
 	case NewsIndexSkip:
 		return "skip"
-	case NewsIndexSql_unique_u1_1:
+	case NewsIndexSqlUniqueU11:
 		return "sql_unique_u1_1"
-	case NewsIndexSql_unique_u1_2:
+	case NewsIndexSqlUniqueU12:
 		return "sql_unique_u1_2"
-	case NewsIndexSql_index1_1:
+	case NewsIndexSqlIndex11:
 		return "sql_index1_1"
-	case NewsIndexSql_index1_2:
+	case NewsIndexSqlIndex12:
 		return "sql_index1_2"
-	case NewsIndexSql_index1_3:
+	case NewsIndexSqlIndex13:
 		return "sql_index1_3"
-	case NewsIndexSql_keys_1:
+	case NewsIndexSqlKeys1:
 		return "sql_keys_1"
-	case NewsIndexSql_keys_2:
+	case NewsIndexSqlKeys2:
 		return "sql_keys_2"
-	case NewsIndexSql_keys_3:
+	case NewsIndexSqlKeys3:
 		return "sql_keys_3"
-	case NewsIndexSql_search:
+	case NewsIndexSqlSearch:
 		return "sql_search"
-	case NewsIndexSql_get:
+	case NewsIndexSqlGet:
 		return "sql_get"
-	case NewsIndexSql_unique_x1:
+	case NewsIndexSqlUniqueX1:
 		return "sql_unique_x1"
-	case NewsIndexSql_unique_x2:
+	case NewsIndexSqlUniqueX2:
 		return "sql_unique_x2"
-	case NewsIndexSql_unique_x1_x2:
+	case NewsIndexSqlUniqueX1X2:
 		return "sql_unique_x1_x2"
-	case NewsIndexSql_primary:
+	case NewsIndexSqlPrimary:
 		return "sql_primary"
-	case NewsIndexSql_jsonb_index:
+	case NewsIndexSqlJsonbIndex:
 		return "sql_jsonb_index"
-	case NewsIndexTime_duration:
+	case NewsIndexTimeDuration:
 		return "time_duration"
-	case NewsIndexGo_type_int_to_strings:
+	case NewsIndexGoTypeIntToStrings:
 		return "go_type_int_to_strings"
-	case NewsIndexPublic_field1:
+	case NewsIndexPublicField1:
 		return "public_field1"
-	case NewsIndexPublic_field2:
+	case NewsIndexPublicField2:
 		return "public_field2"
-	case NewsIndexPublic_field3:
+	case NewsIndexPublicField3:
 		return "public_field3"
-	case NewsIndexPublic_field_me1:
+	case NewsIndexPublicFieldMe1:
 		return "public_field_me1"
-	case NewsIndexPublic_field_me2:
+	case NewsIndexPublicFieldMe2:
 		return "public_field_me2"
-	case NewsIndexPublic_field_me3:
+	case NewsIndexPublicFieldMe3:
 		return "public_field_me3"
 	default:
 		return ""
@@ -980,29 +981,29 @@ func (a NewsIndexTyped) ClickhouseName() string {
 		return "byte1"
 	case NewsIndexBytes:
 		return "bytes"
-	case NewsIndexList_ints:
+	case NewsIndexListInts:
 		return "list_ints"
-	case NewsIndexList_string:
+	case NewsIndexListString:
 		return "list_string"
-	case NewsIndexList_float:
+	case NewsIndexListFloat:
 		return "list_float"
-	case NewsIndexMap_string_string:
+	case NewsIndexMapStringString:
 		return "map_string_string"
-	case NewsIndexMap_string_bytes:
+	case NewsIndexMapStringBytes:
 		return "map_string_bytes"
-	case NewsIndexMap_string_bool:
+	case NewsIndexMapStringBool:
 		return "map_string_bool"
-	case NewsIndexMap_string_int:
+	case NewsIndexMapStringInt:
 		return "map_string_int"
-	case NewsIndexMap_string_float64:
+	case NewsIndexMapStringFloat64:
 		return "map_string_float64"
-	case NewsIndexMap_string_any:
+	case NewsIndexMapStringAny:
 		return "map_string_any"
-	case NewsIndexMap_int_string:
+	case NewsIndexMapIntString:
 		return "map_int_string"
-	case NewsIndexMap_int_int:
+	case NewsIndexMapIntInt:
 		return "map_int_int"
-	case NewsIndexMap_int_bool:
+	case NewsIndexMapIntBool:
 		return "map_int_bool"
 	case NewsIndexRenameSQL:
 		return "renameSQL"
@@ -1010,57 +1011,57 @@ func (a NewsIndexTyped) ClickhouseName() string {
 		return "renameGO"
 	case NewsIndexRenameJS:
 		return "renameJS"
-	case NewsIndexMAST_UPPER_GO:
+	case NewsIndexMASTUPPERGO:
 		return "mast_upper_go"
 	case NewsIndexIntToSmallInt:
 		return "intToSmallInt"
 	case NewsIndexSkip:
 		return "skip"
-	case NewsIndexSql_unique_u1_1:
+	case NewsIndexSqlUniqueU11:
 		return "sql_unique_u1_1"
-	case NewsIndexSql_unique_u1_2:
+	case NewsIndexSqlUniqueU12:
 		return "sql_unique_u1_2"
-	case NewsIndexSql_index1_1:
+	case NewsIndexSqlIndex11:
 		return "sql_index1_1"
-	case NewsIndexSql_index1_2:
+	case NewsIndexSqlIndex12:
 		return "sql_index1_2"
-	case NewsIndexSql_index1_3:
+	case NewsIndexSqlIndex13:
 		return "sql_index1_3"
-	case NewsIndexSql_keys_1:
+	case NewsIndexSqlKeys1:
 		return "sql_keys_1"
-	case NewsIndexSql_keys_2:
+	case NewsIndexSqlKeys2:
 		return "sql_keys_2"
-	case NewsIndexSql_keys_3:
+	case NewsIndexSqlKeys3:
 		return "sql_keys_3"
-	case NewsIndexSql_search:
+	case NewsIndexSqlSearch:
 		return "sql_search"
-	case NewsIndexSql_get:
+	case NewsIndexSqlGet:
 		return "sql_get"
-	case NewsIndexSql_unique_x1:
+	case NewsIndexSqlUniqueX1:
 		return "sql_unique_x1"
-	case NewsIndexSql_unique_x2:
+	case NewsIndexSqlUniqueX2:
 		return "sql_unique_x2"
-	case NewsIndexSql_unique_x1_x2:
+	case NewsIndexSqlUniqueX1X2:
 		return "sql_unique_x1_x2"
-	case NewsIndexSql_primary:
+	case NewsIndexSqlPrimary:
 		return "sql_primary"
-	case NewsIndexSql_jsonb_index:
+	case NewsIndexSqlJsonbIndex:
 		return "sql_jsonb_index"
-	case NewsIndexTime_duration:
+	case NewsIndexTimeDuration:
 		return "time_duration"
-	case NewsIndexGo_type_int_to_strings:
+	case NewsIndexGoTypeIntToStrings:
 		return "go_type_int_to_strings"
-	case NewsIndexPublic_field1:
+	case NewsIndexPublicField1:
 		return "public_field1"
-	case NewsIndexPublic_field2:
+	case NewsIndexPublicField2:
 		return "public_field2"
-	case NewsIndexPublic_field3:
+	case NewsIndexPublicField3:
 		return "public_field3"
-	case NewsIndexPublic_field_me1:
+	case NewsIndexPublicFieldMe1:
 		return "public_field_me1"
-	case NewsIndexPublic_field_me2:
+	case NewsIndexPublicFieldMe2:
 		return "public_field_me2"
-	case NewsIndexPublic_field_me3:
+	case NewsIndexPublicFieldMe3:
 		return "public_field_me3"
 	default:
 		return ""
@@ -1073,7 +1074,7 @@ func (a NewsIndexTyped) Type() string {
 	case NewsIndexInc:
 		return "int"
 	case NewsIndexRole:
-		return "Role"
+		return "role.Role"
 	case NewsIndexKey:
 		return "uuid.UUID"
 	case NewsIndexT:
@@ -1110,29 +1111,29 @@ func (a NewsIndexTyped) Type() string {
 		return "byte"
 	case NewsIndexBytes:
 		return "[]byte"
-	case NewsIndexList_ints:
+	case NewsIndexListInts:
 		return "[]int"
-	case NewsIndexList_string:
+	case NewsIndexListString:
 		return "[]string"
-	case NewsIndexList_float:
+	case NewsIndexListFloat:
 		return "[]float64"
-	case NewsIndexMap_string_string:
+	case NewsIndexMapStringString:
 		return "map[string]string"
-	case NewsIndexMap_string_bytes:
+	case NewsIndexMapStringBytes:
 		return "map[string][]byte"
-	case NewsIndexMap_string_bool:
+	case NewsIndexMapStringBool:
 		return "map[string]bool"
-	case NewsIndexMap_string_int:
+	case NewsIndexMapStringInt:
 		return "map[string]int"
-	case NewsIndexMap_string_float64:
+	case NewsIndexMapStringFloat64:
 		return "map[string]float64"
-	case NewsIndexMap_string_any:
+	case NewsIndexMapStringAny:
 		return "map[string]any"
-	case NewsIndexMap_int_string:
+	case NewsIndexMapIntString:
 		return "map[int]string"
-	case NewsIndexMap_int_int:
+	case NewsIndexMapIntInt:
 		return "map[int]int"
-	case NewsIndexMap_int_bool:
+	case NewsIndexMapIntBool:
 		return "map[int]bool"
 	case NewsIndexRenameSQL:
 		return "string"
@@ -1140,57 +1141,57 @@ func (a NewsIndexTyped) Type() string {
 		return "string"
 	case NewsIndexRenameJS:
 		return "string"
-	case NewsIndexMAST_UPPER_GO:
+	case NewsIndexMASTUPPERGO:
 		return "string"
 	case NewsIndexIntToSmallInt:
 		return "int"
 	case NewsIndexSkip:
 		return "string"
-	case NewsIndexSql_unique_u1_1:
+	case NewsIndexSqlUniqueU11:
 		return "int"
-	case NewsIndexSql_unique_u1_2:
+	case NewsIndexSqlUniqueU12:
 		return "int"
-	case NewsIndexSql_index1_1:
+	case NewsIndexSqlIndex11:
 		return "int"
-	case NewsIndexSql_index1_2:
+	case NewsIndexSqlIndex12:
 		return "int"
-	case NewsIndexSql_index1_3:
+	case NewsIndexSqlIndex13:
 		return "int"
-	case NewsIndexSql_keys_1:
+	case NewsIndexSqlKeys1:
 		return "int"
-	case NewsIndexSql_keys_2:
+	case NewsIndexSqlKeys2:
 		return "int"
-	case NewsIndexSql_keys_3:
+	case NewsIndexSqlKeys3:
 		return "int"
-	case NewsIndexSql_search:
+	case NewsIndexSqlSearch:
 		return "string"
-	case NewsIndexSql_get:
+	case NewsIndexSqlGet:
 		return "string"
-	case NewsIndexSql_unique_x1:
+	case NewsIndexSqlUniqueX1:
 		return "int"
-	case NewsIndexSql_unique_x2:
+	case NewsIndexSqlUniqueX2:
 		return "int"
-	case NewsIndexSql_unique_x1_x2:
+	case NewsIndexSqlUniqueX1X2:
 		return "int"
-	case NewsIndexSql_primary:
+	case NewsIndexSqlPrimary:
 		return "float64"
-	case NewsIndexSql_jsonb_index:
+	case NewsIndexSqlJsonbIndex:
 		return "map[string]any"
-	case NewsIndexTime_duration:
+	case NewsIndexTimeDuration:
 		return "time.Duration"
-	case NewsIndexGo_type_int_to_strings:
+	case NewsIndexGoTypeIntToStrings:
 		return "int"
-	case NewsIndexPublic_field1:
+	case NewsIndexPublicField1:
 		return "int"
-	case NewsIndexPublic_field2:
+	case NewsIndexPublicField2:
 		return "int"
-	case NewsIndexPublic_field3:
+	case NewsIndexPublicField3:
 		return "int"
-	case NewsIndexPublic_field_me1:
+	case NewsIndexPublicFieldMe1:
 		return "int"
-	case NewsIndexPublic_field_me2:
+	case NewsIndexPublicFieldMe2:
 		return "int"
-	case NewsIndexPublic_field_me3:
+	case NewsIndexPublicFieldMe3:
 		return "int"
 	default:
 		return ""
@@ -1240,88 +1241,88 @@ func (a NewsIndexTyped) Title() string {
 		return "Byte1"
 	case NewsIndexBytes:
 		return "Bytes"
-	case NewsIndexList_ints:
-		return "List_ints"
-	case NewsIndexList_string:
-		return "List_string"
-	case NewsIndexList_float:
-		return "List_float"
-	case NewsIndexMap_string_string:
-		return "Map_string_string"
-	case NewsIndexMap_string_bytes:
-		return "Map_string_bytes"
-	case NewsIndexMap_string_bool:
-		return "Map_string_bool"
-	case NewsIndexMap_string_int:
-		return "Map_string_int"
-	case NewsIndexMap_string_float64:
-		return "Map_string_float64"
-	case NewsIndexMap_string_any:
-		return "Map_string_any"
-	case NewsIndexMap_int_string:
-		return "Map_int_string"
-	case NewsIndexMap_int_int:
-		return "Map_int_int"
-	case NewsIndexMap_int_bool:
-		return "Map_int_bool"
+	case NewsIndexListInts:
+		return "ListInts"
+	case NewsIndexListString:
+		return "ListString"
+	case NewsIndexListFloat:
+		return "ListFloat"
+	case NewsIndexMapStringString:
+		return "MapStringString"
+	case NewsIndexMapStringBytes:
+		return "MapStringBytes"
+	case NewsIndexMapStringBool:
+		return "MapStringBool"
+	case NewsIndexMapStringInt:
+		return "MapStringInt"
+	case NewsIndexMapStringFloat64:
+		return "MapStringFloat64"
+	case NewsIndexMapStringAny:
+		return "MapStringAny"
+	case NewsIndexMapIntString:
+		return "MapIntString"
+	case NewsIndexMapIntInt:
+		return "MapIntInt"
+	case NewsIndexMapIntBool:
+		return "MapIntBool"
 	case NewsIndexRenameSQL:
 		return "RenameSQL"
 	case NewsIndexRenameGO_OK:
 		return "RenameGO_OK"
 	case NewsIndexRenameJS:
 		return "RenameJS"
-	case NewsIndexMAST_UPPER_GO:
-		return "MAST_UPPER_GO"
+	case NewsIndexMASTUPPERGO:
+		return "MASTUPPERGO"
 	case NewsIndexIntToSmallInt:
 		return "IntToSmallInt"
 	case NewsIndexSkip:
 		return "Skip"
-	case NewsIndexSql_unique_u1_1:
-		return "Sql_unique_u1_1"
-	case NewsIndexSql_unique_u1_2:
-		return "Sql_unique_u1_2"
-	case NewsIndexSql_index1_1:
-		return "Sql_index1_1"
-	case NewsIndexSql_index1_2:
-		return "Sql_index1_2"
-	case NewsIndexSql_index1_3:
-		return "Sql_index1_3"
-	case NewsIndexSql_keys_1:
-		return "Sql_keys_1"
-	case NewsIndexSql_keys_2:
-		return "Sql_keys_2"
-	case NewsIndexSql_keys_3:
-		return "Sql_keys_3"
-	case NewsIndexSql_search:
-		return "Sql_search"
-	case NewsIndexSql_get:
-		return "Sql_get"
-	case NewsIndexSql_unique_x1:
-		return "Sql_unique_x1"
-	case NewsIndexSql_unique_x2:
-		return "Sql_unique_x2"
-	case NewsIndexSql_unique_x1_x2:
-		return "Sql_unique_x1_x2"
-	case NewsIndexSql_primary:
-		return "Sql_primary"
-	case NewsIndexSql_jsonb_index:
-		return "Sql_jsonb_index"
-	case NewsIndexTime_duration:
-		return "Time_duration"
-	case NewsIndexGo_type_int_to_strings:
-		return "Go_type_int_to_strings"
-	case NewsIndexPublic_field1:
-		return "Public_field1"
-	case NewsIndexPublic_field2:
-		return "Public_field2"
-	case NewsIndexPublic_field3:
-		return "Public_field3"
-	case NewsIndexPublic_field_me1:
-		return "Public_field_me1"
-	case NewsIndexPublic_field_me2:
-		return "Public_field_me2"
-	case NewsIndexPublic_field_me3:
-		return "Public_field_me3"
+	case NewsIndexSqlUniqueU11:
+		return "SqlUniqueU11"
+	case NewsIndexSqlUniqueU12:
+		return "SqlUniqueU12"
+	case NewsIndexSqlIndex11:
+		return "SqlIndex11"
+	case NewsIndexSqlIndex12:
+		return "SqlIndex12"
+	case NewsIndexSqlIndex13:
+		return "SqlIndex13"
+	case NewsIndexSqlKeys1:
+		return "SqlKeys1"
+	case NewsIndexSqlKeys2:
+		return "SqlKeys2"
+	case NewsIndexSqlKeys3:
+		return "SqlKeys3"
+	case NewsIndexSqlSearch:
+		return "SqlSearch"
+	case NewsIndexSqlGet:
+		return "SqlGet"
+	case NewsIndexSqlUniqueX1:
+		return "SqlUniqueX1"
+	case NewsIndexSqlUniqueX2:
+		return "SqlUniqueX2"
+	case NewsIndexSqlUniqueX1X2:
+		return "SqlUniqueX1X2"
+	case NewsIndexSqlPrimary:
+		return "SqlPrimary"
+	case NewsIndexSqlJsonbIndex:
+		return "SqlJsonbIndex"
+	case NewsIndexTimeDuration:
+		return "TimeDuration"
+	case NewsIndexGoTypeIntToStrings:
+		return "GoTypeIntToStrings"
+	case NewsIndexPublicField1:
+		return "PublicField1"
+	case NewsIndexPublicField2:
+		return "PublicField2"
+	case NewsIndexPublicField3:
+		return "PublicField3"
+	case NewsIndexPublicFieldMe1:
+		return "PublicFieldMe1"
+	case NewsIndexPublicFieldMe2:
+		return "PublicFieldMe2"
+	case NewsIndexPublicFieldMe3:
+		return "PublicFieldMe3"
 	default:
 		return ""
 	}
@@ -1379,29 +1380,29 @@ func NewsKeyIndex(key string) NewsIndexTyped {
 	case "bytes":
 		return NewsIndexBytes
 	case "list_ints":
-		return NewsIndexList_ints
+		return NewsIndexListInts
 	case "list_string":
-		return NewsIndexList_string
+		return NewsIndexListString
 	case "list_float":
-		return NewsIndexList_float
+		return NewsIndexListFloat
 	case "map_string_string":
-		return NewsIndexMap_string_string
+		return NewsIndexMapStringString
 	case "map_string_bytes":
-		return NewsIndexMap_string_bytes
+		return NewsIndexMapStringBytes
 	case "map_string_bool":
-		return NewsIndexMap_string_bool
+		return NewsIndexMapStringBool
 	case "map_string_int":
-		return NewsIndexMap_string_int
+		return NewsIndexMapStringInt
 	case "map_string_float64":
-		return NewsIndexMap_string_float64
+		return NewsIndexMapStringFloat64
 	case "map_string_any":
-		return NewsIndexMap_string_any
+		return NewsIndexMapStringAny
 	case "map_int_string":
-		return NewsIndexMap_int_string
+		return NewsIndexMapIntString
 	case "map_int_int":
-		return NewsIndexMap_int_int
+		return NewsIndexMapIntInt
 	case "map_int_bool":
-		return NewsIndexMap_int_bool
+		return NewsIndexMapIntBool
 	case "renameSQL":
 		return NewsIndexRenameSQL
 	case "renameGO":
@@ -1409,57 +1410,57 @@ func NewsKeyIndex(key string) NewsIndexTyped {
 	case "renameJS":
 		return NewsIndexRenameJS
 	case "mast_upper_go":
-		return NewsIndexMAST_UPPER_GO
+		return NewsIndexMASTUPPERGO
 	case "intToSmallInt":
 		return NewsIndexIntToSmallInt
 	case "skip":
 		return NewsIndexSkip
 	case "sql_unique_u1_1":
-		return NewsIndexSql_unique_u1_1
+		return NewsIndexSqlUniqueU11
 	case "sql_unique_u1_2":
-		return NewsIndexSql_unique_u1_2
+		return NewsIndexSqlUniqueU12
 	case "sql_index1_1":
-		return NewsIndexSql_index1_1
+		return NewsIndexSqlIndex11
 	case "sql_index1_2":
-		return NewsIndexSql_index1_2
+		return NewsIndexSqlIndex12
 	case "sql_index1_3":
-		return NewsIndexSql_index1_3
+		return NewsIndexSqlIndex13
 	case "sql_keys_1":
-		return NewsIndexSql_keys_1
+		return NewsIndexSqlKeys1
 	case "sql_keys_2":
-		return NewsIndexSql_keys_2
+		return NewsIndexSqlKeys2
 	case "sql_keys_3":
-		return NewsIndexSql_keys_3
+		return NewsIndexSqlKeys3
 	case "sql_search":
-		return NewsIndexSql_search
+		return NewsIndexSqlSearch
 	case "sql_get":
-		return NewsIndexSql_get
+		return NewsIndexSqlGet
 	case "sql_unique_x1":
-		return NewsIndexSql_unique_x1
+		return NewsIndexSqlUniqueX1
 	case "sql_unique_x2":
-		return NewsIndexSql_unique_x2
+		return NewsIndexSqlUniqueX2
 	case "sql_unique_x1_x2":
-		return NewsIndexSql_unique_x1_x2
+		return NewsIndexSqlUniqueX1X2
 	case "sql_primary":
-		return NewsIndexSql_primary
+		return NewsIndexSqlPrimary
 	case "sql_jsonb_index":
-		return NewsIndexSql_jsonb_index
+		return NewsIndexSqlJsonbIndex
 	case "time_duration":
-		return NewsIndexTime_duration
+		return NewsIndexTimeDuration
 	case "go_type_int_to_strings":
-		return NewsIndexGo_type_int_to_strings
+		return NewsIndexGoTypeIntToStrings
 	case "public_field1":
-		return NewsIndexPublic_field1
+		return NewsIndexPublicField1
 	case "public_field2":
-		return NewsIndexPublic_field2
+		return NewsIndexPublicField2
 	case "public_field3":
-		return NewsIndexPublic_field3
+		return NewsIndexPublicField3
 	case "public_field_me1":
-		return NewsIndexPublic_field_me1
+		return NewsIndexPublicFieldMe1
 	case "public_field_me2":
-		return NewsIndexPublic_field_me2
+		return NewsIndexPublicFieldMe2
 	case "public_field_me3":
-		return NewsIndexPublic_field_me3
+		return NewsIndexPublicFieldMe3
 	default:
 		return 0
 	}
@@ -1498,47 +1499,47 @@ func (a *News) Map() map[string]any {
 		"bools":                  a.Bools,
 		"byte1":                  a.Byte1,
 		"bytes":                  a.Bytes,
-		"list_ints":              a.List_ints,
-		"list_string":            a.List_string,
-		"list_float":             a.List_float,
-		"map_string_string":      a.Map_string_string,
-		"map_string_bytes":       a.Map_string_bytes,
-		"map_string_bool":        a.Map_string_bool,
-		"map_string_int":         a.Map_string_int,
-		"map_string_float64":     a.Map_string_float64,
-		"map_string_any":         a.Map_string_any,
-		"map_int_string":         a.Map_int_string,
-		"map_int_int":            a.Map_int_int,
-		"map_int_bool":           a.Map_int_bool,
+		"list_ints":              a.ListInts,
+		"list_string":            a.ListString,
+		"list_float":             a.ListFloat,
+		"map_string_string":      a.MapStringString,
+		"map_string_bytes":       a.MapStringBytes,
+		"map_string_bool":        a.MapStringBool,
+		"map_string_int":         a.MapStringInt,
+		"map_string_float64":     a.MapStringFloat64,
+		"map_string_any":         a.MapStringAny,
+		"map_int_string":         a.MapIntString,
+		"map_int_int":            a.MapIntInt,
+		"map_int_bool":           a.MapIntBool,
 		"renameSQL":              a.RenameSQL,
 		"renameGO":               a.RenameGO_OK,
 		"renameJS_OK":            a.RenameJS,
-		"mast_upper_go":          a.MAST_UPPER_GO,
+		"mast_upper_go":          a.MASTUPPERGO,
 		"intToSmallInt":          a.IntToSmallInt,
 		"skip":                   a.Skip,
-		"sql_unique_u1_1":        a.Sql_unique_u1_1,
-		"sql_unique_u1_2":        a.Sql_unique_u1_2,
-		"sql_index1_1":           a.Sql_index1_1,
-		"sql_index1_2":           a.Sql_index1_2,
-		"sql_index1_3":           a.Sql_index1_3,
-		"sql_keys_1":             a.Sql_keys_1,
-		"sql_keys_2":             a.Sql_keys_2,
-		"sql_keys_3":             a.Sql_keys_3,
-		"sql_search":             a.Sql_search,
-		"sql_get":                a.Sql_get,
-		"sql_unique_x1":          a.Sql_unique_x1,
-		"sql_unique_x2":          a.Sql_unique_x2,
-		"sql_unique_x1_x2":       a.Sql_unique_x1_x2,
-		"sql_primary":            a.Sql_primary,
-		"sql_jsonb_index":        a.Sql_jsonb_index,
-		"time_duration":          a.Time_duration,
-		"go_type_int_to_strings": a.Go_type_int_to_strings,
-		"public_field1":          a.Public_field1,
-		"public_field2":          a.Public_field2,
-		"public_field3":          a.Public_field3,
-		"public_field_me1":       a.Public_field_me1,
-		"public_field_me2":       a.Public_field_me2,
-		"public_field_me3":       a.Public_field_me3,
+		"sql_unique_u1_1":        a.SqlUniqueU11,
+		"sql_unique_u1_2":        a.SqlUniqueU12,
+		"sql_index1_1":           a.SqlIndex11,
+		"sql_index1_2":           a.SqlIndex12,
+		"sql_index1_3":           a.SqlIndex13,
+		"sql_keys_1":             a.SqlKeys1,
+		"sql_keys_2":             a.SqlKeys2,
+		"sql_keys_3":             a.SqlKeys3,
+		"sql_search":             a.SqlSearch,
+		"sql_get":                a.SqlGet,
+		"sql_unique_x1":          a.SqlUniqueX1,
+		"sql_unique_x2":          a.SqlUniqueX2,
+		"sql_unique_x1_x2":       a.SqlUniqueX1X2,
+		"sql_primary":            a.SqlPrimary,
+		"sql_jsonb_index":        a.SqlJsonbIndex,
+		"time_duration":          a.TimeDuration,
+		"go_type_int_to_strings": a.GoTypeIntToStrings,
+		"public_field1":          a.PublicField1,
+		"public_field2":          a.PublicField2,
+		"public_field3":          a.PublicField3,
+		"public_field_me1":       a.PublicFieldMe1,
+		"public_field_me2":       a.PublicFieldMe2,
+		"public_field_me3":       a.PublicFieldMe3,
 	}
 }
 
@@ -1551,12 +1552,12 @@ func (a *News) Iterate(f func(k NewsIndexTyped, v any)) {
 
 // gotiny marshal
 func (a *News) MarshalGotiny() []byte {
-	return gotiny.Marshal(&a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.List_ints, &a.List_string, &a.List_float, &a.Map_string_string, &a.Map_string_bytes, &a.Map_string_bool, &a.Map_string_int, &a.Map_string_float64, &a.Map_string_any, &a.Map_int_string, &a.Map_int_int, &a.Map_int_bool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MAST_UPPER_GO, &a.IntToSmallInt, &a.Skip, &a.Sql_unique_u1_1, &a.Sql_unique_u1_2, &a.Sql_index1_1, &a.Sql_index1_2, &a.Sql_index1_3, &a.Sql_keys_1, &a.Sql_keys_2, &a.Sql_keys_3, &a.Sql_search, &a.Sql_get, &a.Sql_unique_x1, &a.Sql_unique_x2, &a.Sql_unique_x1_x2, &a.Sql_primary, &a.Sql_jsonb_index, &a.Time_duration, &a.Go_type_int_to_strings, &a.Public_field1, &a.Public_field2, &a.Public_field3, &a.Public_field_me1, &a.Public_field_me2, &a.Public_field_me3)
+	return gotiny.Marshal(&a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
 }
 
 // parse gotiny
 func UnmarshalNewsGotiny(v []byte) (a News) {
-	gotiny.Unmarshal(v, &a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.List_ints, &a.List_string, &a.List_float, &a.Map_string_string, &a.Map_string_bytes, &a.Map_string_bool, &a.Map_string_int, &a.Map_string_float64, &a.Map_string_any, &a.Map_int_string, &a.Map_int_int, &a.Map_int_bool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MAST_UPPER_GO, &a.IntToSmallInt, &a.Skip, &a.Sql_unique_u1_1, &a.Sql_unique_u1_2, &a.Sql_index1_1, &a.Sql_index1_2, &a.Sql_index1_3, &a.Sql_keys_1, &a.Sql_keys_2, &a.Sql_keys_3, &a.Sql_search, &a.Sql_get, &a.Sql_unique_x1, &a.Sql_unique_x2, &a.Sql_unique_x1_x2, &a.Sql_primary, &a.Sql_jsonb_index, &a.Time_duration, &a.Go_type_int_to_strings, &a.Public_field1, &a.Public_field2, &a.Public_field3, &a.Public_field_me1, &a.Public_field_me2, &a.Public_field_me3)
+	gotiny.Unmarshal(v, &a.Inc, &a.Role, &a.Key, &a.T, &a.D, &a.Ints, &a.Ints8, &a.Ints16, &a.Ints32, &a.Ints64, &a.Uints, &a.Uints8, &a.Uints16, &a.Uints32, &a.Uints64, &a.Floats32, &a.Floats64, &a.Bools, &a.Byte1, &a.Bytes, &a.ListInts, &a.ListString, &a.ListFloat, &a.MapStringString, &a.MapStringBytes, &a.MapStringBool, &a.MapStringInt, &a.MapStringFloat64, &a.MapStringAny, &a.MapIntString, &a.MapIntInt, &a.MapIntBool, &a.RenameSQL, &a.RenameGO_OK, &a.RenameJS, &a.MASTUPPERGO, &a.IntToSmallInt, &a.Skip, &a.SqlUniqueU11, &a.SqlUniqueU12, &a.SqlIndex11, &a.SqlIndex12, &a.SqlIndex13, &a.SqlKeys1, &a.SqlKeys2, &a.SqlKeys3, &a.SqlSearch, &a.SqlGet, &a.SqlUniqueX1, &a.SqlUniqueX2, &a.SqlUniqueX1X2, &a.SqlPrimary, &a.SqlJsonbIndex, &a.TimeDuration, &a.GoTypeIntToStrings, &a.PublicField1, &a.PublicField2, &a.PublicField3, &a.PublicFieldMe1, &a.PublicFieldMe2, &a.PublicFieldMe3)
 	return
 }
 
@@ -1574,15 +1575,13 @@ func ParseNewsMessagePack(v []byte) (a News, err error) {
 
 // fast json marshal
 func (a *News) Pack() []byte {
-	var jsoner = jsoniter.ConfigCompatibleWithStandardLibrary
-	b, _ := jsoner.Marshal(a)
+	b, _ := jsoniter.Marshal(a)
 	return b
 }
 
 // fast json unmarshal
 func ParseNews(v []byte) (a News, err error) {
-	var jsoner = jsoniter.ConfigCompatibleWithStandardLibrary
-	err = jsoner.Unmarshal(v, &a)
+	err = jsoniter.Unmarshal(v, &a)
 	return
 }
 
@@ -2030,7 +2029,7 @@ order by tuple()`
 
 // parse clickhouse query
 func (a *NewsCQL) Fields() (res []NewsIndexTyped) {
-	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexList_ints, NewsIndexList_string, NewsIndexList_float, NewsIndexMap_string_string, NewsIndexMap_string_bytes, NewsIndexMap_string_bool, NewsIndexMap_string_int, NewsIndexMap_string_float64, NewsIndexMap_string_any, NewsIndexMap_int_string, NewsIndexMap_int_int, NewsIndexMap_int_bool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMAST_UPPER_GO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSql_unique_u1_1, NewsIndexSql_unique_u1_2, NewsIndexSql_index1_1, NewsIndexSql_index1_2, NewsIndexSql_index1_3, NewsIndexSql_keys_1, NewsIndexSql_keys_2, NewsIndexSql_keys_3, NewsIndexSql_search, NewsIndexSql_get, NewsIndexSql_unique_x1, NewsIndexSql_unique_x2, NewsIndexSql_unique_x1_x2, NewsIndexSql_primary, NewsIndexSql_jsonb_index, NewsIndexTime_duration, NewsIndexGo_type_int_to_strings, NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3, NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
 }
 
 // clickhouseSet sets field from value of clickhouse row
@@ -2079,88 +2078,88 @@ func (a *News) clickhouseSet(f NewsIndexTyped, v any) {
 		newsCHAssign(reflect.ValueOf(&a.Byte1).Elem(), reflect.ValueOf(v))
 	case NewsIndexBytes:
 		newsCHAssign(reflect.ValueOf(&a.Bytes).Elem(), reflect.ValueOf(v))
-	case NewsIndexList_ints:
-		newsCHAssign(reflect.ValueOf(&a.List_ints).Elem(), reflect.ValueOf(v))
-	case NewsIndexList_string:
-		newsCHAssign(reflect.ValueOf(&a.List_string).Elem(), reflect.ValueOf(v))
-	case NewsIndexList_float:
-		newsCHAssign(reflect.ValueOf(&a.List_float).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_string:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_string).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_bytes:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_bytes).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_bool:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_bool).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_int:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_int).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_float64:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_float64).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_string_any:
-		newsCHAssign(reflect.ValueOf(&a.Map_string_any).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_int_string:
-		newsCHAssign(reflect.ValueOf(&a.Map_int_string).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_int_int:
-		newsCHAssign(reflect.ValueOf(&a.Map_int_int).Elem(), reflect.ValueOf(v))
-	case NewsIndexMap_int_bool:
-		newsCHAssign(reflect.ValueOf(&a.Map_int_bool).Elem(), reflect.ValueOf(v))
+	case NewsIndexListInts:
+		newsCHAssign(reflect.ValueOf(&a.ListInts).Elem(), reflect.ValueOf(v))
+	case NewsIndexListString:
+		newsCHAssign(reflect.ValueOf(&a.ListString).Elem(), reflect.ValueOf(v))
+	case NewsIndexListFloat:
+		newsCHAssign(reflect.ValueOf(&a.ListFloat).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringString:
+		newsCHAssign(reflect.ValueOf(&a.MapStringString).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringBytes:
+		newsCHAssign(reflect.ValueOf(&a.MapStringBytes).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringBool:
+		newsCHAssign(reflect.ValueOf(&a.MapStringBool).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringInt:
+		newsCHAssign(reflect.ValueOf(&a.MapStringInt).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringFloat64:
+		newsCHAssign(reflect.ValueOf(&a.MapStringFloat64).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapStringAny:
+		newsCHAssign(reflect.ValueOf(&a.MapStringAny).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapIntString:
+		newsCHAssign(reflect.ValueOf(&a.MapIntString).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapIntInt:
+		newsCHAssign(reflect.ValueOf(&a.MapIntInt).Elem(), reflect.ValueOf(v))
+	case NewsIndexMapIntBool:
+		newsCHAssign(reflect.ValueOf(&a.MapIntBool).Elem(), reflect.ValueOf(v))
 	case NewsIndexRenameSQL:
 		newsCHAssign(reflect.ValueOf(&a.RenameSQL).Elem(), reflect.ValueOf(v))
 	case NewsIndexRenameGO_OK:
 		newsCHAssign(reflect.ValueOf(&a.RenameGO_OK).Elem(), reflect.ValueOf(v))
 	case NewsIndexRenameJS:
 		newsCHAssign(reflect.ValueOf(&a.RenameJS).Elem(), reflect.ValueOf(v))
-	case NewsIndexMAST_UPPER_GO:
-		newsCHAssign(reflect.ValueOf(&a.MAST_UPPER_GO).Elem(), reflect.ValueOf(v))
+	case NewsIndexMASTUPPERGO:
+		newsCHAssign(reflect.ValueOf(&a.MASTUPPERGO).Elem(), reflect.ValueOf(v))
 	case NewsIndexIntToSmallInt:
 		newsCHAssign(reflect.ValueOf(&a.IntToSmallInt).Elem(), reflect.ValueOf(v))
 	case NewsIndexSkip:
 		newsCHAssign(reflect.ValueOf(&a.Skip).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_unique_u1_1:
-		newsCHAssign(reflect.ValueOf(&a.Sql_unique_u1_1).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_unique_u1_2:
-		newsCHAssign(reflect.ValueOf(&a.Sql_unique_u1_2).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_index1_1:
-		newsCHAssign(reflect.ValueOf(&a.Sql_index1_1).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_index1_2:
-		newsCHAssign(reflect.ValueOf(&a.Sql_index1_2).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_index1_3:
-		newsCHAssign(reflect.ValueOf(&a.Sql_index1_3).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_keys_1:
-		newsCHAssign(reflect.ValueOf(&a.Sql_keys_1).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_keys_2:
-		newsCHAssign(reflect.ValueOf(&a.Sql_keys_2).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_keys_3:
-		newsCHAssign(reflect.ValueOf(&a.Sql_keys_3).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_search:
-		newsCHAssign(reflect.ValueOf(&a.Sql_search).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_get:
-		newsCHAssign(reflect.ValueOf(&a.Sql_get).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_unique_x1:
-		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x1).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_unique_x2:
-		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x2).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_unique_x1_x2:
-		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x1_x2).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_primary:
-		newsCHAssign(reflect.ValueOf(&a.Sql_primary).Elem(), reflect.ValueOf(v))
-	case NewsIndexSql_jsonb_index:
-		newsCHAssign(reflect.ValueOf(&a.Sql_jsonb_index).Elem(), reflect.ValueOf(v))
-	case NewsIndexTime_duration:
-		newsCHAssign(reflect.ValueOf(&a.Time_duration).Elem(), reflect.ValueOf(v))
-	case NewsIndexGo_type_int_to_strings:
-		newsCHAssign(reflect.ValueOf(&a.Go_type_int_to_strings).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field1:
-		newsCHAssign(reflect.ValueOf(&a.Public_field1).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field2:
-		newsCHAssign(reflect.ValueOf(&a.Public_field2).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field3:
-		newsCHAssign(reflect.ValueOf(&a.Public_field3).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field_me1:
-		newsCHAssign(reflect.ValueOf(&a.Public_field_me1).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field_me2:
-		newsCHAssign(reflect.ValueOf(&a.Public_field_me2).Elem(), reflect.ValueOf(v))
-	case NewsIndexPublic_field_me3:
-		newsCHAssign(reflect.ValueOf(&a.Public_field_me3).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlUniqueU11:
+		newsCHAssign(reflect.ValueOf(&a.SqlUniqueU11).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlUniqueU12:
+		newsCHAssign(reflect.ValueOf(&a.SqlUniqueU12).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlIndex11:
+		newsCHAssign(reflect.ValueOf(&a.SqlIndex11).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlIndex12:
+		newsCHAssign(reflect.ValueOf(&a.SqlIndex12).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlIndex13:
+		newsCHAssign(reflect.ValueOf(&a.SqlIndex13).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlKeys1:
+		newsCHAssign(reflect.ValueOf(&a.SqlKeys1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlKeys2:
+		newsCHAssign(reflect.ValueOf(&a.SqlKeys2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlKeys3:
+		newsCHAssign(reflect.ValueOf(&a.SqlKeys3).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlSearch:
+		newsCHAssign(reflect.ValueOf(&a.SqlSearch).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlGet:
+		newsCHAssign(reflect.ValueOf(&a.SqlGet).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlUniqueX1:
+		newsCHAssign(reflect.ValueOf(&a.SqlUniqueX1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlUniqueX2:
+		newsCHAssign(reflect.ValueOf(&a.SqlUniqueX2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlUniqueX1X2:
+		newsCHAssign(reflect.ValueOf(&a.SqlUniqueX1X2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlPrimary:
+		newsCHAssign(reflect.ValueOf(&a.SqlPrimary).Elem(), reflect.ValueOf(v))
+	case NewsIndexSqlJsonbIndex:
+		newsCHAssign(reflect.ValueOf(&a.SqlJsonbIndex).Elem(), reflect.ValueOf(v))
+	case NewsIndexTimeDuration:
+		newsCHAssign(reflect.ValueOf(&a.TimeDuration).Elem(), reflect.ValueOf(v))
+	case NewsIndexGoTypeIntToStrings:
+		newsCHAssign(reflect.ValueOf(&a.GoTypeIntToStrings).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicField1:
+		newsCHAssign(reflect.ValueOf(&a.PublicField1).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicField2:
+		newsCHAssign(reflect.ValueOf(&a.PublicField2).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicField3:
+		newsCHAssign(reflect.ValueOf(&a.PublicField3).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicFieldMe1:
+		newsCHAssign(reflect.ValueOf(&a.PublicFieldMe1).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicFieldMe2:
+		newsCHAssign(reflect.ValueOf(&a.PublicFieldMe2).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublicFieldMe3:
+		newsCHAssign(reflect.ValueOf(&a.PublicFieldMe3).Elem(), reflect.ValueOf(v))
 	}
 }
 

@@ -181,7 +181,7 @@ Usage:
 
 ```go
 pool, _ := pgxpool.New(ctx, dsn)
-db := NewAccountSQL(pool) // pool, *pgx.Conn or pgx.Tx
+db := NewAccountSQL(pool)
 err := db.Init(ctx)       // create table and indexes if not exist
 
 item := Account{Email: "hello@example.com", Name: "Sergey", Active: true}
@@ -205,11 +205,11 @@ acc.Name = "Kate"
 err = db.Save(ctx, &acc, AccountIndexName)
 
 // transaction: commit on nil, rollback on error
-err = db.Tx(ctx, func(tx *AccountSQL) error {
-	if err := tx.Increment(ctx, from, AccountIndexBalance, -50); err != nil {
+err = db.Tx(ctx, func(tx pgx.Tx) error {
+	if err := db.With(tx).Increment(ctx, from, AccountIndexBalance, -50); err != nil {
 		return err
 	}
-	return tx.Increment(ctx, to, AccountIndexBalance, 50)
+	return db.With(tx).Increment(ctx, to, AccountIndexBalance, 50)
 })
 
 // query from json: keys are validated, values are sql parameters
@@ -228,29 +228,66 @@ Every method takes `context.Context` first. A missing row is `pgx.ErrNoRows`.
 
 | Group | Methods |
 | --- | --- |
-| Handle | `NewAccountSQL(db)`, `With(tx)`, `Tx(ctx, f)`, `DB()`, `TableName()`, `Fields()` |
+| Handle | `NewAccountSQL(pool)`, `Pool()`, `DB()`, `Conn(ctx, f)`, `TableName()`, `Fields()` |
+| Transactions | `Begin(ctx)`, `With(tx)`, `Tx(ctx, f)` |
 | Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
 | Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` (COPY) |
 | Update | `Update`, `Updates`, `Save`, `Increment`, `UpdateWhere`, `UpdatesWhere` |
 | Delete | `Delete`, `DeleteWhere` |
-| Arrays | `ArrayAppend`, `ArrayRemove` |
-| jsonb | `JSONSet`, `JSONMerge`, `JSONAppend`, `JSONDeleteKey`, `JSONRenameKey` |
 | Table | `Init`, `CreateTable`, `CreateIndexes`, `ResetSequence`, `SetSequence` |
 
 Methods by id (`Get`, `Update`, `Delete`...) need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
 `Upsert` uses primary keys (or the identity field) as the conflict target.
 
-`AccountSQL` works on `AccountDB`: an interface implemented by `*pgxpool.Pool`, `*pgx.Conn`, and `pgx.Tx`,
-so the same methods work in and out of a transaction. To share one transaction between models:
+Array and jsonb fields get typed methods named by the field:
+
+| Field | Methods |
+| --- | --- |
+| `tags []string` (`text[]`) | `TagsAppend(ctx, id, v ...string)`, `TagsRemove(ctx, id, v string)` |
+| `settings map[string]int` (`jsonb`) | `SettingsUpdate(ctx, id, k string, v int)`, `SettingsMerge(ctx, id, v map[string]int)`, `SettingsDelete(ctx, id, k string)`, `SettingsRename(ctx, id, k, newK string)` |
+| `conf Config` (`jsonb`) | `ConfUpdate(ctx, id, k string, v any)`, `ConfMerge`, `ConfDelete`, `ConfRename` |
+| `items []Item` (`jsonb`) | `ItemsAppend(ctx, id, v ...Item)` |
+
+### Transactions and concurrency
+
+`AccountSQL` is created on `*pgxpool.Pool` and is safe for concurrent use: it keeps no state, every query takes a connection from the pool.
+
+One transaction for several models: start it once and bind every model with `With(tx)`.
 
 ```go
-err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-	if err := accounts.With(tx).Update(ctx, id, AccountIndexActive, false); err != nil {
-		return err
-	}
-	return orders.With(tx).DeleteWhere(ctx, "account = $1", id)
+tx, err := accounts.Begin(ctx)
+if err != nil {
+	return err
+}
+defer tx.Rollback(ctx) // no-op after commit
+
+if err = accounts.With(tx).Update(ctx, id, AccountIndexActive, false); err != nil {
+	return err
+}
+if _, err = orders.With(tx).DeleteWhere(ctx, "account = $1", id); err != nil {
+	return err
+}
+return tx.Commit(ctx)
+```
+
+`Tx(ctx, f)` does the same with automatic commit or rollback; called on `With(tx)` it makes a savepoint.
+
+Own methods: use `DB()` to work in and out of a transaction, or `Conn` for a dedicated pool connection.
+
+```go
+func (a *AccountSQL) Rich(ctx context.Context, min int64) (n int, err error) {
+	err = a.DB().QueryRow(ctx, "select count(*) from accounts where balance > $1", min).Scan(&n)
+	return
+}
+
+err := db.Conn(ctx, func(conn *pgxpool.Conn) error {
+	_, err := conn.Exec(ctx, "listen accounts")
+	return err
 })
 ```
+
+Several models can live in one package: every generated name carries the struct name
+(`AccountSQL`, `accountSQLColumns`, `File_account_proto`). Use a separate source file for every model.
 
 ### Go to PostgreSQL types
 

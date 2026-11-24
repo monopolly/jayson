@@ -14,12 +14,16 @@ import (
 
 	"net"
 	"net/netip"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/monopolly/jayson/test/role"
 )
 
-// AllDB is a database handle: *pgxpool.Pool, *pgx.Conn or pgx.Tx
+// AllDB runs queries: *pgxpool.Pool or pgx.Tx
 type AllDB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
@@ -32,38 +36,86 @@ type AllDB interface {
 // AllSQL sql queries of table alltypes
 //
 // Rules:
+//   - safe for concurrent use: queries run on pgxpool, the class keeps no state
 //   - not found row is pgx.ErrNoRows
 //   - fields: columns to select, all columns when empty
 //   - where: sql condition with placeholders $1, $2... for args: "title = $1 and views > $2"
 type AllSQL struct {
-	db AllDB
+	pool *pgxpool.Pool
+	db   AllDB // pool, or transaction after With
 }
 
-// NewAllSQL creates queries on pool, connection or transaction
-func NewAllSQL(db AllDB) *AllSQL {
-	return &AllSQL{db: db}
+// NewAllSQL creates queries on pool
+func NewAllSQL(pool *pgxpool.Pool) *AllSQL {
+	return &AllSQL{pool: pool, db: pool}
 }
 
-// With returns queries on another handle: transaction or connection
-func (a *AllSQL) With(db AllDB) *AllSQL {
-	return &AllSQL{db: db}
+// Pool returns pool
+func (a *AllSQL) Pool() *pgxpool.Pool {
+	return a.pool
 }
 
-// DB returns current handle
+// DB returns current query runner: pool, or transaction inside of Tx and With.
+// Use it in own methods to work in and out of transaction
+//
+//	func (a *AllSQL) Top(ctx context.Context) (n int, err error) {
+//		err = a.DB().QueryRow(ctx, "select count(*) from alltypes").Scan(&n)
+//		return
+//	}
 func (a *AllSQL) DB() AllDB {
 	return a.db
+}
+
+// Conn runs f on a connection of pool, for own queries.
+// Connection is always taken from pool: inside of transaction use DB()
+//
+//	err := db.Conn(ctx, func(conn *pgxpool.Conn) error {
+//		_, err := conn.Exec(ctx, "vacuum alltypes")
+//		return err
+//	})
+func (a *AllSQL) Conn(ctx context.Context, f func(conn *pgxpool.Conn) error) error {
+	conn, err := a.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	return f(conn)
+}
+
+// Begin starts transaction. Use With(tx) of every model to run queries in it
+//
+//	tx, err := news.Begin(ctx)
+//	if err != nil {
+//		return err
+//	}
+//	defer tx.Rollback(ctx) // no-op after commit
+//	if err = news.With(tx).Insert(ctx, &item); err != nil {
+//		return err
+//	}
+//	if err = users.With(tx).Update(ctx, id, UserIndexNews, item.ID); err != nil {
+//		return err
+//	}
+//	return tx.Commit(ctx)
+func (a *AllSQL) Begin(ctx context.Context) (pgx.Tx, error) {
+	return a.db.Begin(ctx)
+}
+
+// With returns queries in transaction tx
+func (a *AllSQL) With(tx pgx.Tx) *AllSQL {
+	return &AllSQL{pool: a.pool, db: tx}
 }
 
 // Tx runs f in transaction: commit on nil, rollback on error.
 // Inside of transaction it makes a savepoint
 //
-//	err := db.Tx(ctx, func(tx *AllSQL) error {
-//		return tx.Delete(ctx, id)
+//	err := news.Tx(ctx, func(tx pgx.Tx) error {
+//		if err := news.With(tx).Delete(ctx, id); err != nil {
+//			return err
+//		}
+//		return users.With(tx).Increment(ctx, user, UserIndexNews, -1)
 //	})
-func (a *AllSQL) Tx(ctx context.Context, f func(tx *AllSQL) error) error {
-	return pgx.BeginFunc(ctx, a.db, func(tx pgx.Tx) error {
-		return f(&AllSQL{db: tx})
-	})
+func (a *AllSQL) Tx(ctx context.Context, f func(tx pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, a.db, f)
 }
 
 // TableName returns sql table name
@@ -364,13 +416,13 @@ func allSQLSelect(fields []AllIndexTyped) (string, []AllIndexTyped, error) {
 }
 
 // allSQLSet returns "a = $1, b = $2" in stable order, placeholders from $start
-func allSQLSet(values map[AllIndexTyped]any, start int) (string, []any, error) {
-	if len(values) == 0 {
+func allSQLSet(v map[AllIndexTyped]any, start int) (string, []any, error) {
+	if len(v) == 0 {
 		return "", nil, errors.New("alltypes: no values")
 	}
 	var b strings.Builder
-	args := make([]any, 0, len(values))
-	for i, f := range slices.Sorted(maps.Keys(values)) {
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
 		col, err := allSQLColumn(f)
 		if err != nil {
 			return "", nil, err
@@ -381,7 +433,7 @@ func allSQLSet(values map[AllIndexTyped]any, start int) (string, []any, error) {
 		b.WriteString(col)
 		b.WriteString(" = $")
 		b.WriteString(strconv.Itoa(start + i))
-		args = append(args, values[f])
+		args = append(args, v[f])
 	}
 	return b.String(), args, nil
 }
@@ -977,13 +1029,13 @@ func (a *AllSQL) Exists(ctx context.Context, id int) (has bool, err error) {
 	return
 }
 
-// GetBy returns first row with field = value
-func (a *AllSQL) GetBy(ctx context.Context, field AllIndexTyped, value any, fields ...AllIndexTyped) (v All, err error) {
+// GetBy returns first row with field = v
+func (a *AllSQL) GetBy(ctx context.Context, field AllIndexTyped, v any, fields ...AllIndexTyped) (res All, err error) {
 	col, err := allSQLColumn(field)
 	if err != nil {
 		return
 	}
-	return a.queryRow(ctx, fields, " where "+col+" = $1 limit 1", value)
+	return a.queryRow(ctx, fields, " where "+col+" = $1 limit 1", v)
 }
 
 // GetWhere returns first row by condition
@@ -993,13 +1045,13 @@ func (a *AllSQL) GetWhere(ctx context.Context, fields []AllIndexTyped, where str
 	return a.queryRow(ctx, fields, " where "+where+" limit 1", args...)
 }
 
-// Has checks row with field = value
-func (a *AllSQL) Has(ctx context.Context, field AllIndexTyped, value any) (has bool, err error) {
+// Has checks row with field = v
+func (a *AllSQL) Has(ctx context.Context, field AllIndexTyped, v any) (has bool, err error) {
 	col, err := allSQLColumn(field)
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(ctx, "select exists (select 1 from alltypes where "+col+" = $1)", value).Scan(&has)
+	err = a.db.QueryRow(ctx, "select exists (select 1 from alltypes where "+col+" = $1)", v).Scan(&has)
 	return
 }
 
@@ -1100,17 +1152,17 @@ func (a *AllSQL) InsertBatch(ctx context.Context, list []*All) error {
 // ---------------------------------------------------------------------------
 
 // Update sets field of row, pgx.ErrNoRows when row not found
-func (a *AllSQL) Update(ctx context.Context, id int, field AllIndexTyped, value any) error {
+func (a *AllSQL) Update(ctx context.Context, id int, field AllIndexTyped, v any) error {
 	col, err := allSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = $1 where id = $2", value, id))
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = $1 where id = $2", v, id))
 }
 
 // Updates sets fields of row, pgx.ErrNoRows when row not found
-func (a *AllSQL) Updates(ctx context.Context, id int, values map[AllIndexTyped]any) error {
-	set, args, err := allSQLSet(values, 1)
+func (a *AllSQL) Updates(ctx context.Context, id int, v map[AllIndexTyped]any) error {
+	set, args, err := allSQLSet(v, 1)
 	if err != nil {
 		return err
 	}
@@ -1135,13 +1187,13 @@ func (a *AllSQL) Save(ctx context.Context, v *All, fields ...AllIndexTyped) erro
 	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(AllIndexID))...))
 }
 
-// Increment adds delta to number field: views = views + 1
-func (a *AllSQL) Increment(ctx context.Context, id int, field AllIndexTyped, delta any) error {
+// Increment adds v to number field: views = views + 1
+func (a *AllSQL) Increment(ctx context.Context, id int, field AllIndexTyped, v any) error {
 	col, err := allSQLColumn(field)
 	if err != nil {
 		return err
 	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", 0) + $1 where id = $2", delta, id))
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", 0) + $1 where id = $2", v, id))
 }
 
 // Delete removes row by id
@@ -1153,18 +1205,18 @@ func (a *AllSQL) Delete(ctx context.Context, id int) error {
 // UpdateWhere sets field of rows by condition, returns count of rows
 //
 //	db.UpdateWhere(ctx, IndexActive, false, "created < $1", date)
-func (a *AllSQL) UpdateWhere(ctx context.Context, field AllIndexTyped, value any, where string, args ...any) (int64, error) {
+func (a *AllSQL) UpdateWhere(ctx context.Context, field AllIndexTyped, v any, where string, args ...any) (int64, error) {
 	col, err := allSQLColumn(field)
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(ctx, "update alltypes set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), value)...)
+	tag, err := a.db.Exec(ctx, "update alltypes set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
 	return tag.RowsAffected(), err
 }
 
 // UpdatesWhere sets fields of rows by condition, returns count of rows
-func (a *AllSQL) UpdatesWhere(ctx context.Context, values map[AllIndexTyped]any, where string, args ...any) (int64, error) {
-	set, vals, err := allSQLSet(values, len(args)+1)
+func (a *AllSQL) UpdatesWhere(ctx context.Context, v map[AllIndexTyped]any, where string, args ...any) (int64, error) {
+	set, vals, err := allSQLSet(v, len(args)+1)
 	if err != nil {
 		return 0, err
 	}
@@ -1178,112 +1230,302 @@ func (a *AllSQL) DeleteWhere(ctx context.Context, where string, args ...any) (in
 	return tag.RowsAffected(), err
 }
 
-// ---------------------------------------------------------------------------
-// arrays
-// ---------------------------------------------------------------------------
-
-// allSQLArray returns column and element type of array field: tags, text
-func allSQLArray(field AllIndexTyped) (col, elem string, err error) {
-	if col, err = allSQLColumn(field); err != nil {
-		return
-	}
-	elem, ok := strings.CutSuffix(allSQLTypes[field], "[]")
-	if !ok || strings.HasSuffix(elem, "[]") {
-		err = fmt.Errorf("alltypes: %s is not an array", col)
-	}
-	return
+// RawUpdate sets key of jsonb raw
+func (a *AllSQL) RawUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "raw", k, v)
 }
 
-// ArrayAppend adds values to array field: values is a slice
-//
-//	db.ArrayAppend(ctx, id, IndexTags, []string{"a", "b"})
-func (a *AllSQL) ArrayAppend(ctx context.Context, id int, field AllIndexTyped, values any) error {
-	col, elem, err := allSQLArray(field)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", '{}') || $1::"+elem+"[] where id = $2", values, id))
+// RawMerge adds keys of object v to jsonb raw: existing keys are replaced
+func (a *AllSQL) RawMerge(ctx context.Context, id int, v any) error {
+	return a.jsonMerge(ctx, id, "raw", "{}", v)
 }
 
-// ArrayRemove removes all entries of value from array field
-func (a *AllSQL) ArrayRemove(ctx context.Context, id int, field AllIndexTyped, value any) error {
-	col, elem, err := allSQLArray(field)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = array_remove("+col+", $1::"+elem+") where id = $2", value, id))
+// RawDelete removes key of jsonb raw
+func (a *AllSQL) RawDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "raw", k)
 }
 
-// ---------------------------------------------------------------------------
-// jsonb
-// ---------------------------------------------------------------------------
-
-// allSQLJSON returns column of jsonb field
-func allSQLJSON(field AllIndexTyped) (col string, err error) {
-	if col, err = allSQLColumn(field); err != nil {
-		return
-	}
-	if allSQLTypes[field] != "jsonb" {
-		err = fmt.Errorf("alltypes: %s is not jsonb", col)
-	}
-	return
+// RawRename renames key of jsonb raw, pgx.ErrNoRows when key not found
+func (a *AllSQL) RawRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "raw", k, newK)
 }
 
-// JSONSet sets key of jsonb object field
-func (a *AllSQL) JSONSet(ctx context.Context, id int, field AllIndexTyped, key string, value any) error {
-	col, err := allSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where id = $3", key, b, id))
+// MapanyUpdate sets key of jsonb mapany
+func (a *AllSQL) MapanyUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "mapany", fmt.Sprint(k), v)
 }
 
-// JSONMerge merges object to jsonb object field: existing keys are replaced
-func (a *AllSQL) JSONMerge(ctx context.Context, id int, field AllIndexTyped, values any) error {
-	col, err := allSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", '{}'::jsonb) || $1::jsonb where id = $2", b, id))
+// MapanyMerge adds keys to jsonb mapany: existing keys are replaced
+func (a *AllSQL) MapanyMerge(ctx context.Context, id int, v map[string]any) error {
+	return a.jsonMerge(ctx, id, "mapany", "{}", v)
 }
 
-// JSONAppend adds values to jsonb array field
-func (a *AllSQL) JSONAppend(ctx context.Context, id int, field AllIndexTyped, values ...any) error {
-	col, err := allSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", '[]'::jsonb) || $1::jsonb where id = $2", b, id))
+// MapanyDelete removes key of jsonb mapany
+func (a *AllSQL) MapanyDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "mapany", fmt.Sprint(k))
 }
 
-// JSONDeleteKey removes key of jsonb object field
-func (a *AllSQL) JSONDeleteKey(ctx context.Context, id int, field AllIndexTyped, key string) error {
-	col, err := allSQLJSON(field)
-	if err != nil {
-		return err
-	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = "+col+" - $1::text where id = $2", key, id))
+// MapanyRename renames key of jsonb mapany, pgx.ErrNoRows when key not found
+func (a *AllSQL) MapanyRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "mapany", fmt.Sprint(k), fmt.Sprint(newK))
 }
 
-// JSONRenameKey renames key of jsonb object field, pgx.ErrNoRows when key not found
-func (a *AllSQL) JSONRenameKey(ctx context.Context, id int, field AllIndexTyped, key, newKey string) error {
-	col, err := allSQLJSON(field)
+// MapsUpdate sets key of jsonb maps
+func (a *AllSQL) MapsUpdate(ctx context.Context, id int, k string, v string) error {
+	return a.jsonSet(ctx, id, "maps", fmt.Sprint(k), v)
+}
+
+// MapsMerge adds keys to jsonb maps: existing keys are replaced
+func (a *AllSQL) MapsMerge(ctx context.Context, id int, v map[string]string) error {
+	return a.jsonMerge(ctx, id, "maps", "{}", v)
+}
+
+// MapsDelete removes key of jsonb maps
+func (a *AllSQL) MapsDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "maps", fmt.Sprint(k))
+}
+
+// MapsRename renames key of jsonb maps, pgx.ErrNoRows when key not found
+func (a *AllSQL) MapsRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "maps", fmt.Sprint(k), fmt.Sprint(newK))
+}
+
+// ConfUpdate sets key of jsonb conf
+func (a *AllSQL) ConfUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "conf", k, v)
+}
+
+// ConfMerge adds keys of object v to jsonb conf: existing keys are replaced
+func (a *AllSQL) ConfMerge(ctx context.Context, id int, v any) error {
+	return a.jsonMerge(ctx, id, "conf", "{}", v)
+}
+
+// ConfDelete removes key of jsonb conf
+func (a *AllSQL) ConfDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "conf", k)
+}
+
+// ConfRename renames key of jsonb conf, pgx.ErrNoRows when key not found
+func (a *AllSQL) ConfRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "conf", k, newK)
+}
+
+// ConfsAppend adds values to jsonb array confs
+func (a *AllSQL) ConfsAppend(ctx context.Context, id int, v ...Config) error {
+	return a.jsonMerge(ctx, id, "confs", "[]", v)
+}
+
+// AnyvUpdate sets key of jsonb anyv
+func (a *AllSQL) AnyvUpdate(ctx context.Context, id int, k string, v any) error {
+	return a.jsonSet(ctx, id, "anyv", k, v)
+}
+
+// AnyvMerge adds keys of object v to jsonb anyv: existing keys are replaced
+func (a *AllSQL) AnyvMerge(ctx context.Context, id int, v any) error {
+	return a.jsonMerge(ctx, id, "anyv", "{}", v)
+}
+
+// AnyvDelete removes key of jsonb anyv
+func (a *AllSQL) AnyvDelete(ctx context.Context, id int, k string) error {
+	return a.jsonDelete(ctx, id, "anyv", k)
+}
+
+// AnyvRename renames key of jsonb anyv, pgx.ErrNoRows when key not found
+func (a *AllSQL) AnyvRename(ctx context.Context, id int, k, newK string) error {
+	return a.jsonRename(ctx, id, "anyv", k, newK)
+}
+
+// LBAppend adds values to array lb
+func (a *AllSQL) LBAppend(ctx context.Context, id int, v ...bool) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lb = coalesce(lb, '{}') || $1::boolean[] where id = $2", v, id))
+}
+
+// LBRemove removes all entries of v from array lb
+func (a *AllSQL) LBRemove(ctx context.Context, id int, v bool) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lb = array_remove(lb, $1::boolean) where id = $2", v, id))
+}
+
+// LSAppend adds values to array ls
+func (a *AllSQL) LSAppend(ctx context.Context, id int, v ...string) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set ls = coalesce(ls, '{}') || $1::text[] where id = $2", v, id))
+}
+
+// LSRemove removes all entries of v from array ls
+func (a *AllSQL) LSRemove(ctx context.Context, id int, v string) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set ls = array_remove(ls, $1::text) where id = $2", v, id))
+}
+
+// LIAppend adds values to array li
+func (a *AllSQL) LIAppend(ctx context.Context, id int, v ...int) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li = coalesce(li, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// LIRemove removes all entries of v from array li
+func (a *AllSQL) LIRemove(ctx context.Context, id int, v int) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li = array_remove(li, $1::bigint) where id = $2", v, id))
+}
+
+// Li8Append adds values to array li8
+func (a *AllSQL) Li8Append(ctx context.Context, id int, v ...int8) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li8 = coalesce(li8, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// Li8Remove removes all entries of v from array li8
+func (a *AllSQL) Li8Remove(ctx context.Context, id int, v int8) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li8 = array_remove(li8, $1::smallint) where id = $2", v, id))
+}
+
+// Li16Append adds values to array li16
+func (a *AllSQL) Li16Append(ctx context.Context, id int, v ...int16) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li16 = coalesce(li16, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// Li16Remove removes all entries of v from array li16
+func (a *AllSQL) Li16Remove(ctx context.Context, id int, v int16) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li16 = array_remove(li16, $1::smallint) where id = $2", v, id))
+}
+
+// Li32Append adds values to array li32
+func (a *AllSQL) Li32Append(ctx context.Context, id int, v ...int32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li32 = coalesce(li32, '{}') || $1::integer[] where id = $2", v, id))
+}
+
+// Li32Remove removes all entries of v from array li32
+func (a *AllSQL) Li32Remove(ctx context.Context, id int, v int32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set li32 = array_remove(li32, $1::integer) where id = $2", v, id))
+}
+
+// Lu16Append adds values to array lu16
+func (a *AllSQL) Lu16Append(ctx context.Context, id int, v ...uint16) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu16 = coalesce(lu16, '{}') || $1::integer[] where id = $2", v, id))
+}
+
+// Lu16Remove removes all entries of v from array lu16
+func (a *AllSQL) Lu16Remove(ctx context.Context, id int, v uint16) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu16 = array_remove(lu16, $1::integer) where id = $2", v, id))
+}
+
+// Lu32Append adds values to array lu32
+func (a *AllSQL) Lu32Append(ctx context.Context, id int, v ...uint32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu32 = coalesce(lu32, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// Lu32Remove removes all entries of v from array lu32
+func (a *AllSQL) Lu32Remove(ctx context.Context, id int, v uint32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu32 = array_remove(lu32, $1::bigint) where id = $2", v, id))
+}
+
+// Lu64Append adds values to array lu64
+func (a *AllSQL) Lu64Append(ctx context.Context, id int, v ...uint64) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu64 = coalesce(lu64, '{}') || $1::numeric(20,0)[] where id = $2", v, id))
+}
+
+// Lu64Remove removes all entries of v from array lu64
+func (a *AllSQL) Lu64Remove(ctx context.Context, id int, v uint64) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu64 = array_remove(lu64, $1::numeric(20,0)) where id = $2", v, id))
+}
+
+// Lf32Append adds values to array lf32
+func (a *AllSQL) Lf32Append(ctx context.Context, id int, v ...float32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lf32 = coalesce(lf32, '{}') || $1::real[] where id = $2", v, id))
+}
+
+// Lf32Remove removes all entries of v from array lf32
+func (a *AllSQL) Lf32Remove(ctx context.Context, id int, v float32) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lf32 = array_remove(lf32, $1::real) where id = $2", v, id))
+}
+
+// LTAppend adds values to array lt
+func (a *AllSQL) LTAppend(ctx context.Context, id int, v ...time.Time) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lt = coalesce(lt, '{}') || $1::timestamptz[] where id = $2", v, id))
+}
+
+// LTRemove removes all entries of v from array lt
+func (a *AllSQL) LTRemove(ctx context.Context, id int, v time.Time) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lt = array_remove(lt, $1::timestamptz) where id = $2", v, id))
+}
+
+// LUAppend adds values to array lu
+func (a *AllSQL) LUAppend(ctx context.Context, id int, v ...uuid.UUID) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu = coalesce(lu, '{}') || $1::uuid[] where id = $2", v, id))
+}
+
+// LURemove removes all entries of v from array lu
+func (a *AllSQL) LURemove(ctx context.Context, id int, v uuid.UUID) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lu = array_remove(lu, $1::uuid) where id = $2", v, id))
+}
+
+// Ls2Append adds values to jsonb array ls2
+func (a *AllSQL) Ls2Append(ctx context.Context, id int, v ...[]string) error {
+	return a.jsonMerge(ctx, id, "ls2", "[]", v)
+}
+
+// Li2Append adds values to jsonb array li2
+func (a *AllSQL) Li2Append(ctx context.Context, id int, v ...[]int64) error {
+	return a.jsonMerge(ctx, id, "li2", "[]", v)
+}
+
+// LbbAppend adds values to array lbb
+func (a *AllSQL) LbbAppend(ctx context.Context, id int, v ...[]byte) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lbb = coalesce(lbb, '{}') || $1::bytea[] where id = $2", v, id))
+}
+
+// LbbRemove removes all entries of v from array lbb
+func (a *AllSQL) LbbRemove(ctx context.Context, id int, v []byte) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lbb = array_remove(lbb, $1::bytea) where id = $2", v, id))
+}
+
+// LMAppend adds values to jsonb array lm
+func (a *AllSQL) LMAppend(ctx context.Context, id int, v ...map[string]any) error {
+	return a.jsonMerge(ctx, id, "lm", "[]", v)
+}
+
+// LstAppend adds values to array lst
+func (a *AllSQL) LstAppend(ctx context.Context, id int, v ...Status) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lst = coalesce(lst, '{}') || $1::smallint[] where id = $2", v, id))
+}
+
+// LstRemove removes all entries of v from array lst
+func (a *AllSQL) LstRemove(ctx context.Context, id int, v Status) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lst = array_remove(lst, $1::smallint) where id = $2", v, id))
+}
+
+// LrlAppend adds values to array lrl
+func (a *AllSQL) LrlAppend(ctx context.Context, id int, v ...role.Role) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lrl = coalesce(lrl, '{}') || $1::bigint[] where id = $2", v, id))
+}
+
+// LrlRemove removes all entries of v from array lrl
+func (a *AllSQL) LrlRemove(ctx context.Context, id int, v role.Role) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set lrl = array_remove(lrl, $1::bigint) where id = $2", v, id))
+}
+
+// jsonSet sets key of jsonb column
+func (a *AllSQL) jsonSet(ctx context.Context, id int, col, k string, v any) error {
+	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where id = $3 and "+col+" ? $1::text", key, newKey, id))
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where id = $3", k, b, id))
+}
+
+// jsonMerge concats json to jsonb column: object keys or array values
+func (a *AllSQL) jsonMerge(ctx context.Context, id int, col, empty string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where id = $2", b, id))
+}
+
+// jsonDelete removes key of jsonb column
+func (a *AllSQL) jsonDelete(ctx context.Context, id int, col, k string) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = "+col+" - $1::text where id = $2", k, id))
+}
+
+// jsonRename renames key of jsonb column
+func (a *AllSQL) jsonRename(ctx context.Context, id int, col, k, newK string) error {
+	return allSQLAffected(a.db.Exec(ctx, "update alltypes set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where id = $3 and "+col+" ? $1::text", k, newK, id))
 }
 
 // ---------------------------------------------------------------------------
@@ -1327,11 +1569,11 @@ func NewAllQuery() *AllQuery {
 }
 
 // column returns sql column by key
-func (q *AllQuery) column(key string) (string, AllIndexTyped, error) {
-	if !AllValidKey(key) {
-		return "", 0, fmt.Errorf("alltypes: unknown field %q", key)
+func (q *AllQuery) column(k string) (string, AllIndexTyped, error) {
+	if !AllValidKey(k) {
+		return "", 0, fmt.Errorf("alltypes: unknown field %q", k)
 	}
-	f := AllKeyIndex(key)
+	f := AllKeyIndex(k)
 	col, err := allSQLColumn(f)
 	return col, f, err
 }
@@ -1340,8 +1582,8 @@ func (q *AllQuery) column(key string) (string, AllIndexTyped, error) {
 // Sql text is stable for the same set of keys
 func (q *AllQuery) Render() (tail string, fields []AllIndexTyped, args []any, err error) {
 
-	for _, key := range q.Fields {
-		_, f, err := q.column(key)
+	for _, k := range q.Fields {
+		_, f, err := q.column(k)
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -1355,32 +1597,32 @@ func (q *AllQuery) Render() (tail string, fields []AllIndexTyped, args []any, er
 	}
 
 	// field op $n
-	add := func(key, op string, value any) error {
-		col, _, err := q.column(key)
+	add := func(k, op string, v any) error {
+		col, _, err := q.column(k)
 		if err != nil {
 			return err
 		}
-		args = append(args, value)
+		args = append(args, v)
 		and = append(and, fmt.Sprintf(op, col, len(args)))
 		return nil
 	}
 
-	for _, key := range slices.Sorted(maps.Keys(q.EQ)) {
-		v := q.EQ[key]
+	for _, k := range slices.Sorted(maps.Keys(q.EQ)) {
+		v := q.EQ[k]
 		if v == nil || v == "" {
 			continue
 		}
 		op := "%s = $%d"
-		if _, f, err := q.column(key); err == nil && f.Type() == "bool" {
+		if _, f, err := q.column(k); err == nil && f.Type() == "bool" {
 			op = "coalesce(%s, false) = $%d" // false is null too
 		}
-		if err = add(key, op, v); err != nil {
+		if err = add(k, op, v); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.NOT)) {
-		for _, v := range q.NOT[key] {
-			if err = add(key, "%s is distinct from $%d", v); err != nil {
+	for _, k := range slices.Sorted(maps.Keys(q.NOT)) {
+		for _, v := range q.NOT[k] {
+			if err = add(k, "%s is distinct from $%d", v); err != nil {
 				return
 			}
 		}
@@ -1391,37 +1633,37 @@ func (q *AllQuery) Render() (tail string, fields []AllIndexTyped, args []any, er
 	}{
 		{"%s > $%d", q.GT}, {"%s >= $%d", q.GTE}, {"%s < $%d", q.LT}, {"%s <= $%d", q.LTE},
 	} {
-		for _, key := range slices.Sorted(maps.Keys(x.values)) {
-			v := x.values[key]
+		for _, k := range slices.Sorted(maps.Keys(x.values)) {
+			v := x.values[k]
 			if v == nil || v == "" {
 				continue
 			}
-			if err = add(key, x.op, v); err != nil {
+			if err = add(k, x.op, v); err != nil {
 				return
 			}
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.Like)) {
-		if q.Like[key] == "" {
+	for _, k := range slices.Sorted(maps.Keys(q.Like)) {
+		if q.Like[k] == "" {
 			continue
 		}
-		if err = add(key, "%s ilike $%d", "%"+q.Like[key]+"%"); err != nil {
+		if err = add(k, "%s ilike $%d", "%"+q.Like[k]+"%"); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.IN)) {
-		if len(q.IN[key]) == 0 {
+	for _, k := range slices.Sorted(maps.Keys(q.IN)) {
+		if len(q.IN[k]) == 0 {
 			continue
 		}
-		if err = add(key, "%s = any($%d)", q.IN[key]); err != nil {
+		if err = add(k, "%s = any($%d)", q.IN[k]); err != nil {
 			return
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(q.INS)) {
-		if len(q.INS[key]) == 0 {
+	for _, k := range slices.Sorted(maps.Keys(q.INS)) {
+		if len(q.INS[k]) == 0 {
 			continue
 		}
-		if err = add(key, "%s = any($%d)", q.INS[key]); err != nil {
+		if err = add(k, "%s = any($%d)", q.INS[k]); err != nil {
 			return
 		}
 	}
@@ -1590,7 +1832,7 @@ func (a *AllSQL) ResetSequence(ctx context.Context, add ...int64) error {
 }
 
 // SetSequence sets next id
-func (a *AllSQL) SetSequence(ctx context.Context, value int64) error {
-	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('alltypes', 'id'), $1, false)", value)
+func (a *AllSQL) SetSequence(ctx context.Context, v int64) error {
+	_, err := a.db.Exec(ctx, "select setval(pg_get_serial_sequence('alltypes', 'id'), $1, false)", v)
 	return err
 }

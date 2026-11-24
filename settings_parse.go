@@ -105,7 +105,7 @@ func (a *Settings) Parse(in string) {
 		p.MessagePack.Name = x.Name
 		p.Comment = x.Comment
 		p.Type = x.Type
-		p.Go.Name = tools.Title(p.Name)
+		p.Go.Name = goName(p.Name)
 		p.Parse()
 
 		if len(p.Name) > a.Padding {

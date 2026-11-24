@@ -7,13 +7,11 @@ import (
 	"github.com/monopolly/jayson/test/role"
 )
 
-type Role = role.Role
-
-// go=News sql=news ch=news proto msgp gotiny
+// go sql ch proto msgp gotiny
 type news struct {
 	inc int // sql{inc}  #readonly
 
-	role Role
+	role role.Role
 
 	key uuid.UUID
 	t   time.Time

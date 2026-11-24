@@ -25,7 +25,7 @@ func (a *Field) Parse() {
 	a.SQL.Name = a.Name
 	a.Clickhouse.Name = a.Name
 
-	a.Go.Name = tools.Title(a.Name)
+	a.Go.Name = goName(a.Name)
 
 	// make upper for id>ID
 	if len(a.Name) < 3 {
@@ -77,7 +77,7 @@ func (a *Field) Parse() {
 	a.parseCustomStructsOptions()
 
 	if a.Go.UpperCase {
-		a.Go.Name = strings.ToUpper(a.Name)
+		a.Go.Name = strings.ToUpper(strings.ReplaceAll(a.Name, "_", ""))
 	}
 
 	a.FieldName = fmt.Sprintf("Field%s%s", tools.Title(settings.Go.StructName), a.Go.Name) //ProfileFieldID
@@ -214,4 +214,21 @@ func parseArray(t string) (n int, elem string, ok bool) {
 		return 0, "", false
 	}
 	return v, m[2], true
+}
+
+// go name without underscores: sql_search > SqlSearch, user_id > UserID
+func goName(name string) string {
+	var res []string
+	for _, x := range strings.Split(name, "_") {
+		l := strings.ToLower(x)
+		switch {
+		case x == "":
+		// id, ip, uid, sid
+		case l == "id", l == "ip", len(x) < 4 && strings.Contains(l, "id"):
+			res = append(res, strings.ToUpper(x))
+		default:
+			res = append(res, tools.Title(x))
+		}
+	}
+	return strings.Join(res, "")
 }

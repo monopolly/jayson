@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/types"
 	"strings"
 
 	"github.com/monopolly/jayson/tools"
@@ -54,6 +57,12 @@ type sqlColumn struct {
 	Type   string // sql type: text, bigint[]
 	GoType string // string, []int
 	Elem   string // array element sql type: bigint
+	ElemGo string // array element go type: int, role.Role
+
+	JSON     string // jsonb kind: map, object, array
+	MapKey   string // map[string]int > string
+	MapValue string // map[string]int > int
+	JSONElem string // []Item in jsonb > Item
 	Select string // select expression: coalesce(title, '')
 	Value  string // go value for query args: a.Title
 	Dest   string // go scan target: &a.Title
@@ -202,9 +211,27 @@ func newSQLColumn(x *Field, priv string) *sqlColumn {
 		Dest:   "&a." + x.Go.Name,
 	}
 
+	base := strings.TrimLeft(x.BaseType(), "*")
+
 	// one dimension native array: bigint[] > bigint
-	if x.SQL.Array && sqlArrayDims(c.Type) == 1 {
+	if x.SQL.Array && sqlArrayDims(c.Type) == 1 && strings.HasPrefix(base, "[]") {
 		c.Elem = strings.TrimSuffix(c.Type, "[]")
+		c.ElemGo = strings.TrimPrefix(base, "[]")
+	}
+
+	// jsonb: map[string]int, []Item, struct
+	if c.Type == "jsonb" {
+		c.JSON = "object"
+		if expr, err := parser.ParseExpr(base); err == nil {
+			switch e := expr.(type) {
+			case *ast.MapType:
+				c.JSON, c.MapKey, c.MapValue = "map", types.ExprString(e.Key), types.ExprString(e.Value)
+			case *ast.ArrayType:
+				if e.Len == nil {
+					c.JSON, c.JSONElem = "array", types.ExprString(e.Elt)
+				}
+			}
+		}
 	}
 
 	// [16]byte: pgx scans bytea only to slice

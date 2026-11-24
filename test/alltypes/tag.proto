@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package alltypes;
+
+option go_package = "./;alltypes";
+
+message TagProto {
+  int64 id = 1;
+  string name = 2;
+  int64 owner = 3;
+  map<string, int64> meta = 4;
+}
