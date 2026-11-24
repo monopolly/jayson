@@ -227,11 +227,9 @@ func GoTypeToSQLType(x *Field) {
 	case t == "jsonb":
 		switch strings.HasPrefix(strings.TrimLeft(x.BaseType(), "*"), "[") {
 		case true:
-			// []struct, []map
-			x.SQL.JsonbArray = true
-			x.SQL.Default.Value = "default '[]'::jsonb" //by default for later updates
+			x.SQL.Default.Value = "default '[]'::jsonb" // []struct, []map
 		case false:
-			x.SQL.Default.Value = "default '{}'::jsonb" //by default for later updates
+			x.SQL.Default.Value = "default '{}'::jsonb"
 		}
 	}
 }

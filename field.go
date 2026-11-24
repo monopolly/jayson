@@ -41,7 +41,6 @@ type Field struct {
 		Index      string   // IndexType for ordinal index: IndexType = 0, etc.
 		Name       string   // Created, ID
 		Type       string   // []*List
-		ArrayType  string   //int
 		Base       string   // underlying type of custom type: role.Role > int
 		BaseImport string   // custom type package: github.com/x/role
 		Imports    []string // packages of field type: *netip.Addr > net/netip
@@ -65,16 +64,15 @@ type Field struct {
 	}
 
 	SQL struct {
-		Name       string //sql name
-		Replace    string // replaces sql type
-		Append     string // appends sql
-		NoInsert   bool   // skip in sql insert
-		Type       string //new sql type jsonb
-		JsonbArray bool   //new sql type
-		Array      bool   // native postgres array: bigint[], text[]
-		NotNull    bool   // not null column
-		Get        bool   //need golang sql methods GetName(v type)
-		Keys       string //need golang sql methods GetNameSecond(v1 type, v2 type...)
+		Name     string //sql name
+		Replace  string // replaces sql type
+		Append   string // appends sql
+		NoInsert bool   // skip in sql insert
+		Type     string //new sql type jsonb
+		Array    bool   // native postgres array: bigint[], text[]
+		NotNull  bool   // not null column
+		Get      bool   //need golang sql methods GetName(v type)
+		Keys     string //need golang sql methods GetNameSecond(v1 type, v2 type...)
 
 		Index struct {
 			Simple       bool // create index for field

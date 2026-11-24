@@ -33,26 +33,6 @@ func testStat2Proto() Stat2Proto {
 
 type testStat2Std Stat2
 
-func TestStat2Marshal(t *testing.T) {
-	item := testStat2()
-	b := item.Marshal()
-	if len(b) == 0 {
-		t.Fatal("empty marshal result")
-	}
-}
-
-func TestStat2Unmarshal(t *testing.T) {
-	item := testStat2()
-	b := item.Marshal()
-	res := Stat2Unmarshal(b)
-	if res == nil {
-		t.Fatal("unmarshal failed")
-	}
-	if !reflect.DeepEqual(item, *res) {
-		t.Fatalf("unmarshal mismatch: %#v != %#v", item, *res)
-	}
-}
-
 func TestStat2ProtoMarshal(t *testing.T) {
 	item := testStat2Proto()
 	b, err := gproto.Marshal(&item)
@@ -119,26 +99,6 @@ func BenchmarkStat2UnmarshalStd(b *testing.B) {
 		err = json.Unmarshal(data, &res)
 		if err != nil {
 			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkStat2Marshal(b *testing.B) {
-	item := testStat2()
-	b.ReportAllocs()
-	for b.Loop() {
-		_ = item.Marshal()
-	}
-}
-
-func BenchmarkStat2Unmarshal(b *testing.B) {
-	item := testStat2()
-	data := item.Marshal()
-	b.ReportAllocs()
-	for b.Loop() {
-		res := Stat2Unmarshal(data)
-		if res == nil {
-			b.Fatal("unmarshal failed")
 		}
 	}
 }

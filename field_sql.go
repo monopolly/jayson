@@ -59,7 +59,6 @@ func (a *Field) parseSQLOptions(v string) {
 	// type="bigint[]"
 	if strings.HasSuffix(a.SQL.Type, "[]") {
 		a.SQL.Array = true
-		a.SQL.JsonbArray = false
 	}
 
 	DetectSQLDefault(a)

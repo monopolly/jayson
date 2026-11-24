@@ -98,10 +98,6 @@ func (a *Field) Parse() {
 		settings.Fields.IncField = a.SQL.Name
 	}
 
-	if t := a.GoType(); strings.Contains(t, "[]") && !strings.Contains(t, "byte") {
-		a.Go.ArrayType = strings.ReplaceAll(t, "[]", "")
-	}
-
 }
 
 /*

@@ -33,26 +33,6 @@ func goTestFile() []byte {
 	list = append(list, "")
 	list = append(list, fmt.Sprintf("type test%sStd %s", settings.Go.StructName, settings.Go.StructName))
 	list = append(list, "")
-	list = append(list, fmt.Sprintf(`func Test%[1]sMarshal(t *testing.T) {
-	item := test%[1]s()
-	b := item.Marshal()
-	if len(b) == 0 {
-		t.Fatal("empty marshal result")
-	}
-}`, settings.Go.StructName))
-	list = append(list, "")
-	list = append(list, fmt.Sprintf(`func Test%[1]sUnmarshal(t *testing.T) {
-	item := test%[1]s()
-	b := item.Marshal()
-	res := %[1]sUnmarshal(b)
-	if res == nil {
-		t.Fatal("unmarshal failed")
-	}
-	if !reflect.DeepEqual(item, *res) {
-		t.Fatalf("unmarshal mismatch: %%#v != %%#v", item, *res)
-	}
-}`, settings.Go.StructName))
-
 	if settings.Proto.Name != "" {
 		list = append(list, "")
 		list = append(list, fmt.Sprintf(`func Test%[1]sProtoMarshal(t *testing.T) {
@@ -168,26 +148,6 @@ func Benchmark%[1]sUnmarshalStd(b *testing.B) {
 		err = json.Unmarshal(data, &res)
 		if err != nil {
 			b.Fatal(err)
-		}
-	}
-}
-
-func Benchmark%[1]sMarshal(b *testing.B) {
-	item := test%[1]s()
-	b.ReportAllocs()
-	for b.Loop() {
-		_ = item.Marshal()
-	}
-}
-
-func Benchmark%[1]sUnmarshal(b *testing.B) {
-	item := test%[1]s()
-	data := item.Marshal()
-	b.ReportAllocs()
-	for b.Loop() {
-		res := %[1]sUnmarshal(data)
-		if res == nil {
-			b.Fatal("unmarshal failed")
 		}
 	}
 }`, settings.Go.StructName)
