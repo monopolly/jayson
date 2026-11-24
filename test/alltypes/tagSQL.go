@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TagDB runs queries: *pgxpool.Pool or pgx.Tx
-type TagDB interface {
+// tagSQLDB runs queries: pool or transaction
+type tagSQLDB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
@@ -36,11 +36,8 @@ type TagDB interface {
 //   - where: sql condition with placeholders $1, $2... for args: "title = $1 and views > $2"
 type TagSQL struct {
 	pool *pgxpool.Pool
-	db   TagDB // pool, or transaction after TX
+	db   tagSQLDB // pool, or transaction after TX
 }
-
-// context of all queries
-var tagSQLCtx = context.Background()
 
 // NewTagSQL creates queries on pool
 func NewTagSQL(pool *pgxpool.Pool) *TagSQL {
@@ -52,26 +49,16 @@ func (a *TagSQL) Pool() *pgxpool.Pool {
 	return a.pool
 }
 
-// DB returns current query runner: pool, or transaction after TX.
-// Use it in own methods to work in and out of transaction
-//
-//	func (a *TagSQL) Total() (n int, err error) {
-//		err = a.DB().QueryRow(context.Background(), "select count(*) from tags").Scan(&n)
-//		return
-//	}
-func (a *TagSQL) DB() TagDB {
-	return a.db
-}
-
 // Conn runs f on a connection of pool, for own queries.
-// Connection is always taken from pool: inside of transaction use DB()
+// Connection is always taken from pool: it is out of transaction of TX.
+// Own methods of TagSQL can use a.db: pool, or transaction after TX
 //
 //	err := db.Conn(func(conn *pgxpool.Conn) error {
 //		_, err := conn.Exec(context.Background(), "vacuum tags")
 //		return err
 //	})
 func (a *TagSQL) Conn(f func(conn *pgxpool.Conn) error) error {
-	conn, err := a.pool.Acquire(tagSQLCtx)
+	conn, err := a.pool.Acquire(context.Background())
 	if err != nil {
 		return err
 	}
@@ -91,7 +78,7 @@ func (a *TagSQL) Conn(f func(conn *pgxpool.Conn) error) error {
 //
 // Begin of TX(tx) makes a savepoint
 func (a *TagSQL) Begin(f func(tx pgx.Tx) error) error {
-	return pgx.BeginFunc(tagSQLCtx, a.db, f)
+	return pgx.BeginFunc(context.Background(), a.db, f)
 }
 
 // TX returns queries in transaction tx
@@ -276,7 +263,7 @@ func (a *TagSQL) query(fields []TagIndexTyped, tail string, args ...any) ([]Tag,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := a.db.Query(tagSQLCtx, "select "+cols+" from tags"+tail, args...)
+	rows, err := a.db.Query(context.Background(), "select "+cols+" from tags"+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +279,7 @@ func (a *TagSQL) queryRow(fields []TagIndexTyped, tail string, args ...any) (v T
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(tagSQLCtx, "select "+cols+" from tags"+tail, args...).Scan(v.sqlDest(fields)...)
+	err = a.db.QueryRow(context.Background(), "select "+cols+" from tags"+tail, args...).Scan(v.sqlDest(fields)...)
 	return
 }
 
@@ -303,7 +290,7 @@ func (a *TagSQL) Get(id int, fields ...TagIndexTyped) (Tag, error) {
 
 // Exists checks row by id
 func (a *TagSQL) Exists(id int) (has bool, err error) {
-	err = a.db.QueryRow(tagSQLCtx, "select exists (select 1 from tags where id = $1)", id).Scan(&has)
+	err = a.db.QueryRow(context.Background(), "select exists (select 1 from tags where id = $1)", id).Scan(&has)
 	return
 }
 
@@ -329,7 +316,7 @@ func (a *TagSQL) Has(field TagIndexTyped, v any) (has bool, err error) {
 	if err != nil {
 		return
 	}
-	err = a.db.QueryRow(tagSQLCtx, "select exists (select 1 from tags where "+col+" = $1)", v).Scan(&has)
+	err = a.db.QueryRow(context.Background(), "select exists (select 1 from tags where "+col+" = $1)", v).Scan(&has)
 	return
 }
 
@@ -355,13 +342,13 @@ func (a *TagSQL) Select(fields []TagIndexTyped, where string, args ...any) ([]Ta
 
 // Count returns count of rows
 func (a *TagSQL) Count() (count int, err error) {
-	err = a.db.QueryRow(tagSQLCtx, "select count(*) from tags").Scan(&count)
+	err = a.db.QueryRow(context.Background(), "select count(*) from tags").Scan(&count)
 	return
 }
 
 // CountWhere returns count of rows by condition
 func (a *TagSQL) CountWhere(where string, args ...any) (count int, err error) {
-	err = a.db.QueryRow(tagSQLCtx, "select count(*) from tags where "+where, args...).Scan(&count)
+	err = a.db.QueryRow(context.Background(), "select count(*) from tags where "+where, args...).Scan(&count)
 	return
 }
 
@@ -375,12 +362,12 @@ const tagSQLInsertFull = "insert into tags (id, name, owner, meta) values ($1, $
 
 // Insert adds row and sets generated v.ID
 func (a *TagSQL) Insert(v *Tag) error {
-	return a.db.QueryRow(tagSQLCtx, tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+	return a.db.QueryRow(context.Background(), tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
 }
 
 // InsertNoConflict adds row and sets v.ID, false when row exists
 func (a *TagSQL) InsertNoConflict(v *Tag) (inserted bool, err error) {
-	err = a.db.QueryRow(tagSQLCtx, tagSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
+	err = a.db.QueryRow(context.Background(), tagSQLInsert+" on conflict do nothing returning id", v.sqlInsertArgs()...).Scan(&v.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -389,19 +376,19 @@ func (a *TagSQL) InsertNoConflict(v *Tag) (inserted bool, err error) {
 
 // InsertFull adds row with all columns as is: generated and noinsert columns too
 func (a *TagSQL) InsertFull(v *Tag) error {
-	_, err := a.db.Exec(tagSQLCtx, tagSQLInsertFull, v.sqlAllArgs()...)
+	_, err := a.db.Exec(context.Background(), tagSQLInsertFull, v.sqlAllArgs()...)
 	return err
 }
 
 // Upsert adds row with all columns or updates existing row by (id)
 func (a *TagSQL) Upsert(v *Tag) error {
-	_, err := a.db.Exec(tagSQLCtx, "insert into tags (id, name, owner, meta) values ($1, $2, $3, $4) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta", v.sqlAllArgs()...)
+	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta) values ($1, $2, $3, $4) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta", v.sqlAllArgs()...)
 	return err
 }
 
 // InsertMany adds rows by copy protocol: fast, without conflict checks and generated ids
 func (a *TagSQL) InsertMany(list []Tag) (int64, error) {
-	return a.db.CopyFrom(tagSQLCtx, pgx.Identifier{"tags"}, tagSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
+	return a.db.CopyFrom(context.Background(), pgx.Identifier{"tags"}, tagSQLInsertColumns, pgx.CopyFromSlice(len(list), func(i int) ([]any, error) {
 		return list[i].sqlInsertArgs(), nil
 	}))
 }
@@ -415,7 +402,7 @@ func (a *TagSQL) InsertBatch(list []*Tag) error {
 	for _, v := range list {
 		b.Queue(tagSQLInsert+" returning id", v.sqlInsertArgs()...)
 	}
-	res := a.db.SendBatch(tagSQLCtx, b)
+	res := a.db.SendBatch(context.Background(), b)
 	for _, v := range list {
 		if err := res.QueryRow().Scan(&v.ID); err != nil {
 			res.Close()
@@ -435,7 +422,7 @@ func (a *TagSQL) Update(id int, field TagIndexTyped, v any) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = $1 where id = $2", v, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = $1 where id = $2", v, id))
 }
 
 // Updates sets fields of row, pgx.ErrNoRows when row not found
@@ -444,7 +431,7 @@ func (a *TagSQL) Updates(id int, v map[TagIndexTyped]any) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, id)...))
 }
 
 // Save updates row from struct by v.ID: listed fields or all columns
@@ -462,7 +449,7 @@ func (a *TagSQL) Save(v *Tag, fields ...TagIndexTyped) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(TagIndexID))...))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+set+" where id = $"+strconv.Itoa(len(args)+1), append(args, v.sqlValue(TagIndexID))...))
 }
 
 // Increment adds v to number field: views = views + 1
@@ -471,12 +458,12 @@ func (a *TagSQL) Increment(id int, field TagIndexTyped, v any) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = coalesce("+col+", 0) + $1 where id = $2", v, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = coalesce("+col+", 0) + $1 where id = $2", v, id))
 }
 
 // Delete removes row by id
 func (a *TagSQL) Delete(id int) error {
-	_, err := a.db.Exec(tagSQLCtx, "delete from tags where id = $1", id)
+	_, err := a.db.Exec(context.Background(), "delete from tags where id = $1", id)
 	return err
 }
 
@@ -488,7 +475,7 @@ func (a *TagSQL) UpdateWhere(field TagIndexTyped, v any, where string, args ...a
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(tagSQLCtx, "update tags set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
+	tag, err := a.db.Exec(context.Background(), "update tags set "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where, append(slices.Clone(args), v)...)
 	return tag.RowsAffected(), err
 }
 
@@ -498,13 +485,13 @@ func (a *TagSQL) UpdatesWhere(v map[TagIndexTyped]any, where string, args ...any
 	if err != nil {
 		return 0, err
 	}
-	tag, err := a.db.Exec(tagSQLCtx, "update tags set "+set+" where "+where, append(slices.Clone(args), vals...)...)
+	tag, err := a.db.Exec(context.Background(), "update tags set "+set+" where "+where, append(slices.Clone(args), vals...)...)
 	return tag.RowsAffected(), err
 }
 
 // DeleteWhere removes rows by condition, returns count of rows
 func (a *TagSQL) DeleteWhere(where string, args ...any) (int64, error) {
-	tag, err := a.db.Exec(tagSQLCtx, "delete from tags where "+where, args...)
+	tag, err := a.db.Exec(context.Background(), "delete from tags where "+where, args...)
 	return tag.RowsAffected(), err
 }
 
@@ -534,7 +521,7 @@ func (a *TagSQL) jsonSet(id int, col, k string, v any) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where id = $3", k, b, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = jsonb_set(coalesce("+col+", '{}'::jsonb), array[$1::text], $2::jsonb, true) where id = $3", k, b, id))
 }
 
 // jsonMerge concats json to jsonb column: object keys or array values
@@ -543,17 +530,17 @@ func (a *TagSQL) jsonMerge(id int, col, empty string, v any) error {
 	if err != nil {
 		return err
 	}
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where id = $2", b, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = coalesce("+col+", '"+empty+"'::jsonb) || $1::jsonb where id = $2", b, id))
 }
 
 // jsonDelete removes key of jsonb column
 func (a *TagSQL) jsonDelete(id int, col, k string) error {
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = "+col+" - $1::text where id = $2", k, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = "+col+" - $1::text where id = $2", k, id))
 }
 
 // jsonRename renames key of jsonb column
 func (a *TagSQL) jsonRename(id int, col, k, newK string) error {
-	return tagSQLAffected(a.db.Exec(tagSQLCtx, "update tags set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where id = $3 and "+col+" ? $1::text", k, newK, id))
+	return tagSQLAffected(a.db.Exec(context.Background(), "update tags set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where id = $3 and "+col+" ? $1::text", k, newK, id))
 }
 
 // ---------------------------------------------------------------------------
@@ -751,14 +738,14 @@ var tagSQLIndexes = []string{}
 
 // CreateTable creates table if not exists
 func (a *TagSQL) CreateTable() error {
-	_, err := a.db.Exec(tagSQLCtx, tagSQLCreateTable)
+	_, err := a.db.Exec(context.Background(), tagSQLCreateTable)
 	return err
 }
 
 // CreateIndexes creates indexes if not exist
 func (a *TagSQL) CreateIndexes() error {
 	for _, q := range tagSQLIndexes {
-		if _, err := a.db.Exec(tagSQLCtx, q); err != nil {
+		if _, err := a.db.Exec(context.Background(), q); err != nil {
 			return err
 		}
 	}
@@ -780,12 +767,12 @@ func (a *TagSQL) ResetSequence(add ...int64) error {
 	if len(add) > 0 {
 		plus = add[0]
 	}
-	_, err := a.db.Exec(tagSQLCtx, "select setval(pg_get_serial_sequence('tags', 'id'), coalesce((select max(id) from tags), 0) + $1, false)", plus)
+	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('tags', 'id'), coalesce((select max(id) from tags), 0) + $1, false)", plus)
 	return err
 }
 
 // SetSequence sets next id
 func (a *TagSQL) SetSequence(v int64) error {
-	_, err := a.db.Exec(tagSQLCtx, "select setval(pg_get_serial_sequence('tags', 'id'), $1, false)", v)
+	_, err := a.db.Exec(context.Background(), "select setval(pg_get_serial_sequence('tags', 'id'), $1, false)", v)
 	return err
 }

@@ -173,7 +173,7 @@ type account struct {
 Generated output:
 
 - `accountGO.go` with `Account` and helpers.
-- `accountSQL.go` with `AccountSQL`, `AccountDB`, and `AccountQuery`.
+- `accountSQL.go` with `AccountSQL` and `AccountQuery`.
 - `accountGO_test.go` with tests and benchmarks.
 - `account.sql` with table and index definitions.
 
@@ -228,7 +228,7 @@ A missing row is `pgx.ErrNoRows`.
 
 | Group | Methods |
 | --- | --- |
-| Handle | `NewAccountSQL(pool)`, `Pool()`, `DB()`, `Conn(f)`, `TableName()`, `Fields()` |
+| Handle | `NewAccountSQL(pool)`, `Pool()`, `Conn(f)`, `TableName()`, `Fields()` |
 | Transactions | `Begin(f)`, `TX(tx)` |
 | Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Search`, `Count`, `CountWhere` |
 | Insert | `Insert`, `InsertNoConflict`, `InsertFull`, `Upsert`, `InsertBatch`, `InsertMany` (COPY) |
@@ -268,11 +268,11 @@ err := accounts.Begin(func(tx pgx.Tx) error {
 
 Queries run on `context.Background()`: limit their time with `statement_timeout` or pool settings.
 
-Own methods: use `DB()` to work in and out of a transaction, or `Conn` for a dedicated pool connection.
+Own methods: use the `a.db` field to work in and out of a transaction, or `Conn` for a dedicated pool connection.
 
 ```go
 func (a *AccountSQL) Rich(min int64) (n int, err error) {
-	err = a.DB().QueryRow(context.Background(), "select count(*) from accounts where balance > $1", min).Scan(&n)
+	err = a.db.QueryRow(context.Background(), "select count(*) from accounts where balance > $1", min).Scan(&n)
 	return
 }
 

@@ -15,7 +15,7 @@ type sqlModel struct {
 	Package string // news
 	Struct  string // News
 	Class   string // NewsSQL
-	DB      string // NewsDB
+	DB      string // newsSQLDB: pool or transaction
 	Query   string // NewsQuery
 	Index   string // NewsIndexTyped
 	Priv    string // newsSQL: prefix of private names, several models in one package
@@ -85,7 +85,6 @@ func newSQLModel() *sqlModel {
 		Package:    settings.PackageName,
 		Struct:     settings.Go.StructName,
 		Class:      settings.SQL.Class,
-		DB:         settings.Go.StructName + "DB",
 		Query:      settings.SQL.QueryName,
 		Index:      settings.IndexTypeName,
 		Priv:       strings.ToLower(settings.Go.StructName[:1]) + settings.Go.StructName[1:] + "SQL",
@@ -93,6 +92,8 @@ func newSQLModel() *sqlModel {
 		KeyIndexFn: settings.Go.StructName + "KeyIndex",
 		ValidKeyFn: settings.Go.StructName + "ValidKey",
 	}
+
+	m.DB = m.Priv + "DB"
 
 	// public.news > pgx.Identifier{"public", "news"}
 	var ident []string
