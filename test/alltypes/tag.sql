@@ -4,6 +4,6 @@ create table if not exists tags (
 	name      text,
 	owner     bigint,
 	meta      jsonb default '{}'::jsonb,
-	froms     bigint,
-	tos       bigint
+	ifrom     bigint,
+	ito       bigint
 );

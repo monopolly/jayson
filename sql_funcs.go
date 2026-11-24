@@ -7,8 +7,17 @@ import (
 	"strings"
 )
 
-// own sql functions of model: interface newsSQL in model file
-var sourceFuncs []sourceFunc
+// own sql functions of model: interfaces newsSQL and newsCQL in model file
+var sourceFuncs, sourceCHFuncs []sourceFunc
+
+// database of own functions
+type sqlDialect struct {
+	Struct   string            // News
+	Conn     string            // a.db, a.conn
+	NotFound string            // pgx.ErrNoRows, sql.ErrNoRows
+	Affected bool              // exec returns count of rows
+	Columns  map[string]string // column > go type: array column is one value
+}
 
 // generated own sql function
 type sqlFunc struct {
@@ -26,22 +35,13 @@ var sqlFuncFlag = regexp.MustCompile(`![0-9A-Za-z]+`)
 
 // methods of class from interface newsSQL
 func newSQLFuncs(m *sqlModel) (res []sqlFunc) {
-
-	// generated methods
-	used := sqlMethodNames(m)
-
+	columns := map[string]string{}
+	for _, c := range m.Columns {
+		columns[c.Name] = c.GoType
+	}
+	d := sqlDialect{Struct: m.Struct, Conn: "a.db", NotFound: "pgx.ErrNoRows", Affected: true, Columns: columns}
+	res = newFuncs(d, sourceFuncs, sqlMethodNames(m))
 	for _, f := range sourceFuncs {
-		if used[f.Name] {
-			panic(fmt.Sprintf("sql function %s: name is used by generated method", f.Name))
-		}
-		used[f.Name] = true
-
-		x, err := newSQLFunc(m, f)
-		if err != nil {
-			panic(fmt.Sprintf("sql function %s: %s", f.Name, err))
-		}
-		res = append(res, x)
-
 		for _, p := range f.Imports {
 			m.addImport(p)
 		}
@@ -49,7 +49,24 @@ func newSQLFuncs(m *sqlModel) (res []sqlFunc) {
 	return
 }
 
-func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
+// own functions of interface as methods of class
+func newFuncs(d sqlDialect, list []sourceFunc, used map[string]bool) (res []sqlFunc) {
+	for _, f := range list {
+		if used[f.Name] {
+			panic(fmt.Sprintf("function %s: name is used by generated method", f.Name))
+		}
+		used[f.Name] = true
+
+		x, err := newSQLFunc(d, f)
+		if err != nil {
+			panic(fmt.Sprintf("function %s: %s", f.Name, err))
+		}
+		res = append(res, x)
+	}
+	return
+}
+
+func newSQLFunc(d sqlDialect, f sourceFunc) (res sqlFunc, err error) {
 
 	// flags in the end of line or in sql comment
 	flags := f.Flags + " " + strings.Join(sqlFuncFlag.FindAllString(f.SQL, -1), " ")
@@ -112,7 +129,7 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 	const ctx = "context.Background()"
 	notFound := ""
 	if noNotFound {
-		notFound = "\nif errors.Is(err, pgx.ErrNoRows) {\nerr = nil\n}"
+		notFound = "\nif errors.Is(err, " + d.NotFound + ") {\nerr = nil\n}"
 	}
 
 	res.Name = f.Name
@@ -120,7 +137,7 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 	res.Signature = fmt.Sprintf("(%s) (res %s, err error)", strings.Join(params, ", "), result)
 
 	// model rows: sql after table name
-	model := result == m.Struct || result == "[]"+m.Struct
+	model := result == d.Struct || result == "[]"+d.Struct
 	if model {
 		switch word {
 		case "where", "order", "limit", "offset", "join", "inner", "left":
@@ -135,28 +152,38 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 	// error
 	case result == "":
 		res.Signature = fmt.Sprintf("(%s) (err error)", strings.Join(params, ", "))
-		res.Body = fmt.Sprintf("_, err = a.db.Exec(%s)\nreturn", withArgs(ctx+", "+strconv.Quote(query)))
+		res.Body = fmt.Sprintf("_, err = %s.Exec(%s)\nreturn", d.Conn, withArgs(ctx+", "+strconv.Quote(query)))
+		if !d.Affected {
+			res.Body = fmt.Sprintf("return %s.Exec(%s)", d.Conn, withArgs(ctx+", "+strconv.Quote(query)))
+		}
 
 	// []News
-	case result == "[]"+m.Struct:
+	case result == "[]"+d.Struct:
 		res.Body = fmt.Sprintf("return a.query(%s)", withArgs("nil, "+tail))
 
 	// News
-	case result == m.Struct:
+	case result == d.Struct:
 		res.Body = fmt.Sprintf("res, err = a.queryRow(%s)%s\nreturn", withArgs("nil, "+tail), notFound)
 
 	// rows affected
-	case result == "int64" && (word == "update" || word == "delete" || word == "insert") && !strings.Contains(strings.ToLower(query), " returning "):
-		res.Body = fmt.Sprintf("tag, err := a.db.Exec(%s)\nreturn tag.RowsAffected(), err", withArgs(ctx+", "+strconv.Quote(query)))
+	case d.Affected && result == "int64" && (word == "update" || word == "delete" || word == "insert") && !strings.Contains(strings.ToLower(query), " returning "):
+		res.Body = fmt.Sprintf("tag, err := %s.Exec(%s)\nreturn tag.RowsAffected(), err", d.Conn, withArgs(ctx+", "+strconv.Quote(query)))
 
 	// []int: column of values, or one array value: select music from news where id = $1
-	case strings.HasPrefix(result, "[]") && result != "[]byte" && result != "[]uint8" && !strings.Contains(flags, "!array") && !sqlSelectsColumn(m, query, result):
-		res.Body = fmt.Sprintf("rows, err := a.db.Query(%s)\nif err != nil {\nreturn\n}\nreturn pgx.CollectRows(rows, pgx.RowTo[%s])",
-			withArgs(ctx+", "+strconv.Quote(query)), strings.TrimPrefix(result, "[]"))
+	case strings.HasPrefix(result, "[]") && result != "[]byte" && result != "[]uint8" && !strings.Contains(flags, "!array") && !sqlSelectsColumn(d, query, result):
+		elem := strings.TrimPrefix(result, "[]")
+		switch d.Affected {
+		case true: // pgx
+			res.Body = fmt.Sprintf("rows, err := %s.Query(%s)\nif err != nil {\nreturn\n}\nreturn pgx.CollectRows(rows, pgx.RowTo[%s])",
+				d.Conn, withArgs(ctx+", "+strconv.Quote(query)), elem)
+		default:
+			res.Body = fmt.Sprintf("rows, err := %s.Query(%s)\nif err != nil {\nreturn\n}\ndefer rows.Close()\nfor rows.Next() {\nvar v %s\nif err = rows.Scan(&v); err != nil {\nreturn\n}\nres = append(res, v)\n}\nreturn res, rows.Err()",
+				d.Conn, withArgs(ctx+", "+strconv.Quote(query)), elem)
+		}
 
 	// one value
 	default:
-		res.Body = fmt.Sprintf("err = a.db.QueryRow(%s).Scan(&res)%s\nreturn", withArgs(ctx+", "+strconv.Quote(query)), notFound)
+		res.Body = fmt.Sprintf("err = %s.QueryRow(%s).Scan(&res)%s\nreturn", d.Conn, withArgs(ctx+", "+strconv.Quote(query)), notFound)
 	}
 
 	return res, nil
@@ -166,17 +193,9 @@ func newSQLFunc(m *sqlModel, f sourceFunc) (res sqlFunc, err error) {
 var sqlSelectOne = regexp.MustCompile(`(?i)^select\s+(\w+)\s+from\b`)
 
 // query selects one column of model with this go type: array column is one value, not rows
-func sqlSelectsColumn(m *sqlModel, query, goType string) bool {
+func sqlSelectsColumn(d sqlDialect, query, goType string) bool {
 	p := sqlSelectOne.FindStringSubmatch(query)
-	if p == nil {
-		return false
-	}
-	for _, c := range m.Columns {
-		if c.Name == p[1] && c.GoType == goType {
-			return true
-		}
-	}
-	return false
+	return p != nil && d.Columns[p[1]] == goType
 }
 
 // names of generated methods of sql class.

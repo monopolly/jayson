@@ -25,7 +25,7 @@ func stdErrorsAlias(code []byte) []byte {
 // sqlErrors converts public methods of sql class to errors.E:
 // method Get becomes private stdGet with standard error,
 // public Get is a wrapper: any error is errors.PGX(err)
-func sqlErrors(m *sqlModel, code []byte) []byte {
+func sqlErrors(class, priv, convert string, code []byte) []byte {
 
 	src := append([]byte("package x\n"), stdErrorsAlias(code)...)
 	fset := token.NewFileSet()
@@ -45,7 +45,7 @@ func sqlErrors(m *sqlModel, code []byte) []byte {
 
 	for _, d := range file.Decls {
 		fn, ok := d.(*ast.FuncDecl)
-		if !ok || !sqlClassMethod(fn, m.Class) || !fn.Name.IsExported() || fn.Type.Results == nil {
+		if !ok || !sqlClassMethod(fn, class) || !fn.Name.IsExported() || fn.Type.Results == nil {
 			continue
 		}
 		results := fn.Type.Results.List
@@ -79,10 +79,10 @@ func sqlErrors(m *sqlModel, code []byte) []byte {
 		switch len(results) {
 		case 1:
 			wrappers = append(wrappers, fmt.Sprintf("%sfunc (a *%s) %s%s errors.E {\nreturn %sErr(%s)\n}",
-				doc, m.Class, name, text(fn.Type.Params), m.Priv, call))
+				doc, class, name, text(fn.Type.Params), priv, call))
 		case 2:
 			wrappers = append(wrappers, fmt.Sprintf("%sfunc (a *%s) %s%s (%s, errors.E) {\nres, err := %s\nreturn res, %sErr(err)\n}",
-				doc, m.Class, name, text(fn.Type.Params), types.ExprString(results[0].Type), call, m.Priv))
+				doc, class, name, text(fn.Type.Params), types.ExprString(results[0].Type), call, priv))
 		default:
 			panic(fmt.Sprintf("sql errors: %s: too many results", name))
 		}
@@ -99,7 +99,7 @@ func sqlErrors(m *sqlModel, code []byte) []byte {
 
 	for _, d := range file.Decls {
 		fn, ok := d.(*ast.FuncDecl)
-		if !ok || !sqlClassMethod(fn, m.Class) {
+		if !ok || !sqlClassMethod(fn, class) {
 			continue // constructor calls public methods
 		}
 		if to, ok := renamed[fn.Name.Name]; ok && fn.Name.IsExported() {
@@ -131,7 +131,7 @@ func sqlErrors(m *sqlModel, code []byte) []byte {
 // errors: every error of sql method is errors.E
 // ---------------------------------------------------------------------------
 
-// %[1]sErr converts error of postgres to errors.E
+// %[1]sErr converts error of database to errors.E
 func %[1]sErr(err error) errors.E {
 	if err == nil {
 		return nil
@@ -139,9 +139,9 @@ func %[1]sErr(err error) errors.E {
 	if e, ok := err.(errors.E); ok {
 		return e
 	}
-	return errors.PGX(err)
+	return errors.%[2]s(err)
 }
-`, m.Priv)
+`, priv, convert)
 
 	return []byte(string(res) + helper + "\n" + strings.Join(wrappers, "\n\n") + "\n")
 }

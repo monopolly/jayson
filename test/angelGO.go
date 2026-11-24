@@ -159,7 +159,13 @@ func (a *Angel) Tuple() (r []any) {
 
 // Tuple create an array from struct for clickhouse
 func (a *Angel) clickhouseTuple() (r []any) {
-	return []any{a.ID, int(a.Role), a.Key, a.Created, a.Smalls, a.Name, a.About, a.Music, a.Links, a.Stats}
+	return []any{a.ID, int(a.Role), a.Key, a.Created, a.Smalls, a.Name, a.About, a.Music, a.Links, func() map[string]int64 {
+		r := make(map[string]int64, len(a.Stats))
+		for k, v := range a.Stats {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}()}
 }
 
 // get struct value with function
@@ -1278,7 +1284,7 @@ func (a *AngelSQL) stdCreateIndexes() error {
 // errors: every error of sql method is errors.E
 // ---------------------------------------------------------------------------
 
-// angelSQLErr converts error of postgres to errors.E
+// angelSQLErr converts error of database to errors.E
 func angelSQLErr(err error) errors.E {
 	if err == nil {
 		return nil

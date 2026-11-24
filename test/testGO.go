@@ -2,6 +2,7 @@ package news
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"maps"
@@ -383,7 +384,31 @@ func (a *News) Tuple() (r []any) {
 
 // Tuple create an array from struct for clickhouse
 func (a *News) clickhouseTuple() (r []any) {
-	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, a.MapStringInt, a.MapStringFloat64, a.MapStringAny, a.MapIntString, a.MapIntInt, a.MapIntBool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
+	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.ListInts, a.ListString, a.ListFloat, a.MapStringString, a.MapStringBytes, a.MapStringBool, func() map[string]int64 {
+		r := make(map[string]int64, len(a.MapStringInt))
+		for k, v := range a.MapStringInt {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}(), a.MapStringFloat64, a.MapStringAny, func() map[int64]string {
+		r := make(map[int64]string, len(a.MapIntString))
+		for k, v := range a.MapIntString {
+			r[int64(k)] = string(v)
+		}
+		return r
+	}(), func() map[int64]int64 {
+		r := make(map[int64]int64, len(a.MapIntInt))
+		for k, v := range a.MapIntInt {
+			r[int64(k)] = int64(v)
+		}
+		return r
+	}(), func() map[int64]bool {
+		r := make(map[int64]bool, len(a.MapIntBool))
+		for k, v := range a.MapIntBool {
+			r[int64(k)] = bool(v)
+		}
+		return r
+	}(), a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MASTUPPERGO, a.IntToSmallInt, a.Skip, a.SqlUniqueU11, a.SqlUniqueU12, a.SqlIndex11, a.SqlIndex12, a.SqlIndex13, a.SqlKeys1, a.SqlKeys2, a.SqlKeys3, a.SqlSearch, a.SqlGet, a.SqlUniqueX1, a.SqlUniqueX2, a.SqlUniqueX1X2, a.SqlPrimary, a.SqlJsonbIndex, a.TimeDuration, a.GoTypeIntToStrings, a.PublicField1, a.PublicField2, a.PublicField3, a.PublicFieldMe1, a.PublicFieldMe2, a.PublicFieldMe3}
 }
 
 // get struct value with function
@@ -3167,300 +3192,248 @@ func (a *NewsSQL) SetSequence(v int64) error {
 	return err
 }
 
-// clickhouse NewsCQL class
+// NewsCQL clickhouse queries of table news
+//
+// Rules:
+//   - safe for concurrent use
+//   - not found row is sql.ErrNoRows
+//   - fields: columns to select, all columns when empty
+//   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
+//   - updates and deletes are mutations: they wait until the data is changed
 type NewsCQL struct {
 	conn driver.Conn
-	list []News
-	sync.Mutex
+	mu   sync.Mutex
+	list []News // buffer of Add
 }
 
-func NewNewsCQL(conn driver.Conn) (a *NewsCQL) {
-	a = new(NewsCQL)
-	a.conn = conn
-	a.CreateTable()
-	go a.deamon()
-	return
+// NewNewsCQL creates queries on connection and table if not exists.
+// Rows of Add are written every 10 minutes and by Push
+func NewNewsCQL(conn driver.Conn) (*NewsCQL, error) {
+	a := &NewsCQL{conn: conn}
+	if err := a.CreateTable(); err != nil {
+		return nil, err
+	}
+	go a.flush()
+	return a, nil
 }
 
-// parse clickhouse query
-func (a *NewsCQL) TableName() (res string) {
+// Conn returns connection, for own queries
+func (a *NewsCQL) Conn() driver.Conn {
+	return a.conn
+}
+
+// TableName returns table name
+func (a *NewsCQL) TableName() string {
 	return "news"
 }
 
-func (a *NewsCQL) Count(where ...string) (count int, err error) {
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	var q string
-	switch len(where) {
-	case 0:
-		q = "select count() from news"
-	default:
-		q = "select count() from news where " + strings.Join(where, " ")
-	}
-	var n uint64
-	err = a.conn.QueryRow(context.Background(), q).Scan(&n)
-	count = int(n)
-	return
+// Fields returns all columns
+func (a *NewsCQL) Fields() []NewsIndexTyped {
+	return slices.Clone(newsCHFields)
 }
 
-// Add items to clickhouse queue
-func (a *NewsCQL) Add(items ...News) {
-	a.Lock()
-	defer a.Unlock()
-	a.list = append(a.list, items...)
+// ---------------------------------------------------------------------------
+// columns
+// ---------------------------------------------------------------------------
+
+// all columns
+var newsCHFields = []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
+
+// column names
+var newsCHColumns = [...]string{
+	NewsIndexInc:                "inc",
+	NewsIndexRole:               "role",
+	NewsIndexKey:                "key",
+	NewsIndexT:                  "t",
+	NewsIndexD:                  "d",
+	NewsIndexInts:               "ints",
+	NewsIndexInts8:              "ints8",
+	NewsIndexInts16:             "ints16",
+	NewsIndexInts32:             "ints32",
+	NewsIndexInts64:             "ints64",
+	NewsIndexUints:              "uints",
+	NewsIndexUints8:             "uints8",
+	NewsIndexUints16:            "uints16",
+	NewsIndexUints32:            "uints32",
+	NewsIndexUints64:            "uints64",
+	NewsIndexFloats32:           "floats32",
+	NewsIndexFloats64:           "floats64",
+	NewsIndexBools:              "bools",
+	NewsIndexByte1:              "byte1",
+	NewsIndexBytes:              "bytes",
+	NewsIndexListInts:           "list_ints",
+	NewsIndexListString:         "list_string",
+	NewsIndexListFloat:          "list_float",
+	NewsIndexMapStringString:    "map_string_string",
+	NewsIndexMapStringBytes:     "map_string_bytes",
+	NewsIndexMapStringBool:      "map_string_bool",
+	NewsIndexMapStringInt:       "map_string_int",
+	NewsIndexMapStringFloat64:   "map_string_float64",
+	NewsIndexMapStringAny:       "map_string_any",
+	NewsIndexMapIntString:       "map_int_string",
+	NewsIndexMapIntInt:          "map_int_int",
+	NewsIndexMapIntBool:         "map_int_bool",
+	NewsIndexRenameSQL:          "renameSQL",
+	NewsIndexRenameGO_OK:        "renameGO",
+	NewsIndexRenameJS:           "renameJS",
+	NewsIndexMASTUPPERGO:        "mast_upper_go",
+	NewsIndexIntToSmallInt:      "intToSmallInt",
+	NewsIndexSkip:               "skip",
+	NewsIndexSqlUniqueU11:       "sql_unique_u1_1",
+	NewsIndexSqlUniqueU12:       "sql_unique_u1_2",
+	NewsIndexSqlIndex11:         "sql_index1_1",
+	NewsIndexSqlIndex12:         "sql_index1_2",
+	NewsIndexSqlIndex13:         "sql_index1_3",
+	NewsIndexSqlKeys1:           "sql_keys_1",
+	NewsIndexSqlKeys2:           "sql_keys_2",
+	NewsIndexSqlKeys3:           "sql_keys_3",
+	NewsIndexSqlSearch:          "sql_search",
+	NewsIndexSqlGet:             "sql_get",
+	NewsIndexSqlUniqueX1:        "sql_unique_x1",
+	NewsIndexSqlUniqueX2:        "sql_unique_x2",
+	NewsIndexSqlUniqueX1X2:      "sql_unique_x1_x2",
+	NewsIndexSqlPrimary:         "sql_primary",
+	NewsIndexSqlJsonbIndex:      "sql_jsonb_index",
+	NewsIndexTimeDuration:       "time_duration",
+	NewsIndexGoTypeIntToStrings: "go_type_int_to_strings",
+	NewsIndexPublicField1:       "public_field1",
+	NewsIndexPublicField2:       "public_field2",
+	NewsIndexPublicField3:       "public_field3",
+	NewsIndexPublicFieldMe1:     "public_field_me1",
+	NewsIndexPublicFieldMe2:     "public_field_me2",
+	NewsIndexPublicFieldMe3:     "public_field_me3",
 }
 
-// Push queued items to clickhouse
-func (a *NewsCQL) Push() (err error) {
-	a.Lock()
-	defer a.Unlock()
-	if len(a.list) == 0 {
-		return
+const newsCHSelectAll = "inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL, renameGO, renameJS, mast_upper_go, intToSmallInt, skip, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3"
+
+// mutations wait until the data is changed
+const newsCHSync = " settings mutations_sync = 1"
+
+// newsCHColumn returns column name of field
+func newsCHColumn(f NewsIndexTyped) (string, error) {
+	if int(f) < 0 || int(f) >= len(newsCHColumns) || newsCHColumns[f] == "" {
+		return "", fmt.Errorf("news: field %d is not a clickhouse column", int(f))
 	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
+	return newsCHColumns[f], nil
+}
+
+// newsCHSelect returns select list of fields, all columns when empty
+func newsCHSelect(fields []NewsIndexTyped) (string, []NewsIndexTyped, error) {
+	if len(fields) == 0 {
+		return newsCHSelectAll, newsCHFields, nil
 	}
-	batch, err := a.conn.PrepareBatch(context.Background(), "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL, renameGO, renameJS, mast_upper_go, intToSmallInt, skip, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3)")
-	if err != nil {
-		return
-	}
-	for _, item := range a.list {
-		err = batch.Append(item.clickhouseTuple()...)
+	list := make([]string, 0, len(fields))
+	for _, f := range fields {
+		col, err := newsCHColumn(f)
 		if err != nil {
-			_ = batch.Abort()
-			return
+			return "", nil, err
 		}
+		list = append(list, col)
 	}
-	err = batch.Send()
-	if err != nil {
-		_ = batch.Abort()
-		return
+	return strings.Join(list, ", "), fields, nil
+}
+
+// newsCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
+func newsCHSet(v map[NewsIndexTyped]any, start int) (string, []any, error) {
+	if len(v) == 0 {
+		return "", nil, errors.New("news: no values")
+	}
+	list := make([]string, 0, len(v))
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
+		col, err := newsCHColumn(f)
+		if err != nil {
+			return "", nil, err
+		}
+		list = append(list, col+" = $"+strconv.Itoa(start+i))
+		args = append(args, v[f])
+	}
+	return strings.Join(list, ", "), args, nil
+}
+
+// ---------------------------------------------------------------------------
+// insert
+// ---------------------------------------------------------------------------
+
+// Add puts rows to buffer: they are written every 10 minutes and by Push
+func (a *NewsCQL) Add(v ...News) {
+	a.mu.Lock()
+	a.list = append(a.list, v...)
+	a.mu.Unlock()
+}
+
+// Len returns count of rows in buffer
+func (a *NewsCQL) Len() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.list)
+}
+
+// Push writes rows of buffer. Rows stay in buffer when the write fails
+func (a *NewsCQL) Push() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.list) == 0 {
+		return nil
+	}
+	if err := a.send(a.list); err != nil {
+		return err
 	}
 	a.list = a.list[:0]
-	return
+	return nil
 }
 
-// deamon pushes queued items every 10 minutes
-func (a *NewsCQL) deamon() {
+// Insert writes rows now, without buffer
+func (a *NewsCQL) Insert(v ...News) error {
+	if len(v) == 0 {
+		return nil
+	}
+	return a.send(v)
+}
+
+// send writes rows by one batch
+func (a *NewsCQL) send(list []News) error {
+	batch, err := a.conn.PrepareBatch(context.Background(), "insert into news (inc, role, key, t, d, ints, ints8, ints16, ints32, ints64, uints, uints8, uints16, uints32, uints64, floats32, floats64, bools, byte1, bytes, list_ints, list_string, list_float, map_string_string, map_string_bytes, map_string_bool, map_string_int, map_string_float64, map_string_any, map_int_string, map_int_int, map_int_bool, renameSQL, renameGO, renameJS, mast_upper_go, intToSmallInt, skip, sql_unique_u1_1, sql_unique_u1_2, sql_index1_1, sql_index1_2, sql_index1_3, sql_keys_1, sql_keys_2, sql_keys_3, sql_search, sql_get, sql_unique_x1, sql_unique_x2, sql_unique_x1_x2, sql_primary, sql_jsonb_index, time_duration, go_type_int_to_strings, public_field1, public_field2, public_field3, public_field_me1, public_field_me2, public_field_me3)")
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if err = batch.Append(list[i].clickhouseTuple()...); err != nil {
+			_ = batch.Abort()
+			return err
+		}
+	}
+	return batch.Send()
+}
+
+// flush writes buffer every 10 minutes
+func (a *NewsCQL) flush() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		a.Lock()
-		hasItems := len(a.list) > 0
-		a.Unlock()
-		if hasItems {
-			_ = a.Push()
-		}
+		_ = a.Push()
 	}
 }
 
-// parse clickhouse query
-func (a *NewsCQL) Get(id any, fields ...NewsIndexTyped) (res *News, err error) {
+// ---------------------------------------------------------------------------
+// select
+// ---------------------------------------------------------------------------
 
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from news where inc = ? limit 1", fieldlist)
-	res = new(News)
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
+// query selects rows: tail is sql after table name
+func (a *NewsCQL) query(fields []NewsIndexTyped, tail string, args ...any) (res []News, err error) {
+	cols, fields, err := newsCHSelect(fields)
+	if err != nil {
 		return
 	}
-	rows, err := a.conn.Query(context.Background(), q, id)
+	rows, err := a.conn.Query(context.Background(), "select "+cols+" from news"+tail, args...)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	if !rows.Next() {
-		err = errors.New("not found")
-		return
-	}
-	// scan targets by column types: clickhouse needs exact types
-	scan := make([]any, len(fields))
-	for i, t := range rows.ColumnTypes() {
-		scan[i] = reflect.New(t.ScanType()).Interface()
-	}
-	err = rows.Scan(scan...)
-	if err != nil {
-		return
-	}
-	for pos, x := range fields {
-		res.clickhouseSet(x, scan[pos])
-	}
-	err = rows.Err()
 
-	return
-}
-
-// parse clickhouse query
-func (a *NewsCQL) GetWhere(where string, fields ...NewsIndexTyped) (res *News, err error) {
-
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from news where %s limit 1", fieldlist, where)
-	res = new(News)
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	rows, err := a.conn.Query(context.Background(), q)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		err = errors.New("not found")
-		return
-	}
-	// scan targets by column types: clickhouse needs exact types
-	scan := make([]any, len(fields))
-	for i, t := range rows.ColumnTypes() {
-		scan[i] = reflect.New(t.ScanType()).Interface()
-	}
-	err = rows.Scan(scan...)
-	if err != nil {
-		return
-	}
-	for pos, x := range fields {
-		res.clickhouseSet(x, scan[pos])
-	}
-	err = rows.Err()
-
-	return
-}
-
-// update clickhouse query
-func (a *NewsCQL) Update(id any, k string, v any, where ...string) (err error) {
-	if !NewsValidKey(k) {
-		return errors.New("invalid key")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	in := NewsKeyIndex(k)
-	q := fmt.Sprintf("alter table news update %s = ? where inc = ?", in.ClickhouseName())
-	if len(where) > 0 {
-		q += " and " + where[0]
-	}
-	return a.conn.Exec(context.Background(), q, v, id)
-}
-
-// update clickhouse query
-func (a *NewsCQL) UpdateWhere(k string, v any, where string) (err error) {
-	if !NewsValidKey(k) {
-		return errors.New("invalid key")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	in := NewsKeyIndex(k)
-	q := fmt.Sprintf("alter table %s update %s = ? where %s", a.TableName(), in.ClickhouseName(), where)
-	return a.conn.Exec(context.Background(), q, v)
-}
-
-// update clickhouse query
-func (a *NewsCQL) Updates(id any, keys map[string]any, where ...string) (err error) {
-
-	if keys == nil {
-		return errors.New("emptykeys")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	var fields []string
-	var values []any
-	for k, v := range keys {
-		if !NewsValidKey(k) {
-			return errors.New(k)
-		}
-		in := NewsKeyIndex(k)
-		fields = append(fields, fmt.Sprintf("%s = ?", in.ClickhouseName()))
-		values = append(values, v)
-	}
-	list := strings.Join(fields, ", ")
-	values = append(values, id)
-
-	q := fmt.Sprintf("alter table news update %s where inc = ?", list)
-	if len(where) > 0 {
-		q += " and " + where[0]
-	}
-	return a.conn.Exec(context.Background(), q, values...)
-}
-
-// update clickhouse query
-func (a *NewsCQL) UpdatesWhere(keys map[string]any, where string, args ...any) (err error) {
-
-	if keys == nil {
-		return errors.New("emptykeys")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	var fields []string
-	var values []any
-	for k, v := range keys {
-		if !NewsValidKey(k) {
-			return errors.New(k)
-		}
-		in := NewsKeyIndex(k)
-		fields = append(fields, fmt.Sprintf("%s = ?", in.ClickhouseName()))
-		values = append(values, v)
-	}
-	list := strings.Join(fields, ", ")
-
-	where = fmt.Sprintf(where, args...)
-	q := fmt.Sprintf("alter table news update %s where %s", list, where)
-	return a.conn.Exec(context.Background(), q, values...)
-}
-
-// select custom clickhouse query
-func (a *NewsCQL) Select(where string, fields ...NewsIndexTyped) (res []*News, err error) {
-
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from news", fieldlist)
-	if where != "" {
-		q += " where " + where
-	}
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	rows, err := a.conn.Query(context.Background(), q)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
 	// scan targets by column types: clickhouse needs exact types
 	types := rows.ColumnTypes()
 	for rows.Next() {
-		var item News
 		scan := make([]any, len(types))
 		for i, t := range types {
 			scan[i] = reflect.New(t.ScanType()).Interface()
@@ -3468,80 +3441,297 @@ func (a *NewsCQL) Select(where string, fields ...NewsIndexTyped) (res []*News, e
 		if err = rows.Scan(scan...); err != nil {
 			return
 		}
-		for pos, x := range fields {
-			item.clickhouseSet(x, scan[pos])
+		var v News
+		for i, f := range fields {
+			v.clickhouseSet(f, scan[i])
 		}
-		res = append(res, &item)
+		res = append(res, v)
 	}
-	err = rows.Err()
-
-	return
+	return res, rows.Err()
 }
 
-// delete clickhouse item
-func (a *NewsCQL) Delete(id any) (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	q := "alter table news delete where inc = ?"
-	return a.conn.Exec(context.Background(), q, id)
-}
-
-// delete clickhouse items
-func (a *NewsCQL) DeleteWhere(where string) (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	q := "alter table news delete where " + where
-	return a.conn.Exec(context.Background(), q)
-}
-
-// has value in clickhouse
-func (a *NewsCQL) Has(field NewsIndexTyped, v any) (has bool, err error) {
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	q := fmt.Sprintf("select count() from news where %s = ? limit 1", field.ClickhouseName())
-	var n uint64
-	err = a.conn.QueryRow(context.Background(), q, v).Scan(&n)
-	has = n > 0
-	return
-}
-
-// stat by clickhouse field
-func (a *NewsCQL) Stat(field NewsIndexTyped) (res map[string]int, err error) {
-	res = make(map[string]int)
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	name := field.ClickhouseName()
-	q := fmt.Sprintf("select toString(%[1]s), count() from %[2]s group by %[1]s", name, a.TableName())
-	rows, err := a.conn.Query(context.Background(), q)
+// queryRow selects one row
+func (a *NewsCQL) queryRow(fields []NewsIndexTyped, tail string, args ...any) (v News, err error) {
+	list, err := a.query(fields, tail, args...)
 	if err != nil {
 		return
 	}
+	if len(list) == 0 {
+		return v, sql.ErrNoRows
+	}
+	return list[0], nil
+}
+
+// Get returns row by inc
+func (a *NewsCQL) Get(id int, fields ...NewsIndexTyped) (News, error) {
+	return a.queryRow(fields, " where inc = $1 limit 1", id)
+}
+
+// Exists checks row by inc
+func (a *NewsCQL) Exists(id int) (bool, error) {
+	n, err := a.CountWhere("inc = $1", id)
+	return n > 0, err
+}
+
+// GetBy returns first row with field = v
+func (a *NewsCQL) GetBy(field NewsIndexTyped, v any, fields ...NewsIndexTyped) (res News, err error) {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return
+	}
+	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
+}
+
+// GetWhere returns first row by condition
+//
+//	db.GetWhere(nil, "country = $1 order by created desc", "DE")
+func (a *NewsCQL) GetWhere(fields []NewsIndexTyped, where string, args ...any) (News, error) {
+	return a.queryRow(fields, " where "+where+" limit 1", args...)
+}
+
+// Has checks row with field = v
+func (a *NewsCQL) Has(field NewsIndexTyped, v any) (bool, error) {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return false, err
+	}
+	n, err := a.CountWhere(col+" = $1", v)
+	return n > 0, err
+}
+
+// All returns all rows
+func (a *NewsCQL) All(fields ...NewsIndexTyped) ([]News, error) {
+	return a.query(fields, " order by inc")
+}
+
+// List returns page of rows
+func (a *NewsCQL) List(limit, offset int, fields ...NewsIndexTyped) ([]News, error) {
+	return a.query(fields, " order by inc limit $1 offset $2", limit, offset)
+}
+
+// Select returns rows by condition, all rows when where is empty
+//
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *NewsCQL) Select(fields []NewsIndexTyped, where string, args ...any) ([]News, error) {
+	if where != "" {
+		where = " where " + where
+	}
+	return a.query(fields, where, args...)
+}
+
+// Count returns count of rows
+func (a *NewsCQL) Count() (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from news").Scan(&n)
+	return int(n), err
+}
+
+// CountWhere returns count of rows by condition
+func (a *NewsCQL) CountWhere(where string, args ...any) (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from news where "+where, args...).Scan(&n)
+	return int(n), err
+}
+
+// Stat returns count of rows by values of field: {"DE": 425, "US": 134}
+func (a *NewsCQL) Stat(field NewsIndexTyped) (map[string]int, error) {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.conn.Query(context.Background(), "select toString("+col+"), count() from news group by "+col)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
+	res := map[string]int{}
 	for rows.Next() {
 		var k string
 		var n uint64
-		err = rows.Scan(&k, &n)
-		if err != nil {
-			return
+		if err = rows.Scan(&k, &n); err != nil {
+			return nil, err
 		}
 		res[k] = int(n)
 	}
-	err = rows.Err()
-	return
+	return res, rows.Err()
 }
 
-// Create clickhouse table
-func (a *NewsCQL) CreateTable() (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
+// ---------------------------------------------------------------------------
+// update, delete: mutations
+// ---------------------------------------------------------------------------
+
+// Update sets field of row
+func (a *NewsCQL) Update(id int, field NewsIndexTyped, v any) error {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return err
 	}
-	q := `create table if not exists news (
+	return a.conn.Exec(context.Background(), "alter table news update "+col+" = $1 where inc = $2"+newsCHSync, v, id)
+}
+
+// Updates sets fields of row
+func (a *NewsCQL) Updates(id int, v map[NewsIndexTyped]any) error {
+	set, args, err := newsCHSet(v, 1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table news update "+set+" where inc = $"+strconv.Itoa(len(args)+1)+newsCHSync, append(args, id)...)
+}
+
+// Inc adds v to number field: views = views + 1
+func (a *NewsCQL) Inc(id int, field NewsIndexTyped, v any) error {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table news update "+col+" = "+col+" + $1 where inc = $2"+newsCHSync, v, id)
+}
+
+// Delete removes row by inc
+func (a *NewsCQL) Delete(id int) error {
+	return a.conn.Exec(context.Background(), "alter table news delete where inc = $1"+newsCHSync, id)
+}
+
+// AppendListInts adds values to array list_ints
+func (a *NewsCQL) AppendListInts(id int, v ...int) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_ints = arrayConcat(list_ints, $1) where inc = $2"+newsCHSync, v, id)
+}
+
+// RemoveListInts removes all entries of v from array list_ints
+func (a *NewsCQL) RemoveListInts(id int, v int) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_ints = arrayFilter(x -> x != $1, list_ints) where inc = $2"+newsCHSync, v, id)
+}
+
+// AppendListString adds values to array list_string
+func (a *NewsCQL) AppendListString(id int, v ...string) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_string = arrayConcat(list_string, $1) where inc = $2"+newsCHSync, v, id)
+}
+
+// RemoveListString removes all entries of v from array list_string
+func (a *NewsCQL) RemoveListString(id int, v string) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_string = arrayFilter(x -> x != $1, list_string) where inc = $2"+newsCHSync, v, id)
+}
+
+// AppendListFloat adds values to array list_float
+func (a *NewsCQL) AppendListFloat(id int, v ...float64) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_float = arrayConcat(list_float, $1) where inc = $2"+newsCHSync, v, id)
+}
+
+// RemoveListFloat removes all entries of v from array list_float
+func (a *NewsCQL) RemoveListFloat(id int, v float64) error {
+	return a.conn.Exec(context.Background(), "alter table news update list_float = arrayFilter(x -> x != $1, list_float) where inc = $2"+newsCHSync, v, id)
+}
+
+// UpdateMapStringString sets key of map map_string_string
+func (a *NewsCQL) UpdateMapStringString(id int, k string, v string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_string = mapUpdate(map_string_string, cast(map($1, $2), 'Map(String, String)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapStringString removes key of map map_string_string
+func (a *NewsCQL) DeleteMapStringString(id int, k string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_string = mapFilter((k, v) -> k != $1, map_string_string) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapStringBool sets key of map map_string_bool
+func (a *NewsCQL) UpdateMapStringBool(id int, k string, v bool) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_bool = mapUpdate(map_string_bool, cast(map($1, $2), 'Map(String, Bool)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapStringBool removes key of map map_string_bool
+func (a *NewsCQL) DeleteMapStringBool(id int, k string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_bool = mapFilter((k, v) -> k != $1, map_string_bool) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapStringInt sets key of map map_string_int
+func (a *NewsCQL) UpdateMapStringInt(id int, k string, v int) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_int = mapUpdate(map_string_int, cast(map($1, $2), 'Map(String, Int64)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapStringInt removes key of map map_string_int
+func (a *NewsCQL) DeleteMapStringInt(id int, k string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_int = mapFilter((k, v) -> k != $1, map_string_int) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapStringFloat64 sets key of map map_string_float64
+func (a *NewsCQL) UpdateMapStringFloat64(id int, k string, v float64) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_float64 = mapUpdate(map_string_float64, cast(map($1, $2), 'Map(String, Float64)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapStringFloat64 removes key of map map_string_float64
+func (a *NewsCQL) DeleteMapStringFloat64(id int, k string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_string_float64 = mapFilter((k, v) -> k != $1, map_string_float64) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapIntString sets key of map map_int_string
+func (a *NewsCQL) UpdateMapIntString(id int, k int, v string) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_string = mapUpdate(map_int_string, cast(map($1, $2), 'Map(Int64, String)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapIntString removes key of map map_int_string
+func (a *NewsCQL) DeleteMapIntString(id int, k int) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_string = mapFilter((k, v) -> k != $1, map_int_string) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapIntInt sets key of map map_int_int
+func (a *NewsCQL) UpdateMapIntInt(id int, k int, v int) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_int = mapUpdate(map_int_int, cast(map($1, $2), 'Map(Int64, Int64)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapIntInt removes key of map map_int_int
+func (a *NewsCQL) DeleteMapIntInt(id int, k int) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_int = mapFilter((k, v) -> k != $1, map_int_int) where inc = $2"+newsCHSync, k, id)
+}
+
+// UpdateMapIntBool sets key of map map_int_bool
+func (a *NewsCQL) UpdateMapIntBool(id int, k int, v bool) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_bool = mapUpdate(map_int_bool, cast(map($1, $2), 'Map(Int64, Bool)')) where inc = $3"+newsCHSync, k, v, id)
+}
+
+// DeleteMapIntBool removes key of map map_int_bool
+func (a *NewsCQL) DeleteMapIntBool(id int, k int) error {
+	return a.conn.Exec(context.Background(), "alter table news update map_int_bool = mapFilter((k, v) -> k != $1, map_int_bool) where inc = $2"+newsCHSync, k, id)
+}
+
+// AppendGoTypeIntToStrings adds values to array go_type_int_to_strings
+func (a *NewsCQL) AppendGoTypeIntToStrings(id int, v ...string) error {
+	return a.conn.Exec(context.Background(), "alter table news update go_type_int_to_strings = arrayConcat(go_type_int_to_strings, $1) where inc = $2"+newsCHSync, v, id)
+}
+
+// RemoveGoTypeIntToStrings removes all entries of v from array go_type_int_to_strings
+func (a *NewsCQL) RemoveGoTypeIntToStrings(id int, v string) error {
+	return a.conn.Exec(context.Background(), "alter table news update go_type_int_to_strings = arrayFilter(x -> x != $1, go_type_int_to_strings) where inc = $2"+newsCHSync, v, id)
+}
+
+// UpdateWhere sets field of rows by condition
+//
+//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
+func (a *NewsCQL) UpdateWhere(field NewsIndexTyped, v any, where string, args ...any) error {
+	col, err := newsCHColumn(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table news update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+newsCHSync, append(slices.Clone(args), v)...)
+}
+
+// UpdatesWhere sets fields of rows by condition
+func (a *NewsCQL) UpdatesWhere(v map[NewsIndexTyped]any, where string, args ...any) error {
+	set, vals, err := newsCHSet(v, len(args)+1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table news update "+set+" where "+where+newsCHSync, append(slices.Clone(args), vals...)...)
+}
+
+// DeleteWhere removes rows by condition
+func (a *NewsCQL) DeleteWhere(where string, args ...any) error {
+	return a.conn.Exec(context.Background(), "alter table news delete where "+where+newsCHSync, args...)
+}
+
+// ---------------------------------------------------------------------------
+// table
+// ---------------------------------------------------------------------------
+
+const newsCHCreateTable = `create table if not exists news (
 	inc                        Int64,
 	role                       Int64,
 	key                        UUID,
@@ -3606,13 +3796,15 @@ func (a *NewsCQL) CreateTable() (err error) {
 )
 engine = MergeTree()
 order by tuple()`
-	return a.conn.Exec(context.Background(), q)
+
+// CreateTable creates table if not exists
+func (a *NewsCQL) CreateTable() error {
+	return a.conn.Exec(context.Background(), newsCHCreateTable)
 }
 
-// parse clickhouse query
-func (a *NewsCQL) Fields() (res []NewsIndexTyped) {
-	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexListInts, NewsIndexListString, NewsIndexListFloat, NewsIndexMapStringString, NewsIndexMapStringBytes, NewsIndexMapStringBool, NewsIndexMapStringInt, NewsIndexMapStringFloat64, NewsIndexMapStringAny, NewsIndexMapIntString, NewsIndexMapIntInt, NewsIndexMapIntBool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMASTUPPERGO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSqlUniqueU11, NewsIndexSqlUniqueU12, NewsIndexSqlIndex11, NewsIndexSqlIndex12, NewsIndexSqlIndex13, NewsIndexSqlKeys1, NewsIndexSqlKeys2, NewsIndexSqlKeys3, NewsIndexSqlSearch, NewsIndexSqlGet, NewsIndexSqlUniqueX1, NewsIndexSqlUniqueX2, NewsIndexSqlUniqueX1X2, NewsIndexSqlPrimary, NewsIndexSqlJsonbIndex, NewsIndexTimeDuration, NewsIndexGoTypeIntToStrings, NewsIndexPublicField1, NewsIndexPublicField2, NewsIndexPublicField3, NewsIndexPublicFieldMe1, NewsIndexPublicFieldMe2, NewsIndexPublicFieldMe3}
-}
+// ---------------------------------------------------------------------------
+// struct
+// ---------------------------------------------------------------------------
 
 // clickhouseSet sets field from value of clickhouse row
 func (a *News) clickhouseSet(f NewsIndexTyped, v any) {
@@ -3808,6 +4000,18 @@ func newsCHAssign(d, s reflect.Value) {
 		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
 		for i := range s.Len() {
 			newsCHAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// Map(String, Int64) > map[string]int
+	case d.Kind() == reflect.Map && s.Kind() == reflect.Map:
+		r := reflect.MakeMapWithSize(d.Type(), s.Len())
+		for it := s.MapRange(); it.Next(); {
+			k := reflect.New(d.Type().Key()).Elem()
+			v := reflect.New(d.Type().Elem()).Elem()
+			newsCHAssign(k, it.Key())
+			newsCHAssign(v, it.Value())
+			r.SetMapIndex(k, v)
 		}
 		d.Set(r)
 

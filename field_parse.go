@@ -73,13 +73,12 @@ func (a *Field) Parse() {
 	a.Go.Bits, a.Go.Align = GoTypeBits(a.Type)
 	// fmt.Println(a.Type, a.Go.Bits, "bytes")
 
-	// reserved sql word: from > froms
-	if settings.SQL.Table != "" && !a.SQL.Skip && tools.SqlWord(strings.ToLower(a.SQL.Name)) {
-		reserved := a.SQL.Name
-		for tools.SqlWord(strings.ToLower(a.SQL.Name)) {
-			a.SQL.Name += "s"
-		}
-		fmt.Printf("sql: field %s is stored in column %s: %s is a reserved word\n", a.Name, a.SQL.Name, reserved)
+	// reserved sql word: from > ifrom
+	if settings.SQL.Table != "" && !a.SQL.Skip {
+		a.SQL.Name = sqlSafeName("sql", a.Name, a.SQL.Name)
+	}
+	if settings.Clickhouse.Table != "" && !a.Clickhouse.Skip {
+		a.Clickhouse.Name = sqlSafeName("clickhouse", a.Name, a.Clickhouse.Name)
 	}
 
 	// if has ID int field (for sql)
@@ -223,4 +222,18 @@ func goName(name string) string {
 		}
 	}
 	return strings.Join(res, "")
+}
+
+// column name of reserved sql word gets prefix: from > ifrom, value > ivalue.
+// Generator prints every renamed column
+func sqlSafeName(db, field, column string) string {
+	if !tools.SqlWord(strings.ToLower(column)) {
+		return column
+	}
+	name := column
+	for tools.SqlWord(strings.ToLower(name)) {
+		name = "i" + name
+	}
+	fmt.Printf("%s: field %s is stored in column %s: %s is a reserved word\n", db, field, name, column)
+	return name
 }

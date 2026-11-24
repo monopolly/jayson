@@ -1,0 +1,508 @@
+
+// {{.Class}} clickhouse queries of table {{.Table}}
+//
+// Rules:
+//   - safe for concurrent use
+//   - not found row is sql.ErrNoRows
+//   - fields: columns to select, all columns when empty
+//   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
+//   - updates and deletes are mutations: they wait until the data is changed
+type {{.Class}} struct {
+	conn driver.Conn
+	mu   sync.Mutex
+	list []{{.Struct}} // buffer of Add
+}
+
+// New{{.Class}} creates queries on connection and table if not exists.
+// Rows of Add are written every 10 minutes and by Push
+func New{{.Class}}(conn driver.Conn) (*{{.Class}}, {{if .EE}}errors.E{{else}}error{{end}}) {
+	a := &{{.Class}}{conn: conn}
+	if err := a.CreateTable(); err != nil {
+		return nil, err
+	}
+	go a.flush()
+	return a, nil
+}
+
+// Conn returns connection, for own queries
+func (a *{{.Class}}) Conn() driver.Conn {
+	return a.conn
+}
+
+// TableName returns table name
+func (a *{{.Class}}) TableName() string {
+	return "{{.Table}}"
+}
+
+// Fields returns all columns
+func (a *{{.Class}}) Fields() []{{.Index}} {
+	return slices.Clone({{.Priv}}Fields)
+}
+
+// ---------------------------------------------------------------------------
+// columns
+// ---------------------------------------------------------------------------
+
+// all columns
+var {{.Priv}}Fields = []{{.Index}}{ {{range .Columns}}{{.Index}}, {{end}} }
+
+// column names
+var {{.Priv}}Columns = [...]string{
+{{- range .Columns}}
+	{{.Index}}: "{{.Name}}",
+{{- end}}
+}
+
+const {{.Priv}}SelectAll = "{{.SelectAll}}"
+
+// mutations wait until the data is changed
+const {{.Priv}}Sync = " settings mutations_sync = 1"
+
+// {{.Priv}}Column returns column name of field
+func {{.Priv}}Column(f {{.Index}}) (string, error) {
+	if int(f) < 0 || int(f) >= len({{.Priv}}Columns) || {{.Priv}}Columns[f] == "" {
+		return "", fmt.Errorf("{{.Table}}: field %d is not a clickhouse column", int(f))
+	}
+	return {{.Priv}}Columns[f], nil
+}
+
+// {{.Priv}}Select returns select list of fields, all columns when empty
+func {{.Priv}}Select(fields []{{.Index}}) (string, []{{.Index}}, error) {
+	if len(fields) == 0 {
+		return {{.Priv}}SelectAll, {{.Priv}}Fields, nil
+	}
+	list := make([]string, 0, len(fields))
+	for _, f := range fields {
+		col, err := {{.Priv}}Column(f)
+		if err != nil {
+			return "", nil, err
+		}
+		list = append(list, col)
+	}
+	return strings.Join(list, ", "), fields, nil
+}
+
+// {{.Priv}}Set returns "a = $1, b = $2" in stable order, placeholders from $start
+func {{.Priv}}Set(v map[{{.Index}}]any, start int) (string, []any, error) {
+	if len(v) == 0 {
+		return "", nil, errors.New("{{.Table}}: no values")
+	}
+	list := make([]string, 0, len(v))
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
+		col, err := {{.Priv}}Column(f)
+		if err != nil {
+			return "", nil, err
+		}
+		list = append(list, col+" = $"+strconv.Itoa(start+i))
+		args = append(args, v[f])
+	}
+	return strings.Join(list, ", "), args, nil
+}
+
+// ---------------------------------------------------------------------------
+// insert
+// ---------------------------------------------------------------------------
+
+// Add puts rows to buffer: they are written every 10 minutes and by Push
+func (a *{{.Class}}) Add(v ...{{.Struct}}) {
+	a.mu.Lock()
+	a.list = append(a.list, v...)
+	a.mu.Unlock()
+}
+
+// Len returns count of rows in buffer
+func (a *{{.Class}}) Len() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.list)
+}
+
+// Push writes rows of buffer. Rows stay in buffer when the write fails
+func (a *{{.Class}}) Push() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.list) == 0 {
+		return nil
+	}
+	if err := a.send(a.list); err != nil {
+		return err
+	}
+	a.list = a.list[:0]
+	return nil
+}
+
+// Insert writes rows now, without buffer
+func (a *{{.Class}}) Insert(v ...{{.Struct}}) error {
+	if len(v) == 0 {
+		return nil
+	}
+	return a.send(v)
+}
+
+// send writes rows by one batch
+func (a *{{.Class}}) send(list []{{.Struct}}) error {
+	batch, err := a.conn.PrepareBatch(context.Background(), "{{.InsertSQL}}")
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if err = batch.Append(list[i].clickhouseTuple()...); err != nil {
+			_ = batch.Abort()
+			return err
+		}
+	}
+	return batch.Send()
+}
+
+// flush writes buffer every 10 minutes
+func (a *{{.Class}}) flush() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		_ = a.Push()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// select
+// ---------------------------------------------------------------------------
+
+// query selects rows: tail is sql after table name
+func (a *{{.Class}}) query(fields []{{.Index}}, tail string, args ...any) (res []{{.Struct}}, err error) {
+	cols, fields, err := {{.Priv}}Select(fields)
+	if err != nil {
+		return
+	}
+	rows, err := a.conn.Query(context.Background(), "select "+cols+" from {{.Table}}"+tail, args...)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	// scan targets by column types: clickhouse needs exact types
+	types := rows.ColumnTypes()
+	for rows.Next() {
+		scan := make([]any, len(types))
+		for i, t := range types {
+			scan[i] = reflect.New(t.ScanType()).Interface()
+		}
+		if err = rows.Scan(scan...); err != nil {
+			return
+		}
+		var v {{.Struct}}
+		for i, f := range fields {
+			v.clickhouseSet(f, scan[i])
+		}
+		res = append(res, v)
+	}
+	return res, rows.Err()
+}
+
+// queryRow selects one row
+func (a *{{.Class}}) queryRow(fields []{{.Index}}, tail string, args ...any) (v {{.Struct}}, err error) {
+	list, err := a.query(fields, tail, args...)
+	if err != nil {
+		return
+	}
+	if len(list) == 0 {
+		return v, sql.ErrNoRows
+	}
+	return list[0], nil
+}
+{{if .Key}}
+// Get returns row by {{.Key.Name}}
+func (a *{{.Class}}) Get(id {{.Key.GoType}}, fields ...{{.Index}}) ({{.Struct}}, error) {
+	return a.queryRow(fields, " where {{.Key.Name}} = $1 limit 1", id)
+}
+
+// Exists checks row by {{.Key.Name}}
+func (a *{{.Class}}) Exists(id {{.Key.GoType}}) (bool, error) {
+	n, err := a.CountWhere("{{.Key.Name}} = $1", id)
+	return n > 0, err
+}
+{{end}}
+// GetBy returns first row with field = v
+func (a *{{.Class}}) GetBy(field {{.Index}}, v any, fields ...{{.Index}}) (res {{.Struct}}, err error) {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return
+	}
+	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
+}
+
+// GetWhere returns first row by condition
+//
+//	db.GetWhere(nil, "country = $1 order by created desc", "DE")
+func (a *{{.Class}}) GetWhere(fields []{{.Index}}, where string, args ...any) ({{.Struct}}, error) {
+	return a.queryRow(fields, " where "+where+" limit 1", args...)
+}
+
+// Has checks row with field = v
+func (a *{{.Class}}) Has(field {{.Index}}, v any) (bool, error) {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return false, err
+	}
+	n, err := a.CountWhere(col+" = $1", v)
+	return n > 0, err
+}
+
+// All returns all rows
+func (a *{{.Class}}) All(fields ...{{.Index}}) ([]{{.Struct}}, error) {
+	return a.query(fields, "{{if .Key}} order by {{.Key.Name}}{{end}}")
+}
+
+// List returns page of rows
+func (a *{{.Class}}) List(limit, offset int, fields ...{{.Index}}) ([]{{.Struct}}, error) {
+	return a.query(fields, "{{if .Key}} order by {{.Key.Name}}{{end}} limit $1 offset $2", limit, offset)
+}
+
+// Select returns rows by condition, all rows when where is empty
+//
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *{{.Class}}) Select(fields []{{.Index}}, where string, args ...any) ([]{{.Struct}}, error) {
+	if where != "" {
+		where = " where " + where
+	}
+	return a.query(fields, where, args...)
+}
+
+// Count returns count of rows
+func (a *{{.Class}}) Count() (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from {{.Table}}").Scan(&n)
+	return int(n), err
+}
+
+// CountWhere returns count of rows by condition
+func (a *{{.Class}}) CountWhere(where string, args ...any) (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from {{.Table}} where "+where, args...).Scan(&n)
+	return int(n), err
+}
+
+// Stat returns count of rows by values of field: {"DE": 425, "US": 134}
+func (a *{{.Class}}) Stat(field {{.Index}}) (map[string]int, error) {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.conn.Query(context.Background(), "select toString("+col+"), count() from {{.Table}} group by "+col)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res := map[string]int{}
+	for rows.Next() {
+		var k string
+		var n uint64
+		if err = rows.Scan(&k, &n); err != nil {
+			return nil, err
+		}
+		res[k] = int(n)
+	}
+	return res, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// update, delete: mutations
+// ---------------------------------------------------------------------------
+{{if .Key}}
+// Update sets field of row
+func (a *{{.Class}}) Update(id {{.Key.GoType}}, field {{.Index}}, v any) error {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = $1 where {{.Key.Name}} = $2"+{{.Priv}}Sync, v, id)
+}
+
+// Updates sets fields of row
+func (a *{{.Class}}) Updates(id {{.Key.GoType}}, v map[{{.Index}}]any) error {
+	set, args, err := {{.Priv}}Set(v, 1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+set+" where {{.Key.Name}} = $"+strconv.Itoa(len(args)+1)+{{.Priv}}Sync, append(args, id)...)
+}
+
+// Inc adds v to number field: views = views + 1
+func (a *{{.Class}}) Inc(id {{.Key.GoType}}, field {{.Index}}, v any) error {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = "+col+" + $1 where {{.Key.Name}} = $2"+{{.Priv}}Sync, v, id)
+}
+
+// Delete removes row by {{.Key.Name}}
+func (a *{{.Class}}) Delete(id {{.Key.GoType}}) error {
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} delete where {{.Key.Name}} = $1"+{{.Priv}}Sync, id)
+}
+{{range .Columns}}{{if .ElemGo}}
+// Append{{.GoName}} adds values to array {{.Name}}
+func (a *{{$.Class}}) Append{{.GoName}}(id {{$.Key.GoType}}, v ...{{.ElemGo}}) error {
+	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = arrayConcat({{.Name}}, $1) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, v, id)
+}
+
+// Remove{{.GoName}} removes all entries of v from array {{.Name}}
+func (a *{{$.Class}}) Remove{{.GoName}}(id {{$.Key.GoType}}, v {{.ElemGo}}) error {
+	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = arrayFilter(x -> x != $1, {{.Name}}) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, v, id)
+}
+{{end}}{{if .MapKey}}
+// Update{{.GoName}} sets key of map {{.Name}}
+func (a *{{$.Class}}) Update{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}, v {{.MapValue}}) error {
+	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = mapUpdate({{.Name}}, cast(map($1, $2), '{{.Type}}')) where {{$.Key.Name}} = $3"+{{$.Priv}}Sync, k, v, id)
+}
+
+// Delete{{.GoName}} removes key of map {{.Name}}
+func (a *{{$.Class}}) Delete{{.GoName}}(id {{$.Key.GoType}}, k {{.MapKey}}) error {
+	return a.conn.Exec(context.Background(), "alter table {{$.Table}} update {{.Name}} = mapFilter((k, v) -> k != $1, {{.Name}}) where {{$.Key.Name}} = $2"+{{$.Priv}}Sync, k, id)
+}
+{{end}}{{end}}{{end}}
+// UpdateWhere sets field of rows by condition
+//
+//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
+func (a *{{.Class}}) UpdateWhere(field {{.Index}}, v any, where string, args ...any) error {
+	col, err := {{.Priv}}Column(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+{{.Priv}}Sync, append(slices.Clone(args), v)...)
+}
+
+// UpdatesWhere sets fields of rows by condition
+func (a *{{.Class}}) UpdatesWhere(v map[{{.Index}}]any, where string, args ...any) error {
+	set, vals, err := {{.Priv}}Set(v, len(args)+1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} update "+set+" where "+where+{{.Priv}}Sync, append(slices.Clone(args), vals...)...)
+}
+
+// DeleteWhere removes rows by condition
+func (a *{{.Class}}) DeleteWhere(where string, args ...any) error {
+	return a.conn.Exec(context.Background(), "alter table {{.Table}} delete where "+where+{{.Priv}}Sync, args...)
+}
+{{if .Funcs}}
+// ---------------------------------------------------------------------------
+// own functions from interface of model file
+// ---------------------------------------------------------------------------
+{{range .Funcs}}
+// {{.Name}}: {{.Comment}}
+func (a *{{$.Class}}) {{.Name}}{{.Signature}} {
+	{{.Body}}
+}
+{{end}}{{end}}
+// ---------------------------------------------------------------------------
+// table
+// ---------------------------------------------------------------------------
+
+const {{.Priv}}CreateTable = `{{.CreateTable}}`
+
+// CreateTable creates table if not exists
+func (a *{{.Class}}) CreateTable() error {
+	return a.conn.Exec(context.Background(), {{.Priv}}CreateTable)
+}
+
+// ---------------------------------------------------------------------------
+// struct
+// ---------------------------------------------------------------------------
+
+// clickhouseSet sets field from value of clickhouse row
+func (a *{{.Struct}}) clickhouseSet(f {{.Index}}, v any) {
+	if v == nil {
+		return
+	}
+	switch f {
+	{{- range .Columns}}
+	case {{.Index}}:
+		{{$.Priv}}Assign(reflect.ValueOf(&a.{{.GoName}}).Elem(), reflect.ValueOf(v))
+	{{- end}}
+	}
+}
+
+// {{.Priv}}Assign sets d from clickhouse value s: same type, number, string, time, slice
+func {{.Priv}}Assign(d, s reflect.Value) {
+	for s.Kind() == reflect.Pointer || s.Kind() == reflect.Interface {
+		if s.IsNil() {
+			return
+		}
+		s = s.Elem()
+	}
+
+	number := func(k reflect.Kind) bool {
+		return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
+	}
+
+	switch {
+	case s.Type().AssignableTo(d.Type()):
+		d.Set(s)
+
+	// *T
+	case d.Kind() == reflect.Pointer:
+		p := reflect.New(d.Type().Elem())
+		{{.Priv}}Assign(p.Elem(), s)
+		d.Set(p)
+
+	// IPv4, UUID, DateTime > string
+	case d.Kind() == reflect.String:
+		switch v := s.Interface().(type) {
+		case fmt.Stringer:
+			d.SetString(v.String())
+		case []byte:
+			d.SetString(string(v))
+		default:
+			d.SetString(fmt.Sprint(v))
+		}
+
+	case d.Kind() == reflect.Bool:
+		d.SetBool(!s.IsZero())
+
+	case number(d.Kind()):
+		switch v := s.Interface().(type) {
+		// DateTime > unix time
+		case time.Time:
+			if !v.IsZero() {
+				d.Set(reflect.ValueOf(v.Unix()).Convert(d.Type()))
+			}
+		case bool:
+			if v {
+				d.Set(reflect.ValueOf(1).Convert(d.Type()))
+			}
+		case string:
+			if n, err := strconv.ParseFloat(v, 64); err == nil {
+				d.Set(reflect.ValueOf(n).Convert(d.Type()))
+			}
+		default:
+			if number(s.Kind()) {
+				d.Set(s.Convert(d.Type()))
+			}
+		}
+
+	// Array(UInt64) > []int
+	case d.Kind() == reflect.Slice && s.Kind() == reflect.Slice:
+		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
+		for i := range s.Len() {
+			{{.Priv}}Assign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// Map(String, Int64) > map[string]int
+	case d.Kind() == reflect.Map && s.Kind() == reflect.Map:
+		r := reflect.MakeMapWithSize(d.Type(), s.Len())
+		for it := s.MapRange(); it.Next(); {
+			k := reflect.New(d.Type().Key()).Elem()
+			v := reflect.New(d.Type().Elem()).Elem()
+			{{.Priv}}Assign(k, it.Key())
+			{{.Priv}}Assign(v, it.Value())
+			r.SetMapIndex(k, v)
+		}
+		d.Set(r)
+
+	// named types
+	case s.Kind() == d.Kind() && s.Type().ConvertibleTo(d.Type()):
+		d.Set(s.Convert(d.Type()))
+	}
+}

@@ -56,8 +56,8 @@ rich, err := db.Select(nil, "balance > $1 order by balance desc limit 10", 100)
 - **Typed helpers for every array and jsonb field**: `AppendTags`, `RemoveTags`, `UpdateMeta`, `MergeMeta`...
 - **Transactions across models** in one function.
 - **Fast JSON.** `Pack` and `Parse` use [goccy/go-json](https://github.com/goccy/go-json).
-- **Tested against real databases.** The SQL layer is covered by tests on PostgreSQL, including every supported
-  type, `NULL` handling, transactions and parallel use under the race detector.
+- **Tested against real databases.** The generated code is covered by tests on PostgreSQL and ClickHouse:
+  every supported type, `NULL` handling, transactions, mutations and parallel use under the race detector.
 
 ## Install
 
@@ -275,6 +275,8 @@ fields := UserReadonlyList()   // []UserIndexTyped{UserIndexID}
 
 ### 8. ClickHouse
 
+The same model, the same style of API. `EventCQL` also buffers rows in memory and writes them in batches.
+
 ```go
 // go ch=events
 type event struct {
@@ -282,20 +284,36 @@ type event struct {
 	country string // ch{low}
 	ip      string // ch{type=ip}
 	path    string
+	tags    []string
+}
+
+type eventCQL interface {
+	// where country = @country order by id desc limit 10
+	Top(country string) ([]Event, error)
 }
 ```
 
-`EventCQL` buffers rows in memory and writes them in batches.
-
 ```go
-ch := NewEventCQL(conn) // creates the table, flushes the buffer in the background
+ch, err := NewEventCQL(conn) // creates the table if it does not exist
 
+// buffer: written every 10 minutes and by Push
 ch.Add(Event{ID: 1, Country: "DE", IP: "10.0.0.1", Path: "/"})
-err := ch.Push() // flush now
+err = ch.Push()
+err = ch.Insert(Event{ID: 2, Country: "US"}) // write now, without the buffer
 
-list, err := ch.Select("country = 'DE'")
+ev, err := ch.Get(1)
+list, err := ch.Select(nil, "country = $1 order by id limit 10", "DE")
+n, err := ch.CountWhere("country = $1", "DE")
 stats, err := ch.Stat(EventIndexCountry) // map[string]int{"DE": 425, "US": 134}
+top, err := ch.Top("DE")                 // own query
+
+err = ch.Update(1, EventIndexPath, "/new")
+err = ch.AppendTags(1, "promo")
+err = ch.Delete(1)
 ```
+
+Updates and deletes are ClickHouse mutations (`alter table ... update`); the methods wait until the data is changed.
+A missing row is `sql.ErrNoRows`. Own queries live in the interface `<struct>CQL` and follow the rules of example 3.
 
 ### 9. JSON, binary formats and protobuf
 
@@ -335,7 +353,7 @@ JSON speed for a struct with strings, slices and maps, Apple M1 Pro:
 
 ### 10. Errors as values of your own type
 
-With the `ee` option every method of `AccountSQL` returns `errors.E` from
+With the `ee` option every method of `AccountSQL` and `AccountCQL` returns `errors.E` from
 [monopolly/errors](https://github.com/monopolly/errors): not found is 404, a unique violation is `exist`
 with the constraint name.
 
@@ -369,7 +387,7 @@ type news struct {
 | `ch` / `ch=news` | ClickHouse class `NewsCQL` and the `.cql` file. |
 | `chengine=MergeTree` | ClickHouse engine. |
 | `proto` / `proto=NewsProto` | `.proto` file and protobuf Go code. |
-| `ee` | SQL methods return `errors.E` instead of `error`. |
+| `ee` | PostgreSQL and ClickHouse methods return `errors.E` instead of `error`. |
 | `gotiny`, `msgp` | gotiny and MessagePack encoding. |
 | `test` | `GO_test.go` with tests and benchmarks. |
 | `optimize` | Reorder fields to reduce struct padding. |
@@ -409,8 +427,8 @@ title string // sql{index} js{name="headline"} #readonly @public
 
 Go names have no underscores: the field `user_id` becomes `UserID`, the column stays `user_id`.
 
-A field named as a reserved SQL word keeps its Go name and gets `s` in the column name:
-`from int` is `From` in Go and `froms` in the table. The generator prints every such rename.
+A field named as a reserved SQL word keeps its Go name and gets the prefix `i` in the column name:
+`from int` is `From` in Go and `ifrom` in the table. The generator prints every such rename.
 
 ### Go to PostgreSQL types
 
@@ -449,6 +467,20 @@ A field named as a reserved SQL word keeps its Go name and gets `s` in the colum
 Methods by id need a row id: `sql{inc}`, a single `sql{primary}` or a field named `id`.
 `Update`, `Updates`, `Save`, `Inc` and the field methods return `pgx.ErrNoRows` when the row does not exist.
 
+### Methods of `AccountCQL`
+
+| Group | Methods |
+| --- | --- |
+| Handle | `NewAccountCQL(conn)`, `Conn()`, `TableName()`, `Fields()` |
+| Insert | `Add`, `Len`, `Push`, `Insert` |
+| Read | `Get`, `GetBy`, `GetWhere`, `Exists`, `Has`, `All`, `List`, `Select`, `Count`, `CountWhere`, `Stat` |
+| Update | `Update`, `Updates`, `Inc`, `UpdateWhere`, `UpdatesWhere` |
+| Delete | `Delete`, `DeleteWhere` |
+| Fields | `AppendTags`, `RemoveTags` for arrays, `UpdateAttrs`, `DeleteAttrs` for `Map` columns |
+| Table | `CreateTable` |
+
+The row id is `ch{primary}`, `sql{inc}` or a field named `id`.
+
 Queries run on `context.Background()`. Limit their time with `statement_timeout` or pool settings.
 
 ## Tests
@@ -457,14 +489,15 @@ Queries run on `context.Background()`. Limit their time with `statement_timeout`
 go test ./...
 ```
 
-The database tests are skipped unless a connection string is set:
+The database tests are skipped unless connection strings are set:
 
 ```bash
-JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres go test ./test/alltypes/
+JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres \
+JAYSON_TEST_CH=clickhouse://default:pass@127.0.0.1:9000/default \
+go test ./test/alltypes/
 ```
 
 ## Notes
 
 - Do not edit generated files. Change the model and run the generator again.
 - Commit generated files if you want builds without running the generator.
-- The ClickHouse class has an older API than the PostgreSQL one: string keys in updates and raw `where` strings.

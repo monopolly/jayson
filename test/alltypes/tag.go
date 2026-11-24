@@ -6,8 +6,8 @@ type tag struct {
 	name  string
 	owner int
 	meta  map[string]int
-	from  int // reserved sql word: column froms
-	to    int // reserved sql word: column tos
+	from  int // reserved sql word: column ifrom
+	to    int // reserved sql word: column ito
 }
 
 // own sql functions of TagSQL

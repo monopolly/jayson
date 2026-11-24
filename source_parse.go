@@ -17,6 +17,7 @@ type sourceStruct struct {
 	Imports []string
 	Fields  []sourceField
 	Funcs   []sourceFunc // methods of interface nameSQL
+	CHFuncs []sourceFunc // methods of interface nameCQL
 }
 
 // own sql function: method of interface newsSQL
@@ -103,7 +104,7 @@ func parseSource(filename string) (res sourceStruct, err error) {
 		return
 	}
 
-	// own sql functions: interface newsSQL
+	// own functions: interfaces newsSQL (postgres) and newsCQL (clickhouse)
 	for _, d := range file.Decls {
 		g, ok := d.(*ast.GenDecl)
 		if !ok || g.Tok != token.TYPE {
@@ -112,10 +113,16 @@ func parseSource(filename string) (res sourceStruct, err error) {
 		for _, sp := range g.Specs {
 			ts := sp.(*ast.TypeSpec)
 			it, ok := ts.Type.(*ast.InterfaceType)
-			if !ok || ts.Name.Name != res.Name+"SQL" {
+			if !ok {
 				continue
 			}
-			if res.Funcs, err = parseSourceFuncs(it, res.Imports); err != nil {
+			switch ts.Name.Name {
+			case res.Name + "SQL":
+				res.Funcs, err = parseSourceFuncs(it, res.Imports)
+			case res.Name + "CQL":
+				res.CHFuncs, err = parseSourceFuncs(it, res.Imports)
+			}
+			if err != nil {
 				err = fmt.Errorf("%s: %s: %w", filename, ts.Name.Name, err)
 				return
 			}

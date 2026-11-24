@@ -987,7 +987,7 @@ func (a *OrderSQL) stdSetSequence(v int64) error {
 // errors: every error of sql method is errors.E
 // ---------------------------------------------------------------------------
 
-// orderSQLErr converts error of postgres to errors.E
+// orderSQLErr converts error of database to errors.E
 func orderSQLErr(err error) errors.E {
 	if err == nil {
 		return nil

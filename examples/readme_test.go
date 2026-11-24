@@ -82,11 +82,19 @@ func use(pool *pgxpool.Pool, conn driver.Conn, body []byte, list []Account, from
 	view := u.UserPublic()
 	fields := UserReadonlyList()
 
-	ch := NewEventCQL(conn)
+	ch, err := NewEventCQL(conn)
 	ch.Add(Event{ID: 1, Country: "DE", IP: "10.0.0.1", Path: "/"})
 	err = ch.Push()
-	events, err := ch.Select("country = 'DE'")
+	err = ch.Insert(Event{ID: 2, Country: "US"})
+	ev, err := ch.Get(1)
+	events, err := ch.Select(nil, "country = $1 order by id limit 10", "DE")
+	cnt, err := ch.CountWhere("country = $1", "DE")
 	stats, err := ch.Stat(EventIndexCountry)
+	err = ch.Update(1, EventIndexPath, "/new")
+	err = ch.AppendTags(1, "promo")
+	err = ch.Delete(1)
+	top, err := ch.Top("DE")
+	_, _, _ = ev, cnt, top
 
 	item := Stat{ID: 1, Name: "views", Values: []uint64{1, 2, 3}}
 	b := item.Pack()

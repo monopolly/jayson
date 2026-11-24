@@ -16,6 +16,7 @@ func (a *Settings) Parse(in string) {
 	}
 
 	sourceFuncs = res.Funcs
+	sourceCHFuncs = res.CHFuncs
 
 	// package name "model"
 	a.PackageName = res.Package

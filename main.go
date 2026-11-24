@@ -54,15 +54,16 @@ func render() {
 	//go
 	goFile.Write(golang.Generate())
 
+	// option ee: errors is github.com/monopolly/errors, standard package is stderrors
+	if settings.SQL.EE {
+		code := stdErrorsAlias(goFile.Bytes())
+		goFile.Reset()
+		goFile.Write(code)
+	}
+
 	// sql
 	if settings.SQL.Table != "" {
 		A("sql table", settings.SQL.Table)
-		// option ee: errors is github.com/monopolly/errors, standard package is stderrors
-		if settings.SQL.EE {
-			code := stdErrorsAlias(goFile.Bytes())
-			goFile.Reset()
-			goFile.Write(code)
-		}
 		goFile.Write(sqlGenerate())
 		saveFile(settings.File.sql, sqlFile())
 		removeGenerated(settings.File.golangSQL) // sql was a separate file
@@ -70,12 +71,8 @@ func render() {
 
 	// clickhouse
 	if settings.Clickhouse.Table != "" {
-		A("sql table", settings.Clickhouse.Table)
-		code := clickhouse.Generate()
-		if settings.SQL.Table != "" && settings.SQL.EE {
-			code = stdErrorsAlias(code)
-		}
-		goFile.Write(code)
+		A("clickhouse table", settings.Clickhouse.Table)
+		goFile.Write(clickhouse.Generate())
 		saveFile(settings.File.clickhouse, clickhouse.File())
 	}
 
@@ -203,14 +200,8 @@ func importers() []byte {
 		}
 	}
 	if settings.Clickhouse.Table != "" {
-		imports["context"] = true
-		imports["errors"] = true
-		imports["strings"] = true
-		imports["sync"] = true
-		imports["time"] = true
-		imports["github.com/ClickHouse/clickhouse-go/v2/lib/driver"] = true
-		if hasClickhouseIPFields() {
-			imports["net"] = true
+		for _, x := range clickhouseImports() {
+			imports[x] = true
 		}
 	}
 	if settings.Go.Gotiny {
@@ -245,7 +236,7 @@ func importers() []byte {
 	}
 
 	// option ee: errors is github.com/monopolly/errors, standard package is stderrors
-	if settings.SQL.Table != "" && settings.SQL.EE {
+	if settings.SQL.EE {
 		delete(imports, "errors")
 		imports["stderrors \"errors\""] = true
 		imports[errorsImport] = true

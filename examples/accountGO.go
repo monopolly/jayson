@@ -152,7 +152,13 @@ func (a *Account) Tuple() (r []any) {
 
 // Tuple create an array from struct for clickhouse
 func (a *Account) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Email, a.Name, a.Balance, a.Tags, a.Scores, a.Meta, a.Settings, a.Items}
+	return []any{a.ID, a.Email, a.Name, a.Balance, a.Tags, a.Scores, a.Meta, func() map[string]int64 {
+		r := make(map[string]int64, len(a.Settings))
+		for k, v := range a.Settings {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}(), a.Items}
 }
 
 // get struct value with function

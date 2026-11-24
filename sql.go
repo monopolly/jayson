@@ -19,7 +19,7 @@ func sqlGenerate() []byte {
 		panic(err)
 	}
 	if m.EE {
-		return sqlErrors(m, b.Bytes())
+		return sqlErrors(m.Class, m.Priv, "PGX", b.Bytes())
 	}
 	return b.Bytes()
 }

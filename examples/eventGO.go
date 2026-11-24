@@ -2,10 +2,13 @@ package examples
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -96,6 +99,7 @@ const (
 	EventIndexCountry
 	EventIndexIP
 	EventIndexPath
+	EventIndexTags
 )
 
 // string index
@@ -104,32 +108,34 @@ const (
 	EventFieldCountry = "country" // string ch{low}
 	EventFieldIP      = "ip"      // string ch{type=ip}
 	EventFieldPath    = "path"    // string
+	EventFieldTags    = "tags"    // []string
 )
 
 // index func
 func EventIndexes() []EventIndexTyped {
-	return []EventIndexTyped{EventIndexID, EventIndexCountry, EventIndexIP, EventIndexPath}
+	return []EventIndexTyped{EventIndexID, EventIndexCountry, EventIndexIP, EventIndexPath, EventIndexTags}
 
 }
 
-// 56 bytes (go padding)
+// 64 bytes (go padding)
 //
 //easyjson:json
 type Event struct {
-	ID      uint64 `json:"id,omitempty"`      // ch{primary}
-	Country string `json:"country,omitempty"` // ch{low}
-	IP      string `json:"ip,omitempty"`      // ch{type=ip}
-	Path    string `json:"path,omitempty"`    //
+	ID      uint64   `json:"id,omitempty"`      // ch{primary}
+	Country string   `json:"country,omitempty"` // ch{low}
+	IP      string   `json:"ip,omitempty"`      // ch{type=ip}
+	Path    string   `json:"path,omitempty"`    //
+	Tags    []string `json:"tags,omitempty"`    //
 }
 
 // Tuple create an array from struct
 func (a *Event) Tuple() (r []any) {
-	return []any{a.ID, a.Country, a.IP, a.Path}
+	return []any{a.ID, a.Country, a.IP, a.Path, a.Tags}
 }
 
 // Tuple create an array from struct for clickhouse
 func (a *Event) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Country, net.ParseIP(a.IP), a.Path}
+	return []any{a.ID, a.Country, net.ParseIP(a.IP), a.Path, a.Tags}
 }
 
 // get struct value with function
@@ -143,6 +149,8 @@ func (a *Event) Get(k string) (v any) {
 		return a.IP //string
 	case "path":
 		return a.Path //string
+	case "tags":
+		return a.Tags //[]string
 	}
 	return
 }
@@ -158,6 +166,8 @@ func (a *Event) String(k string) (v string) {
 		return fmt.Sprint(a.IP) //string
 	case "path":
 		return fmt.Sprint(a.Path) //string
+	case "tags":
+		return fmt.Sprint(a.Tags) //[]string
 	}
 	return
 }
@@ -173,6 +183,8 @@ func (a EventIndexTyped) String() string {
 		return "ip"
 	case EventIndexPath:
 		return "path"
+	case EventIndexTags:
+		return "tags"
 	default:
 		return ""
 	}
@@ -189,6 +201,8 @@ func (a EventIndexTyped) SQLName() string {
 		return "ip"
 	case EventIndexPath:
 		return "path"
+	case EventIndexTags:
+		return "tags"
 	default:
 		return ""
 	}
@@ -205,6 +219,8 @@ func (a EventIndexTyped) ClickhouseName() string {
 		return "ip"
 	case EventIndexPath:
 		return "path"
+	case EventIndexTags:
+		return "tags"
 	default:
 		return ""
 	}
@@ -221,6 +237,8 @@ func (a EventIndexTyped) Type() string {
 		return "string"
 	case EventIndexPath:
 		return "string"
+	case EventIndexTags:
+		return "[]string"
 	default:
 		return ""
 	}
@@ -237,6 +255,8 @@ func (a EventIndexTyped) Title() string {
 		return "IP"
 	case EventIndexPath:
 		return "Path"
+	case EventIndexTags:
+		return "Tags"
 	default:
 		return ""
 	}
@@ -261,6 +281,8 @@ func EventKeyIndex(key string) EventIndexTyped {
 		return EventIndexIP
 	case "path":
 		return EventIndexPath
+	case "tags":
+		return EventIndexTags
 	default:
 		return 0
 	}
@@ -269,7 +291,7 @@ func EventKeyIndex(key string) EventIndexTyped {
 // valid struct key check
 func EventValidKey(key string) bool {
 	switch key {
-	case "id", "country", "ip", "path":
+	case "id", "country", "ip", "path", "tags":
 		return true
 	default:
 		return false
@@ -283,6 +305,7 @@ func (a *Event) Map() map[string]any {
 		"country": a.Country,
 		"ip":      a.IP,
 		"path":    a.Path,
+		"tags":    a.Tags,
 	}
 }
 
@@ -305,300 +328,192 @@ func ParseEvent(v []byte) (a Event, err error) {
 	return
 }
 
-// clickhouse EventCQL class
+// EventCQL clickhouse queries of table events
+//
+// Rules:
+//   - safe for concurrent use
+//   - not found row is sql.ErrNoRows
+//   - fields: columns to select, all columns when empty
+//   - where: sql condition with placeholders $1, $2... for args: "country = $1 and views > $2"
+//   - updates and deletes are mutations: they wait until the data is changed
 type EventCQL struct {
 	conn driver.Conn
-	list []Event
-	sync.Mutex
+	mu   sync.Mutex
+	list []Event // buffer of Add
 }
 
-func NewEventCQL(conn driver.Conn) (a *EventCQL) {
-	a = new(EventCQL)
-	a.conn = conn
-	a.CreateTable()
-	go a.deamon()
-	return
+// NewEventCQL creates queries on connection and table if not exists.
+// Rows of Add are written every 10 minutes and by Push
+func NewEventCQL(conn driver.Conn) (*EventCQL, error) {
+	a := &EventCQL{conn: conn}
+	if err := a.CreateTable(); err != nil {
+		return nil, err
+	}
+	go a.flush()
+	return a, nil
 }
 
-// parse clickhouse query
-func (a *EventCQL) TableName() (res string) {
+// Conn returns connection, for own queries
+func (a *EventCQL) Conn() driver.Conn {
+	return a.conn
+}
+
+// TableName returns table name
+func (a *EventCQL) TableName() string {
 	return "events"
 }
 
-func (a *EventCQL) Count(where ...string) (count int, err error) {
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	var q string
-	switch len(where) {
-	case 0:
-		q = "select count() from events"
-	default:
-		q = "select count() from events where " + strings.Join(where, " ")
-	}
-	var n uint64
-	err = a.conn.QueryRow(context.Background(), q).Scan(&n)
-	count = int(n)
-	return
+// Fields returns all columns
+func (a *EventCQL) Fields() []EventIndexTyped {
+	return slices.Clone(eventCHFields)
 }
 
-// Add items to clickhouse queue
-func (a *EventCQL) Add(items ...Event) {
-	a.Lock()
-	defer a.Unlock()
-	a.list = append(a.list, items...)
+// ---------------------------------------------------------------------------
+// columns
+// ---------------------------------------------------------------------------
+
+// all columns
+var eventCHFields = []EventIndexTyped{EventIndexID, EventIndexCountry, EventIndexIP, EventIndexPath, EventIndexTags}
+
+// column names
+var eventCHColumns = [...]string{
+	EventIndexID:      "id",
+	EventIndexCountry: "country",
+	EventIndexIP:      "ip",
+	EventIndexPath:    "path",
+	EventIndexTags:    "tags",
 }
 
-// Push queued items to clickhouse
-func (a *EventCQL) Push() (err error) {
-	a.Lock()
-	defer a.Unlock()
-	if len(a.list) == 0 {
-		return
+const eventCHSelectAll = "id, country, ip, path, tags"
+
+// mutations wait until the data is changed
+const eventCHSync = " settings mutations_sync = 1"
+
+// eventCHColumn returns column name of field
+func eventCHColumn(f EventIndexTyped) (string, error) {
+	if int(f) < 0 || int(f) >= len(eventCHColumns) || eventCHColumns[f] == "" {
+		return "", fmt.Errorf("events: field %d is not a clickhouse column", int(f))
 	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
+	return eventCHColumns[f], nil
+}
+
+// eventCHSelect returns select list of fields, all columns when empty
+func eventCHSelect(fields []EventIndexTyped) (string, []EventIndexTyped, error) {
+	if len(fields) == 0 {
+		return eventCHSelectAll, eventCHFields, nil
 	}
-	batch, err := a.conn.PrepareBatch(context.Background(), "insert into events (id, country, ip, path)")
-	if err != nil {
-		return
-	}
-	for _, item := range a.list {
-		err = batch.Append(item.clickhouseTuple()...)
+	list := make([]string, 0, len(fields))
+	for _, f := range fields {
+		col, err := eventCHColumn(f)
 		if err != nil {
-			_ = batch.Abort()
-			return
+			return "", nil, err
 		}
+		list = append(list, col)
 	}
-	err = batch.Send()
-	if err != nil {
-		_ = batch.Abort()
-		return
+	return strings.Join(list, ", "), fields, nil
+}
+
+// eventCHSet returns "a = $1, b = $2" in stable order, placeholders from $start
+func eventCHSet(v map[EventIndexTyped]any, start int) (string, []any, error) {
+	if len(v) == 0 {
+		return "", nil, errors.New("events: no values")
+	}
+	list := make([]string, 0, len(v))
+	args := make([]any, 0, len(v))
+	for i, f := range slices.Sorted(maps.Keys(v)) {
+		col, err := eventCHColumn(f)
+		if err != nil {
+			return "", nil, err
+		}
+		list = append(list, col+" = $"+strconv.Itoa(start+i))
+		args = append(args, v[f])
+	}
+	return strings.Join(list, ", "), args, nil
+}
+
+// ---------------------------------------------------------------------------
+// insert
+// ---------------------------------------------------------------------------
+
+// Add puts rows to buffer: they are written every 10 minutes and by Push
+func (a *EventCQL) Add(v ...Event) {
+	a.mu.Lock()
+	a.list = append(a.list, v...)
+	a.mu.Unlock()
+}
+
+// Len returns count of rows in buffer
+func (a *EventCQL) Len() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.list)
+}
+
+// Push writes rows of buffer. Rows stay in buffer when the write fails
+func (a *EventCQL) Push() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.list) == 0 {
+		return nil
+	}
+	if err := a.send(a.list); err != nil {
+		return err
 	}
 	a.list = a.list[:0]
-	return
+	return nil
 }
 
-// deamon pushes queued items every 10 minutes
-func (a *EventCQL) deamon() {
+// Insert writes rows now, without buffer
+func (a *EventCQL) Insert(v ...Event) error {
+	if len(v) == 0 {
+		return nil
+	}
+	return a.send(v)
+}
+
+// send writes rows by one batch
+func (a *EventCQL) send(list []Event) error {
+	batch, err := a.conn.PrepareBatch(context.Background(), "insert into events (id, country, ip, path, tags)")
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if err = batch.Append(list[i].clickhouseTuple()...); err != nil {
+			_ = batch.Abort()
+			return err
+		}
+	}
+	return batch.Send()
+}
+
+// flush writes buffer every 10 minutes
+func (a *EventCQL) flush() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		a.Lock()
-		hasItems := len(a.list) > 0
-		a.Unlock()
-		if hasItems {
-			_ = a.Push()
-		}
+		_ = a.Push()
 	}
 }
 
-// parse clickhouse query
-func (a *EventCQL) Get(id any, fields ...EventIndexTyped) (res *Event, err error) {
+// ---------------------------------------------------------------------------
+// select
+// ---------------------------------------------------------------------------
 
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from events where id = ? limit 1", fieldlist)
-	res = new(Event)
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
+// query selects rows: tail is sql after table name
+func (a *EventCQL) query(fields []EventIndexTyped, tail string, args ...any) (res []Event, err error) {
+	cols, fields, err := eventCHSelect(fields)
+	if err != nil {
 		return
 	}
-	rows, err := a.conn.Query(context.Background(), q, id)
+	rows, err := a.conn.Query(context.Background(), "select "+cols+" from events"+tail, args...)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	if !rows.Next() {
-		err = errors.New("not found")
-		return
-	}
-	// scan targets by column types: clickhouse needs exact types
-	scan := make([]any, len(fields))
-	for i, t := range rows.ColumnTypes() {
-		scan[i] = reflect.New(t.ScanType()).Interface()
-	}
-	err = rows.Scan(scan...)
-	if err != nil {
-		return
-	}
-	for pos, x := range fields {
-		res.clickhouseSet(x, scan[pos])
-	}
-	err = rows.Err()
 
-	return
-}
-
-// parse clickhouse query
-func (a *EventCQL) GetWhere(where string, fields ...EventIndexTyped) (res *Event, err error) {
-
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from events where %s limit 1", fieldlist, where)
-	res = new(Event)
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	rows, err := a.conn.Query(context.Background(), q)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		err = errors.New("not found")
-		return
-	}
-	// scan targets by column types: clickhouse needs exact types
-	scan := make([]any, len(fields))
-	for i, t := range rows.ColumnTypes() {
-		scan[i] = reflect.New(t.ScanType()).Interface()
-	}
-	err = rows.Scan(scan...)
-	if err != nil {
-		return
-	}
-	for pos, x := range fields {
-		res.clickhouseSet(x, scan[pos])
-	}
-	err = rows.Err()
-
-	return
-}
-
-// update clickhouse query
-func (a *EventCQL) Update(id any, k string, v any, where ...string) (err error) {
-	if !EventValidKey(k) {
-		return errors.New("invalid key")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	in := EventKeyIndex(k)
-	q := fmt.Sprintf("alter table events update %s = ? where id = ?", in.ClickhouseName())
-	if len(where) > 0 {
-		q += " and " + where[0]
-	}
-	return a.conn.Exec(context.Background(), q, v, id)
-}
-
-// update clickhouse query
-func (a *EventCQL) UpdateWhere(k string, v any, where string) (err error) {
-	if !EventValidKey(k) {
-		return errors.New("invalid key")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	in := EventKeyIndex(k)
-	q := fmt.Sprintf("alter table %s update %s = ? where %s", a.TableName(), in.ClickhouseName(), where)
-	return a.conn.Exec(context.Background(), q, v)
-}
-
-// update clickhouse query
-func (a *EventCQL) Updates(id any, keys map[string]any, where ...string) (err error) {
-
-	if keys == nil {
-		return errors.New("emptykeys")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	var fields []string
-	var values []any
-	for k, v := range keys {
-		if !EventValidKey(k) {
-			return errors.New(k)
-		}
-		in := EventKeyIndex(k)
-		fields = append(fields, fmt.Sprintf("%s = ?", in.ClickhouseName()))
-		values = append(values, v)
-	}
-	list := strings.Join(fields, ", ")
-	values = append(values, id)
-
-	q := fmt.Sprintf("alter table events update %s where id = ?", list)
-	if len(where) > 0 {
-		q += " and " + where[0]
-	}
-	return a.conn.Exec(context.Background(), q, values...)
-}
-
-// update clickhouse query
-func (a *EventCQL) UpdatesWhere(keys map[string]any, where string, args ...any) (err error) {
-
-	if keys == nil {
-		return errors.New("emptykeys")
-	}
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	var fields []string
-	var values []any
-	for k, v := range keys {
-		if !EventValidKey(k) {
-			return errors.New(k)
-		}
-		in := EventKeyIndex(k)
-		fields = append(fields, fmt.Sprintf("%s = ?", in.ClickhouseName()))
-		values = append(values, v)
-	}
-	list := strings.Join(fields, ", ")
-
-	where = fmt.Sprintf(where, args...)
-	q := fmt.Sprintf("alter table events update %s where %s", list, where)
-	return a.conn.Exec(context.Background(), q, values...)
-}
-
-// select custom clickhouse query
-func (a *EventCQL) Select(where string, fields ...EventIndexTyped) (res []*Event, err error) {
-
-	if fields == nil {
-		fields = a.Fields()
-	}
-	var list []string
-	for _, x := range fields {
-		list = append(list, x.ClickhouseName())
-	}
-	fieldlist := strings.Join(list, ", ")
-
-	q := fmt.Sprintf("select %s from events", fieldlist)
-	if where != "" {
-		q += " where " + where
-	}
-
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	rows, err := a.conn.Query(context.Background(), q)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
 	// scan targets by column types: clickhouse needs exact types
 	types := rows.ColumnTypes()
 	for rows.Next() {
-		var item Event
 		scan := make([]any, len(types))
 		for i, t := range types {
 			scan[i] = reflect.New(t.ScanType()).Interface()
@@ -606,95 +521,224 @@ func (a *EventCQL) Select(where string, fields ...EventIndexTyped) (res []*Event
 		if err = rows.Scan(scan...); err != nil {
 			return
 		}
-		for pos, x := range fields {
-			item.clickhouseSet(x, scan[pos])
+		var v Event
+		for i, f := range fields {
+			v.clickhouseSet(f, scan[i])
 		}
-		res = append(res, &item)
+		res = append(res, v)
 	}
-	err = rows.Err()
-
-	return
+	return res, rows.Err()
 }
 
-// delete clickhouse item
-func (a *EventCQL) Delete(id any) (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	q := "alter table events delete where id = ?"
-	return a.conn.Exec(context.Background(), q, id)
-}
-
-// delete clickhouse items
-func (a *EventCQL) DeleteWhere(where string) (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
-	}
-	q := "alter table events delete where " + where
-	return a.conn.Exec(context.Background(), q)
-}
-
-// has value in clickhouse
-func (a *EventCQL) Has(field EventIndexTyped, v any) (has bool, err error) {
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	q := fmt.Sprintf("select count() from events where %s = ? limit 1", field.ClickhouseName())
-	var n uint64
-	err = a.conn.QueryRow(context.Background(), q, v).Scan(&n)
-	has = n > 0
-	return
-}
-
-// stat by clickhouse field
-func (a *EventCQL) Stat(field EventIndexTyped) (res map[string]int, err error) {
-	res = make(map[string]int)
-	if a.conn == nil {
-		err = errors.New("clickhouse connection is nil")
-		return
-	}
-	name := field.ClickhouseName()
-	q := fmt.Sprintf("select toString(%[1]s), count() from %[2]s group by %[1]s", name, a.TableName())
-	rows, err := a.conn.Query(context.Background(), q)
+// queryRow selects one row
+func (a *EventCQL) queryRow(fields []EventIndexTyped, tail string, args ...any) (v Event, err error) {
+	list, err := a.query(fields, tail, args...)
 	if err != nil {
 		return
 	}
+	if len(list) == 0 {
+		return v, sql.ErrNoRows
+	}
+	return list[0], nil
+}
+
+// Get returns row by id
+func (a *EventCQL) Get(id uint64, fields ...EventIndexTyped) (Event, error) {
+	return a.queryRow(fields, " where id = $1 limit 1", id)
+}
+
+// Exists checks row by id
+func (a *EventCQL) Exists(id uint64) (bool, error) {
+	n, err := a.CountWhere("id = $1", id)
+	return n > 0, err
+}
+
+// GetBy returns first row with field = v
+func (a *EventCQL) GetBy(field EventIndexTyped, v any, fields ...EventIndexTyped) (res Event, err error) {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return
+	}
+	return a.queryRow(fields, " where "+col+" = $1 limit 1", v)
+}
+
+// GetWhere returns first row by condition
+//
+//	db.GetWhere(nil, "country = $1 order by created desc", "DE")
+func (a *EventCQL) GetWhere(fields []EventIndexTyped, where string, args ...any) (Event, error) {
+	return a.queryRow(fields, " where "+where+" limit 1", args...)
+}
+
+// Has checks row with field = v
+func (a *EventCQL) Has(field EventIndexTyped, v any) (bool, error) {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return false, err
+	}
+	n, err := a.CountWhere(col+" = $1", v)
+	return n > 0, err
+}
+
+// All returns all rows
+func (a *EventCQL) All(fields ...EventIndexTyped) ([]Event, error) {
+	return a.query(fields, " order by id")
+}
+
+// List returns page of rows
+func (a *EventCQL) List(limit, offset int, fields ...EventIndexTyped) ([]Event, error) {
+	return a.query(fields, " order by id limit $1 offset $2", limit, offset)
+}
+
+// Select returns rows by condition, all rows when where is empty
+//
+//	db.Select(nil, "views > $1 order by views desc limit 10", 100)
+func (a *EventCQL) Select(fields []EventIndexTyped, where string, args ...any) ([]Event, error) {
+	if where != "" {
+		where = " where " + where
+	}
+	return a.query(fields, where, args...)
+}
+
+// Count returns count of rows
+func (a *EventCQL) Count() (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from events").Scan(&n)
+	return int(n), err
+}
+
+// CountWhere returns count of rows by condition
+func (a *EventCQL) CountWhere(where string, args ...any) (int, error) {
+	var n uint64
+	err := a.conn.QueryRow(context.Background(), "select count() from events where "+where, args...).Scan(&n)
+	return int(n), err
+}
+
+// Stat returns count of rows by values of field: {"DE": 425, "US": 134}
+func (a *EventCQL) Stat(field EventIndexTyped) (map[string]int, error) {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.conn.Query(context.Background(), "select toString("+col+"), count() from events group by "+col)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
+	res := map[string]int{}
 	for rows.Next() {
 		var k string
 		var n uint64
-		err = rows.Scan(&k, &n)
-		if err != nil {
-			return
+		if err = rows.Scan(&k, &n); err != nil {
+			return nil, err
 		}
 		res[k] = int(n)
 	}
-	err = rows.Err()
-	return
+	return res, rows.Err()
 }
 
-// Create clickhouse table
-func (a *EventCQL) CreateTable() (err error) {
-	if a.conn == nil {
-		return errors.New("clickhouse connection is nil")
+// ---------------------------------------------------------------------------
+// update, delete: mutations
+// ---------------------------------------------------------------------------
+
+// Update sets field of row
+func (a *EventCQL) Update(id uint64, field EventIndexTyped, v any) error {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return err
 	}
-	q := `create table if not exists events (
+	return a.conn.Exec(context.Background(), "alter table events update "+col+" = $1 where id = $2"+eventCHSync, v, id)
+}
+
+// Updates sets fields of row
+func (a *EventCQL) Updates(id uint64, v map[EventIndexTyped]any) error {
+	set, args, err := eventCHSet(v, 1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table events update "+set+" where id = $"+strconv.Itoa(len(args)+1)+eventCHSync, append(args, id)...)
+}
+
+// Inc adds v to number field: views = views + 1
+func (a *EventCQL) Inc(id uint64, field EventIndexTyped, v any) error {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table events update "+col+" = "+col+" + $1 where id = $2"+eventCHSync, v, id)
+}
+
+// Delete removes row by id
+func (a *EventCQL) Delete(id uint64) error {
+	return a.conn.Exec(context.Background(), "alter table events delete where id = $1"+eventCHSync, id)
+}
+
+// AppendTags adds values to array tags
+func (a *EventCQL) AppendTags(id uint64, v ...string) error {
+	return a.conn.Exec(context.Background(), "alter table events update tags = arrayConcat(tags, $1) where id = $2"+eventCHSync, v, id)
+}
+
+// RemoveTags removes all entries of v from array tags
+func (a *EventCQL) RemoveTags(id uint64, v string) error {
+	return a.conn.Exec(context.Background(), "alter table events update tags = arrayFilter(x -> x != $1, tags) where id = $2"+eventCHSync, v, id)
+}
+
+// UpdateWhere sets field of rows by condition
+//
+//	db.UpdateWhere(EventIndexActive, false, "created < $1", date)
+func (a *EventCQL) UpdateWhere(field EventIndexTyped, v any, where string, args ...any) error {
+	col, err := eventCHColumn(field)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table events update "+col+" = $"+strconv.Itoa(len(args)+1)+" where "+where+eventCHSync, append(slices.Clone(args), v)...)
+}
+
+// UpdatesWhere sets fields of rows by condition
+func (a *EventCQL) UpdatesWhere(v map[EventIndexTyped]any, where string, args ...any) error {
+	set, vals, err := eventCHSet(v, len(args)+1)
+	if err != nil {
+		return err
+	}
+	return a.conn.Exec(context.Background(), "alter table events update "+set+" where "+where+eventCHSync, append(slices.Clone(args), vals...)...)
+}
+
+// DeleteWhere removes rows by condition
+func (a *EventCQL) DeleteWhere(where string, args ...any) error {
+	return a.conn.Exec(context.Background(), "alter table events delete where "+where+eventCHSync, args...)
+}
+
+// ---------------------------------------------------------------------------
+// own functions from interface of model file
+// ---------------------------------------------------------------------------
+
+// Top: where country = @country order by id desc limit 10
+func (a *EventCQL) Top(country string) (res []Event, err error) {
+	return a.query(nil, " where country = $1 order by id desc limit 10", country)
+}
+
+// ---------------------------------------------------------------------------
+// table
+// ---------------------------------------------------------------------------
+
+const eventCHCreateTable = `create table if not exists events (
 	id          UInt64,
 	country     LowCardinality(String),
 	ip          IPv4,
-	path        String
+	path        String,
+	tags        Array(String)
 )
 engine = MergeTree()
 order by (id)
 primary key (id)`
-	return a.conn.Exec(context.Background(), q)
+
+// CreateTable creates table if not exists
+func (a *EventCQL) CreateTable() error {
+	return a.conn.Exec(context.Background(), eventCHCreateTable)
 }
 
-// parse clickhouse query
-func (a *EventCQL) Fields() (res []EventIndexTyped) {
-	return []EventIndexTyped{EventIndexID, EventIndexCountry, EventIndexIP, EventIndexPath}
-}
+// ---------------------------------------------------------------------------
+// struct
+// ---------------------------------------------------------------------------
 
 // clickhouseSet sets field from value of clickhouse row
 func (a *Event) clickhouseSet(f EventIndexTyped, v any) {
@@ -710,6 +754,8 @@ func (a *Event) clickhouseSet(f EventIndexTyped, v any) {
 		eventCHAssign(reflect.ValueOf(&a.IP).Elem(), reflect.ValueOf(v))
 	case EventIndexPath:
 		eventCHAssign(reflect.ValueOf(&a.Path).Elem(), reflect.ValueOf(v))
+	case EventIndexTags:
+		eventCHAssign(reflect.ValueOf(&a.Tags).Elem(), reflect.ValueOf(v))
 	}
 }
 
@@ -776,6 +822,18 @@ func eventCHAssign(d, s reflect.Value) {
 		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
 		for i := range s.Len() {
 			eventCHAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// Map(String, Int64) > map[string]int
+	case d.Kind() == reflect.Map && s.Kind() == reflect.Map:
+		r := reflect.MakeMapWithSize(d.Type(), s.Len())
+		for it := s.MapRange(); it.Next(); {
+			k := reflect.New(d.Type().Key()).Elem()
+			v := reflect.New(d.Type().Elem()).Elem()
+			eventCHAssign(k, it.Key())
+			eventCHAssign(v, it.Value())
+			r.SetMapIndex(k, v)
 		}
 		d.Set(r)
 

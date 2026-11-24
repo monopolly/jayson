@@ -509,12 +509,12 @@ func TestFuncs(t *testing.T) {
 		t.Fatal(n, err)
 	}
 
-	// reserved sql words: go From, json from, column froms
+	// reserved sql words: go From, json from, column ifrom
 	rw := Tag{Name: "rw", Owner: 9, From: 5, To: 6}
 	if err := tags.Insert(&rw); err != nil {
 		t.Fatal(err)
 	}
-	if v, err := tags.GetBy(TagIndexFrom, 5); err != nil || v.To != 6 || TagIndexFrom.SQLName() != "froms" {
+	if v, err := tags.GetBy(TagIndexFrom, 5); err != nil || v.To != 6 || TagIndexFrom.SQLName() != "ifrom" {
 		t.Fatal(v, err)
 	}
 	if list, err := tags.Search(&TagQuery{EQ: map[string]any{"from": 5}, Sort: "to"}); err != nil || len(list) != 1 {

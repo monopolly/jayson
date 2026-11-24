@@ -148,7 +148,13 @@ func (a *Tag) Tuple() (r []any) {
 
 // Tuple create an array from struct for clickhouse
 func (a *Tag) clickhouseTuple() (r []any) {
-	return []any{a.ID, a.Name, a.Owner, a.Meta, a.From, a.To}
+	return []any{a.ID, a.Name, a.Owner, func() map[string]int64 {
+		r := make(map[string]int64, len(a.Meta))
+		for k, v := range a.Meta {
+			r[string(k)] = int64(v)
+		}
+		return r
+	}(), a.From, a.To}
 }
 
 // get struct value with function
@@ -221,9 +227,9 @@ func (a TagIndexTyped) SQLName() string {
 	case TagIndexMeta:
 		return "meta"
 	case TagIndexFrom:
-		return "froms"
+		return "ifrom"
 	case TagIndexTo:
-		return "tos"
+		return "ito"
 	default:
 		return ""
 	}
@@ -454,7 +460,7 @@ func (a *TagSQL) Fields() []TagIndexTyped {
 var tagSQLFields = []TagIndexTyped{TagIndexID, TagIndexName, TagIndexOwner, TagIndexMeta, TagIndexFrom, TagIndexTo}
 
 // columns of insert
-var tagSQLInsertColumns = []string{"name", "owner", "meta", "froms", "tos"}
+var tagSQLInsertColumns = []string{"name", "owner", "meta", "ifrom", "ito"}
 
 // sql column names
 var tagSQLColumns = [...]string{
@@ -462,8 +468,8 @@ var tagSQLColumns = [...]string{
 	TagIndexName:  "name",
 	TagIndexOwner: "owner",
 	TagIndexMeta:  "meta",
-	TagIndexFrom:  "froms",
-	TagIndexTo:    "tos",
+	TagIndexFrom:  "ifrom",
+	TagIndexTo:    "ito",
 }
 
 // select expressions: null of scalar column is zero value
@@ -472,8 +478,8 @@ var tagSQLSelects = [...]string{
 	TagIndexName:  "coalesce(name, '')",
 	TagIndexOwner: "coalesce(owner, 0)",
 	TagIndexMeta:  "meta",
-	TagIndexFrom:  "coalesce(froms, 0)",
-	TagIndexTo:    "coalesce(tos, 0)",
+	TagIndexFrom:  "coalesce(ifrom, 0)",
+	TagIndexTo:    "coalesce(ito, 0)",
 }
 
 // sql column types
@@ -486,7 +492,7 @@ var tagSQLTypes = [...]string{
 	TagIndexTo:    "bigint",
 }
 
-const tagSQLSelectAll = "coalesce(id, 0), coalesce(name, ''), coalesce(owner, 0), meta, coalesce(froms, 0), coalesce(tos, 0)"
+const tagSQLSelectAll = "coalesce(id, 0), coalesce(name, ''), coalesce(owner, 0), meta, coalesce(ifrom, 0), coalesce(ito, 0)"
 
 // tagSQLColumn returns sql column name of field
 func tagSQLColumn(f TagIndexTyped) (string, error) {
@@ -710,9 +716,9 @@ func (a *TagSQL) stdCountWhere(where string, args ...any) (count int, err error)
 // insert
 // ---------------------------------------------------------------------------
 
-const tagSQLInsert = "insert into tags (name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5)"
+const tagSQLInsert = "insert into tags (name, owner, meta, ifrom, ito) values ($1, $2, $3, $4, $5)"
 
-const tagSQLInsertFull = "insert into tags (id, name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5, $6)"
+const tagSQLInsertFull = "insert into tags (id, name, owner, meta, ifrom, ito) values ($1, $2, $3, $4, $5, $6)"
 
 func (a *TagSQL) stdInsert(v *Tag) error {
 	return a.db.QueryRow(context.Background(), tagSQLInsert+" returning id", v.sqlInsertArgs()...).Scan(&v.ID)
@@ -732,7 +738,7 @@ func (a *TagSQL) stdInsertFull(v *Tag) error {
 }
 
 func (a *TagSQL) stdUpsert(v *Tag) error {
-	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta, froms, tos) values ($1, $2, $3, $4, $5, $6) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta, froms = excluded.froms, tos = excluded.tos", v.sqlAllArgs()...)
+	_, err := a.db.Exec(context.Background(), "insert into tags (id, name, owner, meta, ifrom, ito) values ($1, $2, $3, $4, $5, $6) on conflict (id) do update set name = excluded.name, owner = excluded.owner, meta = excluded.meta, ifrom = excluded.ifrom, ito = excluded.ito", v.sqlAllArgs()...)
 	return err
 }
 
@@ -1111,8 +1117,8 @@ const tagSQLCreateTable = `create table if not exists tags (
 	name      text,
 	owner     bigint,
 	meta      jsonb default '{}'::jsonb,
-	froms     bigint,
-	tos       bigint
+	ifrom     bigint,
+	ito       bigint
 )`
 
 // indexes from tags: sql{index}, sql{idx="group"}, sql{search="group"}
@@ -1150,7 +1156,7 @@ func (a *TagSQL) stdSetSequence(v int64) error {
 // errors: every error of sql method is errors.E
 // ---------------------------------------------------------------------------
 
-// tagSQLErr converts error of postgres to errors.E
+// tagSQLErr converts error of database to errors.E
 func tagSQLErr(err error) errors.E {
 	if err == nil {
 		return nil
