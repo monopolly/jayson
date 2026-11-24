@@ -16,6 +16,8 @@ func (a *Settings) Parse(in string) {
 		panic(err)
 	}
 
+	sourceFuncs = res.Funcs
+
 	// package name "model"
 	a.PackageName = res.Package
 

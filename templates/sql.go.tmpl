@@ -622,6 +622,16 @@ func (a *{{.Class}}) jsonRename(id {{.Key.GoType}}, col, k, newK string) error {
 	return {{.Priv}}Affected(a.db.Exec(context.Background(), "update {{.Table}} set "+col+" = ("+col+" - $1::text) || jsonb_build_object($2::text, "+col+" -> $1::text) where {{.Key.Name}} = $3 and "+col+" ? $1::text", k, newK, id))
 }
 {{end}}{{end}}
+{{- if .Funcs}}
+// ---------------------------------------------------------------------------
+// own functions from interface of model file
+// ---------------------------------------------------------------------------
+{{range .Funcs}}
+// {{.Name}}: {{.Comment}}
+func (a *{{$.Class}}) {{.Name}}{{.Signature}} {
+	{{.Body}}
+}
+{{end}}{{end}}
 // ---------------------------------------------------------------------------
 // query
 // ---------------------------------------------------------------------------

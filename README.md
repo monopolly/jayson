@@ -248,6 +248,44 @@ Array and jsonb fields get typed methods named by the field:
 | `conf Config` (`jsonb`) | `ConfUpdate(id, k string, v any)`, `ConfMerge`, `ConfDelete`, `ConfRename` |
 | `items []Item` (`jsonb`) | `ItemsAppend(id, v ...Item)` |
 
+### Own SQL functions
+
+Describe own queries as an interface named `<struct>SQL` in the model file: SQL in the comment above the method,
+flags in the comment at the end of the line. The generator adds them to `AccountSQL` as methods.
+
+```go
+type accountSQL interface {
+	// where active and balance > @min order by balance desc
+	Rich(min int64) ([]Account, error)
+
+	// where email = @email
+	ByEmail(email string) (Account, error) // !404
+
+	// select balance from accounts where id = @id
+	Balance(id int) (int64, error)
+
+	// select id from accounts where name = any(@names)
+	IDs(names []string) ([]int, error)
+
+	// update accounts set active = false where balance < @min
+	Freeze(min int64) (int64, error)
+
+	// delete from accounts where id = @id
+	Drop(id int) error
+}
+```
+
+| Result | Generated |
+| --- | --- |
+| `([]Account, error)`, `(Account, error)` | Rows of the model. SQL starts with `where`, `order` or `limit`: columns are added by the generator. |
+| `(T, error)` | One value. |
+| `([]T, error)` | A column of values. |
+| `(int64, error)` with `update`/`delete`/`insert` | Count of affected rows. |
+| `error` | Exec. |
+
+`@name` is a parameter of the function; unknown or unused names are generation errors. `$1, $2` also work.
+`!404` returns the zero value and `nil` instead of `pgx.ErrNoRows`. The methods work in `TX(tx)` like all others.
+
 ### Transactions and concurrency
 
 `AccountSQL` is created on `*pgxpool.Pool` and is safe for concurrent use: it keeps no state, every query takes a connection from the pool.

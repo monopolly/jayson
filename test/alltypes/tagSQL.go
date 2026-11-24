@@ -544,6 +544,60 @@ func (a *TagSQL) jsonRename(id int, col, k, newK string) error {
 }
 
 // ---------------------------------------------------------------------------
+// own functions from interface of model file
+// ---------------------------------------------------------------------------
+
+// ByOwner: where owner = @owner order by id
+func (a *TagSQL) ByOwner(owner int) (res []Tag, err error) {
+	return a.query(nil, " where owner = $1 order by id", owner)
+}
+
+// ByName: where name = @name
+func (a *TagSQL) ByName(name string) (res Tag, err error) {
+	res, err = a.queryRow(nil, " where name = $1", name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+	}
+	return
+}
+
+// Name: select name from tags where id = @id
+func (a *TagSQL) Name(id int) (res string, err error) {
+	err = a.db.QueryRow(context.Background(), "select name from tags where id = $1", id).Scan(&res)
+	return
+}
+
+// Owner: select owner from tags where id = @id
+func (a *TagSQL) Owner(id int) (res int, err error) {
+	err = a.db.QueryRow(context.Background(), "select owner from tags where id = $1", id).Scan(&res)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+	}
+	return
+}
+
+// IDs: select id from tags where owner = any(@owners) order by id
+func (a *TagSQL) IDs(owners []int) (res []int, err error) {
+	rows, err := a.db.Query(context.Background(), "select id from tags where owner = any($1) order by id", owners)
+	if err != nil {
+		return
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int])
+}
+
+// Rename: update tags set name = @name where owner = @owner
+func (a *TagSQL) Rename(owner int, name string) (res int64, err error) {
+	tag, err := a.db.Exec(context.Background(), "update tags set name = $2 where owner = $1", owner, name)
+	return tag.RowsAffected(), err
+}
+
+// Drop: delete from tags where id = $1
+func (a *TagSQL) Drop(id int) (err error) {
+	_, err = a.db.Exec(context.Background(), "delete from tags where id = $1", id)
+	return
+}
+
+// ---------------------------------------------------------------------------
 // query
 // ---------------------------------------------------------------------------
 

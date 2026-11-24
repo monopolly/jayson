@@ -447,3 +447,68 @@ func TestParallel(t *testing.T) {
 		t.Fatal(n)
 	}
 }
+
+// own functions from interface tagSQL
+func TestFuncs(t *testing.T) {
+	db, ctx := testDB(t)
+	tags := NewTagSQL(db.Pool())
+	if _, err := db.Pool().Exec(ctx, "drop table if exists tags"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tags.Init(); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []Tag{{Name: "a", Owner: 1}, {Name: "b", Owner: 1}, {Name: "c", Owner: 2}} {
+		if err := tags.Insert(&v); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if list, err := tags.ByOwner(1); err != nil || len(list) != 2 || list[1].Name != "b" {
+		t.Fatal(list, err)
+	}
+	if v, err := tags.ByName("c"); err != nil || v.Owner != 2 {
+		t.Fatal(v, err)
+	}
+	// !404: empty value without error
+	if v, err := tags.ByName("none"); err != nil || v.ID != 0 {
+		t.Fatal(v, err)
+	}
+	if n, err := tags.Owner(100); err != nil || n != 0 {
+		t.Fatal(n, err)
+	}
+	// without !404
+	if _, err := tags.Name(100); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatal(err)
+	}
+	if name, err := tags.Name(1); err != nil || name != "a" {
+		t.Fatal(name, err)
+	}
+	if ids, err := tags.IDs([]int{1, 2}); err != nil || !reflect.DeepEqual(ids, []int{1, 2, 3}) {
+		t.Fatal(ids, err)
+	}
+	if n, err := tags.Rename(1, "x"); err != nil || n != 2 {
+		t.Fatal(n, err)
+	}
+
+	// all or nothing
+	err := tags.Begin(func(tx pgx.Tx) error {
+		if err := tags.TX(tx).Drop(3); err != nil {
+			return err
+		}
+		_, err := tags.TX(tx).Name(100) // not found: rollback
+		return err
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatal(err)
+	}
+	if n, _ := tags.Count(); n != 3 {
+		t.Fatal("rollback:", n)
+	}
+	if err := tags.Drop(3); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := tags.Count(); n != 2 {
+		t.Fatal(n)
+	}
+}

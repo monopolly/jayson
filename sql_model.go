@@ -45,7 +45,17 @@ type sqlModel struct {
 	CreateTable   string // create table if not exists ...
 	Indexes       []sqlIndex
 
+	Funcs []sqlFunc // own sql functions: interface newsSQL
+
 	Imports []string // packages of field types
+	imports map[string]bool
+}
+
+func (m *sqlModel) addImport(p string) {
+	if p != "" && !m.imports[p] {
+		m.imports[p] = true
+		m.Imports = append(m.Imports, p)
+	}
 }
 
 type sqlColumn struct {
@@ -103,7 +113,7 @@ func newSQLModel() *sqlModel {
 	m.TableIdent = fmt.Sprintf("pgx.Identifier{%s}", strings.Join(ident, ", "))
 
 	// imports of template
-	imports := map[string]bool{
+	m.imports = map[string]bool{
 		"context": true, "github.com/goccy/go-json": true, "errors": true, "fmt": true, "maps": true, "slices": true,
 		"strconv": true, "strings": true, "github.com/jackc/pgx/v5": true, "github.com/jackc/pgx/v5/pgconn": true,
 	}
@@ -156,15 +166,9 @@ func newSQLModel() *sqlModel {
 			}
 		}
 		for _, p := range x.Go.Imports {
-			if !imports[p] {
-				imports[p] = true
-				m.Imports = append(m.Imports, p)
-			}
+			m.addImport(p)
 		}
-		if x.Go.BaseImport != "" && !imports[x.Go.BaseImport] {
-			imports[x.Go.BaseImport] = true
-			m.Imports = append(m.Imports, x.Go.BaseImport)
-		}
+		m.addImport(x.Go.BaseImport)
 	}
 	sortStrings(m.Customs)
 
@@ -195,6 +199,7 @@ func newSQLModel() *sqlModel {
 	m.InsertFullSQL = sqlInsertQuery(m.Table, m.Columns)
 	m.UpsertSQL = sqlUpsertQuery(m)
 	m.CreateTable, m.Indexes = sqlDDL()
+	m.Funcs = newSQLFuncs(m)
 
 	return m
 }
