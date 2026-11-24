@@ -1,0 +1,20 @@
+--drop table stat;
+create table if not exists stat (
+	id          bigserial primary key,
+	uid         bigint,
+	type        bigint,
+	name        text,
+	source      text,
+	ip          text,
+	image       boolean,
+	stack       text[] default '{}',
+	uints       numeric(20,0)[] default '{}',
+	uints8      bytea,
+	uints16     integer[] default '{}',
+	uints32     bigint[] default '{}',
+	uints64     numeric(20,0)[] default '{}',
+	ints8       smallint[] default '{}',
+	ints16      smallint[] default '{}',
+	ints32      integer[] default '{}',
+	ints64      bigint[] default '{}'
+);
