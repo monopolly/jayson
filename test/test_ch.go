@@ -1,6 +1,6 @@
 package news
 
-// go ch sql js proto test gotiny
+// go ch sql proto test gotiny
 type stat struct {
 	id      int // sql{inc}  #readonly
 	uid     int // ch{primary}

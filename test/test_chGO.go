@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/monopolly/cast"
-	"github.com/monopolly/jsons"
 	"github.com/niubaoshu/gotiny"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -33,11 +32,8 @@ import (
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
 	debug                         Debug mode
-	demo                          Generate demo json file with default values
-	enum                          Generate swift enum
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	gotiny                        Create gotiny marshal/unmarshal
-	js=NewsJson                   Change json struct names. Ex: js=NewsJson
 	lock                          Lock model for generation. Can't change model.
 	msgp                          Create message pack marshal/unmarshal
 	noinit                        No New() init function for struct
@@ -45,12 +41,11 @@ import (
 	optimize                      Try to create golang padding optimized struct
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
-	swift                         Generate swift model
 	test                          Generate go tests for generated model
-	ts=news                       Set typescript struct names. Ex: ts=NewsJson
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
+	js{name=""}                   Replace json field name. Ex: js{name="sid"}
 	title{}                       Add custom title for index. title{Nice & Sweet}
 
 	GO:
@@ -96,20 +91,6 @@ import (
 	name="field"                  Rewrite proto field name
 	skip                          Skip field for proto
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
-
-	SWIFT:
-	file=""                       Create another swift file for this field Swift model. file="f1", file="f2"
-	must                          Swift field with required values
-	skip                          Ignore field for Swift
-	type=""                       Replace type for Swift model. Ex: type="string"
-
-	JSON:
-	bool                          Add set jsons function for bool fields
-	inc                           Add inc jsons function for numbers fields
-	name=""                       Replace json field name. Ex: name="sid"
-	raw                           Set Raw json function inside field
-	skip                          Skip json field
-	time                          Create convert jsons function for unixtime fields
 */
 
 // field type
@@ -186,186 +167,6 @@ type Stat struct {
 	Ints64  []int64  `json:"ints64,omitempty"`  //
 }
 
-// Parse []any to ID struct
-func ParseStatToStruct(r []any) (a Stat) {
-
-	for pos, x := range r {
-		switch StatIndexTyped(pos) {
-		case StatIndexID:
-			cast.Convert(&a.ID, x) //int
-		case StatIndexUID:
-			cast.Convert(&a.UID, x) //int
-		case StatIndexType:
-			cast.Convert(&a.Type, x) //int
-		case StatIndexName:
-			cast.Convert(&a.Name, x) //string
-		case StatIndexSource:
-			cast.Convert(&a.Source, x) //string
-		case StatIndexIP:
-			cast.Convert(&a.IP, x) //string
-		case StatIndexImage:
-			cast.Convert(&a.Image, x) //bool
-		case StatIndexStack:
-			switch v0 := x.(type) {
-			case nil:
-			case []string:
-				a.Stack = v0
-			case []any:
-				r0 := make([]string, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 string
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Stack = r0
-			default:
-				cast.Convert(&a.Stack, v0)
-			} //[]string
-		case StatIndexUints:
-			switch v0 := x.(type) {
-			case nil:
-			case []uint:
-				a.Uints = v0
-			case []any:
-				r0 := make([]uint, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 uint
-					if n, ok := e0.(interface{ MarshalJSON() ([]byte, error) }); ok {
-						b, _ := n.MarshalJSON()
-						cast.Convert(&el0, string(b))
-					} else {
-						cast.Convert(&el0, e0)
-					}
-					r0 = append(r0, el0)
-				}
-				a.Uints = r0
-			default:
-				cast.Convert(&a.Uints, v0)
-			} //[]uint
-		case StatIndexUints8:
-			cast.Convert(&a.Uints8, x) //[]uint8
-		case StatIndexUints16:
-			switch v0 := x.(type) {
-			case nil:
-			case []uint16:
-				a.Uints16 = v0
-			case []any:
-				r0 := make([]uint16, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 uint16
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Uints16 = r0
-			default:
-				cast.Convert(&a.Uints16, v0)
-			} //[]uint16
-		case StatIndexUints32:
-			switch v0 := x.(type) {
-			case nil:
-			case []uint32:
-				a.Uints32 = v0
-			case []any:
-				r0 := make([]uint32, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 uint32
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Uints32 = r0
-			default:
-				cast.Convert(&a.Uints32, v0)
-			} //[]uint32
-		case StatIndexUints64:
-			switch v0 := x.(type) {
-			case nil:
-			case []uint64:
-				a.Uints64 = v0
-			case []any:
-				r0 := make([]uint64, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 uint64
-					if n, ok := e0.(interface{ MarshalJSON() ([]byte, error) }); ok {
-						b, _ := n.MarshalJSON()
-						cast.Convert(&el0, string(b))
-					} else {
-						cast.Convert(&el0, e0)
-					}
-					r0 = append(r0, el0)
-				}
-				a.Uints64 = r0
-			default:
-				cast.Convert(&a.Uints64, v0)
-			} //[]uint64
-		case StatIndexInts8:
-			switch v0 := x.(type) {
-			case nil:
-			case []int8:
-				a.Ints8 = v0
-			case []any:
-				r0 := make([]int8, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 int8
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Ints8 = r0
-			default:
-				cast.Convert(&a.Ints8, v0)
-			} //[]int8
-		case StatIndexInts16:
-			switch v0 := x.(type) {
-			case nil:
-			case []int16:
-				a.Ints16 = v0
-			case []any:
-				r0 := make([]int16, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 int16
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Ints16 = r0
-			default:
-				cast.Convert(&a.Ints16, v0)
-			} //[]int16
-		case StatIndexInts32:
-			switch v0 := x.(type) {
-			case nil:
-			case []int32:
-				a.Ints32 = v0
-			case []any:
-				r0 := make([]int32, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 int32
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Ints32 = r0
-			default:
-				cast.Convert(&a.Ints32, v0)
-			} //[]int32
-		case StatIndexInts64:
-			switch v0 := x.(type) {
-			case nil:
-			case []int64:
-				a.Ints64 = v0
-			case []any:
-				r0 := make([]int64, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 int64
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.Ints64 = r0
-			default:
-				cast.Convert(&a.Ints64, v0)
-			} //[]int64
-		}
-	}
-	return
-}
-
 // Tuple create an array from struct
 func (a *Stat) Tuple() (r []any) {
 	return []any{a.ID, a.UID, a.Type, a.Name, a.Source, a.IP, a.Image, a.Stack, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Ints8, a.Ints16, a.Ints32, a.Ints64}
@@ -374,182 +175,6 @@ func (a *Stat) Tuple() (r []any) {
 // Tuple create an array from struct for clickhouse
 func (a *Stat) clickhouseTuple() (r []any) {
 	return []any{a.ID, a.UID, a.Type, a.Name, a.Source, net.ParseIP(a.IP), a.Image, a.Stack, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Ints8, a.Ints16, a.Ints32, a.Ints64}
-}
-
-// update struct with function
-func (a *Stat) Update(k string, x any) {
-	switch k {
-	case "id":
-		cast.Convert(&a.ID, x) //int
-	case "uid":
-		cast.Convert(&a.UID, x) //int
-	case "type":
-		cast.Convert(&a.Type, x) //int
-	case "name":
-		cast.Convert(&a.Name, x) //string
-	case "source":
-		cast.Convert(&a.Source, x) //string
-	case "ip":
-		cast.Convert(&a.IP, x) //string
-	case "image":
-		cast.Convert(&a.Image, x) //bool
-	case "stack":
-		switch v0 := x.(type) {
-		case nil:
-		case []string:
-			a.Stack = v0
-		case []any:
-			r0 := make([]string, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 string
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Stack = r0
-		default:
-			cast.Convert(&a.Stack, v0)
-		} //[]string
-	case "uints":
-		switch v0 := x.(type) {
-		case nil:
-		case []uint:
-			a.Uints = v0
-		case []any:
-			r0 := make([]uint, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 uint
-				if n, ok := e0.(interface{ MarshalJSON() ([]byte, error) }); ok {
-					b, _ := n.MarshalJSON()
-					cast.Convert(&el0, string(b))
-				} else {
-					cast.Convert(&el0, e0)
-				}
-				r0 = append(r0, el0)
-			}
-			a.Uints = r0
-		default:
-			cast.Convert(&a.Uints, v0)
-		} //[]uint
-	case "uints8":
-		cast.Convert(&a.Uints8, x) //[]uint8
-	case "uints16":
-		switch v0 := x.(type) {
-		case nil:
-		case []uint16:
-			a.Uints16 = v0
-		case []any:
-			r0 := make([]uint16, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 uint16
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Uints16 = r0
-		default:
-			cast.Convert(&a.Uints16, v0)
-		} //[]uint16
-	case "uints32":
-		switch v0 := x.(type) {
-		case nil:
-		case []uint32:
-			a.Uints32 = v0
-		case []any:
-			r0 := make([]uint32, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 uint32
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Uints32 = r0
-		default:
-			cast.Convert(&a.Uints32, v0)
-		} //[]uint32
-	case "uints64":
-		switch v0 := x.(type) {
-		case nil:
-		case []uint64:
-			a.Uints64 = v0
-		case []any:
-			r0 := make([]uint64, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 uint64
-				if n, ok := e0.(interface{ MarshalJSON() ([]byte, error) }); ok {
-					b, _ := n.MarshalJSON()
-					cast.Convert(&el0, string(b))
-				} else {
-					cast.Convert(&el0, e0)
-				}
-				r0 = append(r0, el0)
-			}
-			a.Uints64 = r0
-		default:
-			cast.Convert(&a.Uints64, v0)
-		} //[]uint64
-	case "ints8":
-		switch v0 := x.(type) {
-		case nil:
-		case []int8:
-			a.Ints8 = v0
-		case []any:
-			r0 := make([]int8, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 int8
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Ints8 = r0
-		default:
-			cast.Convert(&a.Ints8, v0)
-		} //[]int8
-	case "ints16":
-		switch v0 := x.(type) {
-		case nil:
-		case []int16:
-			a.Ints16 = v0
-		case []any:
-			r0 := make([]int16, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 int16
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Ints16 = r0
-		default:
-			cast.Convert(&a.Ints16, v0)
-		} //[]int16
-	case "ints32":
-		switch v0 := x.(type) {
-		case nil:
-		case []int32:
-			a.Ints32 = v0
-		case []any:
-			r0 := make([]int32, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 int32
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Ints32 = r0
-		default:
-			cast.Convert(&a.Ints32, v0)
-		} //[]int32
-	case "ints64":
-		switch v0 := x.(type) {
-		case nil:
-		case []int64:
-			a.Ints64 = v0
-		case []any:
-			r0 := make([]int64, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 int64
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.Ints64 = r0
-		default:
-			cast.Convert(&a.Ints64, v0)
-		} //[]int64
-	}
 }
 
 // get struct value with function
@@ -632,29 +257,6 @@ func (a *Stat) String(k string) (v string) {
 		return fmt.Sprint(a.Ints64) //[]int64
 	}
 	return
-}
-
-// Struct to json
-func (a *Stat) ToJson() (r []byte) {
-	js := jsons.Create().
-		Add(StatFieldID, a.ID).
-		Add(StatFieldUID, a.UID).
-		Add(StatFieldType, a.Type).
-		Add(StatFieldName, a.Name).
-		Add(StatFieldSource, a.Source).
-		Add(StatFieldIP, a.IP).
-		Add(StatFieldImage, a.Image).
-		Add(StatFieldStack, a.Stack).
-		Add(StatFieldUints, a.Uints).
-		Add(StatFieldUints8, a.Uints8).
-		Add(StatFieldUints16, a.Uints16).
-		Add(StatFieldUints32, a.Uints32).
-		Add(StatFieldUints64, a.Uints64).
-		Add(StatFieldInts8, a.Ints8).
-		Add(StatFieldInts16, a.Ints16).
-		Add(StatFieldInts32, a.Ints32).
-		Add(StatFieldInts64, a.Ints64)
-	return js.Bytes()
 }
 
 func StatReadonlyList() []StatIndexTyped {
@@ -995,666 +597,6 @@ func ParseStat(v []byte) (a Stat, err error) {
 	return
 }
 
-// Parse []any to json
-func ParseTupleToStatJson(r []any) (a StatJson) {
-	for pos, x := range r {
-		switch StatIndexTyped(pos) {
-		case StatIndexID:
-			a.Set(StatFieldID, x)
-		case StatIndexUID:
-			a.Set(StatFieldUID, x)
-		case StatIndexType:
-			a.Set(StatFieldType, x)
-		case StatIndexName:
-			a.Set(StatFieldName, x)
-		case StatIndexSource:
-			a.Set(StatFieldSource, x)
-		case StatIndexIP:
-			a.Set(StatFieldIP, x)
-		case StatIndexImage:
-			a.Set(StatFieldImage, x)
-		case StatIndexStack:
-			a.Set(StatFieldStack, x)
-		case StatIndexUints:
-			a.Set(StatFieldUints, x)
-		case StatIndexUints8:
-			a.Set(StatFieldUints8, x)
-		case StatIndexUints16:
-			a.Set(StatFieldUints16, x)
-		case StatIndexUints32:
-			a.Set(StatFieldUints32, x)
-		case StatIndexUints64:
-			a.Set(StatFieldUints64, x)
-		case StatIndexInts8:
-			a.Set(StatFieldInts8, x)
-		case StatIndexInts16:
-			a.Set(StatFieldInts16, x)
-		case StatIndexInts32:
-			a.Set(StatFieldInts32, x)
-		case StatIndexInts64:
-			a.Set(StatFieldInts64, x)
-		}
-	}
-	return
-}
-
-// NewStatJson create struct
-func NewStatJson() StatJson {
-	return []byte("{}")
-}
-
-// StatJson is a struct
-type StatJson []byte
-
-// Set value
-func (a *StatJson) Set(k string, v any) *StatJson {
-	(*a) = jsons.Set((*a), k, v)
-	return a
-}
-
-// Get value
-func (a *StatJson) Get(k string) jsons.Result {
-	return jsons.Get((*a), k)
-}
-
-// Get value
-func (a *StatJson) DeleteFields(fields ...string) {
-	(*a) = jsons.Delete((*a), fields...)
-}
-
-// ID set or get value
-func (a *StatJson) ID(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), StatFieldID)
-	}
-	a.Set(StatFieldID, v[0])
-	return
-}
-
-// UID set or get value
-func (a *StatJson) UID(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), StatFieldUID)
-	}
-	a.Set(StatFieldUID, v[0])
-	return
-}
-
-// Type set or get value
-func (a *StatJson) Type(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), StatFieldType)
-	}
-	a.Set(StatFieldType, v[0])
-	return
-}
-
-// Name set or get value
-func (a *StatJson) Name(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), StatFieldName)
-	}
-	a.Set(StatFieldName, v[0])
-	return
-}
-
-// Source set or get value
-func (a *StatJson) Source(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), StatFieldSource)
-	}
-	a.Set(StatFieldSource, v[0])
-	return
-}
-
-// IP set or get value
-func (a *StatJson) IP(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), StatFieldIP)
-	}
-	a.Set(StatFieldIP, v[0])
-	return
-}
-
-// Image set or get value
-func (a *StatJson) Image(v ...bool) (res bool) {
-	if v == nil {
-		return jsons.Bool((*a), StatFieldImage)
-	}
-	a.Set(StatFieldImage, v[0])
-	return
-}
-
-// Stack set or get value
-func (a *StatJson) Stack(v ...string) (res []string) {
-	if v == nil {
-		return jsons.ArrayString((*a), StatFieldStack)
-	}
-	a.Set(StatFieldStack, v)
-	return
-}
-
-// StackAdd add values
-func (a *StatJson) StackAdd(v ...string) {
-	a.Set(StatFieldStack, append(a.Stack(), v...))
-}
-
-// StackPrepend add values
-func (a *StatJson) StackPrepend(v ...string) {
-	a.Set(StatFieldStack, append(v, a.Stack()...))
-}
-
-// StackAddUnique add unique values only
-func (a *StatJson) StackAddUnique(v ...string) {
-	var list []string
-	un := map[string]bool{}
-	for _, x := range a.Stack() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Stack(list...)
-}
-
-// StackDelete add unique values only
-func (a *StatJson) StackDelete(v string) {
-	var list []string
-	for _, x := range a.Stack() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Stack(list...)
-}
-
-// Uints set or get value
-func (a *StatJson) Uints(v ...uint) (res []uint) {
-	if v == nil {
-		return jsons.ArrayUint((*a), StatFieldUints)
-	}
-	a.Set(StatFieldUints, v)
-	return
-}
-
-// UintsAdd add values
-func (a *StatJson) UintsAdd(v ...uint) {
-	a.Set(StatFieldUints, append(a.Uints(), v...))
-}
-
-// UintsPrepend add values
-func (a *StatJson) UintsPrepend(v ...uint) {
-	a.Set(StatFieldUints, append(v, a.Uints()...))
-}
-
-// UintsAddUnique add unique values only
-func (a *StatJson) UintsAddUnique(v ...uint) {
-	var list []uint
-	un := map[uint]bool{}
-	for _, x := range a.Uints() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Uints(list...)
-}
-
-// UintsDelete add unique values only
-func (a *StatJson) UintsDelete(v uint) {
-	var list []uint
-	for _, x := range a.Uints() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Uints(list...)
-}
-
-// Uints8 set or get value
-func (a *StatJson) Uints8(v ...uint8) (res []uint8) {
-	if v == nil {
-		return jsons.ArrayUint8((*a), StatFieldUints8)
-	}
-	a.Set(StatFieldUints8, v)
-	return
-}
-
-// Uints8Add add values
-func (a *StatJson) Uints8Add(v ...uint8) {
-	a.Set(StatFieldUints8, append(a.Uints8(), v...))
-}
-
-// Uints8Prepend add values
-func (a *StatJson) Uints8Prepend(v ...uint8) {
-	a.Set(StatFieldUints8, append(v, a.Uints8()...))
-}
-
-// Uints8AddUnique add unique values only
-func (a *StatJson) Uints8AddUnique(v ...uint8) {
-	var list []uint8
-	un := map[uint8]bool{}
-	for _, x := range a.Uints8() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Uints8(list...)
-}
-
-// Uints8Delete add unique values only
-func (a *StatJson) Uints8Delete(v uint8) {
-	var list []uint8
-	for _, x := range a.Uints8() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Uints8(list...)
-}
-
-// Uints16 set or get value
-func (a *StatJson) Uints16(v ...uint16) (res []uint16) {
-	if v == nil {
-		return jsons.ArrayUint16((*a), StatFieldUints16)
-	}
-	a.Set(StatFieldUints16, v)
-	return
-}
-
-// Uints16Add add values
-func (a *StatJson) Uints16Add(v ...uint16) {
-	a.Set(StatFieldUints16, append(a.Uints16(), v...))
-}
-
-// Uints16Prepend add values
-func (a *StatJson) Uints16Prepend(v ...uint16) {
-	a.Set(StatFieldUints16, append(v, a.Uints16()...))
-}
-
-// Uints16AddUnique add unique values only
-func (a *StatJson) Uints16AddUnique(v ...uint16) {
-	var list []uint16
-	un := map[uint16]bool{}
-	for _, x := range a.Uints16() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Uints16(list...)
-}
-
-// Uints16Delete add unique values only
-func (a *StatJson) Uints16Delete(v uint16) {
-	var list []uint16
-	for _, x := range a.Uints16() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Uints16(list...)
-}
-
-// Uints32 set or get value
-func (a *StatJson) Uints32(v ...uint32) (res []uint32) {
-	if v == nil {
-		return jsons.ArrayUint32((*a), StatFieldUints32)
-	}
-	a.Set(StatFieldUints32, v)
-	return
-}
-
-// Uints32Add add values
-func (a *StatJson) Uints32Add(v ...uint32) {
-	a.Set(StatFieldUints32, append(a.Uints32(), v...))
-}
-
-// Uints32Prepend add values
-func (a *StatJson) Uints32Prepend(v ...uint32) {
-	a.Set(StatFieldUints32, append(v, a.Uints32()...))
-}
-
-// Uints32AddUnique add unique values only
-func (a *StatJson) Uints32AddUnique(v ...uint32) {
-	var list []uint32
-	un := map[uint32]bool{}
-	for _, x := range a.Uints32() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Uints32(list...)
-}
-
-// Uints32Delete add unique values only
-func (a *StatJson) Uints32Delete(v uint32) {
-	var list []uint32
-	for _, x := range a.Uints32() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Uints32(list...)
-}
-
-// Uints64 set or get value
-func (a *StatJson) Uints64(v ...uint64) (res []uint64) {
-	if v == nil {
-		return jsons.ArrayUint64((*a), StatFieldUints64)
-	}
-	a.Set(StatFieldUints64, v)
-	return
-}
-
-// Uints64Add add values
-func (a *StatJson) Uints64Add(v ...uint64) {
-	a.Set(StatFieldUints64, append(a.Uints64(), v...))
-}
-
-// Uints64Prepend add values
-func (a *StatJson) Uints64Prepend(v ...uint64) {
-	a.Set(StatFieldUints64, append(v, a.Uints64()...))
-}
-
-// Uints64AddUnique add unique values only
-func (a *StatJson) Uints64AddUnique(v ...uint64) {
-	var list []uint64
-	un := map[uint64]bool{}
-	for _, x := range a.Uints64() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Uints64(list...)
-}
-
-// Uints64Delete add unique values only
-func (a *StatJson) Uints64Delete(v uint64) {
-	var list []uint64
-	for _, x := range a.Uints64() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Uints64(list...)
-}
-
-// Ints8 set or get value
-func (a *StatJson) Ints8(v ...int8) (res []int8) {
-	if v == nil {
-		return jsons.ArrayInt8((*a), StatFieldInts8)
-	}
-	a.Set(StatFieldInts8, v)
-	return
-}
-
-// Ints8Add add values
-func (a *StatJson) Ints8Add(v ...int8) {
-	a.Set(StatFieldInts8, append(a.Ints8(), v...))
-}
-
-// Ints8Prepend add values
-func (a *StatJson) Ints8Prepend(v ...int8) {
-	a.Set(StatFieldInts8, append(v, a.Ints8()...))
-}
-
-// Ints8AddUnique add unique values only
-func (a *StatJson) Ints8AddUnique(v ...int8) {
-	var list []int8
-	un := map[int8]bool{}
-	for _, x := range a.Ints8() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Ints8(list...)
-}
-
-// Ints8Delete add unique values only
-func (a *StatJson) Ints8Delete(v int8) {
-	var list []int8
-	for _, x := range a.Ints8() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Ints8(list...)
-}
-
-// Ints16 set or get value
-func (a *StatJson) Ints16(v ...int16) (res []int16) {
-	if v == nil {
-		return jsons.ArrayInt16((*a), StatFieldInts16)
-	}
-	a.Set(StatFieldInts16, v)
-	return
-}
-
-// Ints16Add add values
-func (a *StatJson) Ints16Add(v ...int16) {
-	a.Set(StatFieldInts16, append(a.Ints16(), v...))
-}
-
-// Ints16Prepend add values
-func (a *StatJson) Ints16Prepend(v ...int16) {
-	a.Set(StatFieldInts16, append(v, a.Ints16()...))
-}
-
-// Ints16AddUnique add unique values only
-func (a *StatJson) Ints16AddUnique(v ...int16) {
-	var list []int16
-	un := map[int16]bool{}
-	for _, x := range a.Ints16() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Ints16(list...)
-}
-
-// Ints16Delete add unique values only
-func (a *StatJson) Ints16Delete(v int16) {
-	var list []int16
-	for _, x := range a.Ints16() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Ints16(list...)
-}
-
-// Ints32 set or get value
-func (a *StatJson) Ints32(v ...int32) (res []int32) {
-	if v == nil {
-		return jsons.ArrayInt32((*a), StatFieldInts32)
-	}
-	a.Set(StatFieldInts32, v)
-	return
-}
-
-// Ints32Add add values
-func (a *StatJson) Ints32Add(v ...int32) {
-	a.Set(StatFieldInts32, append(a.Ints32(), v...))
-}
-
-// Ints32Prepend add values
-func (a *StatJson) Ints32Prepend(v ...int32) {
-	a.Set(StatFieldInts32, append(v, a.Ints32()...))
-}
-
-// Ints32AddUnique add unique values only
-func (a *StatJson) Ints32AddUnique(v ...int32) {
-	var list []int32
-	un := map[int32]bool{}
-	for _, x := range a.Ints32() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Ints32(list...)
-}
-
-// Ints32Delete add unique values only
-func (a *StatJson) Ints32Delete(v int32) {
-	var list []int32
-	for _, x := range a.Ints32() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Ints32(list...)
-}
-
-// Ints64 set or get value
-func (a *StatJson) Ints64(v ...int64) (res []int64) {
-	if v == nil {
-		return jsons.ArrayInt64((*a), StatFieldInts64)
-	}
-	a.Set(StatFieldInts64, v)
-	return
-}
-
-// Ints64Add add values
-func (a *StatJson) Ints64Add(v ...int64) {
-	a.Set(StatFieldInts64, append(a.Ints64(), v...))
-}
-
-// Ints64Prepend add values
-func (a *StatJson) Ints64Prepend(v ...int64) {
-	a.Set(StatFieldInts64, append(v, a.Ints64()...))
-}
-
-// Ints64AddUnique add unique values only
-func (a *StatJson) Ints64AddUnique(v ...int64) {
-	var list []int64
-	un := map[int64]bool{}
-	for _, x := range a.Ints64() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Ints64(list...)
-}
-
-// Ints64Delete add unique values only
-func (a *StatJson) Ints64Delete(v int64) {
-	var list []int64
-	for _, x := range a.Ints64() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Ints64(list...)
-}
-
 // clickhouse StatCQL class
 type StatCQL struct {
 	conn driver.Conn
@@ -1773,17 +715,17 @@ func (a *StatCQL) Get(id any, fields ...StatIndexTyped) (res *Stat, err error) {
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -1818,17 +760,17 @@ func (a *StatCQL) GetWhere(where string, fields ...StatIndexTyped) (res *Stat, e
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -1945,19 +887,19 @@ func (a *StatCQL) Select(where string, fields ...StatIndexTyped) (res []*Stat, e
 		return
 	}
 	defer rows.Close()
+	// scan targets by column types: clickhouse needs exact types
+	types := rows.ColumnTypes()
 	for rows.Next() {
 		var item Stat
-		values := make([]any, len(fields))
-		scan := make([]any, len(fields))
-		for i := range values {
-			scan[i] = &values[i]
+		scan := make([]any, len(types))
+		for i, t := range types {
+			scan[i] = reflect.New(t.ScanType()).Interface()
 		}
-		err = rows.Scan(scan...)
-		if err != nil {
-			continue
+		if err = rows.Scan(scan...); err != nil {
+			return
 		}
 		for pos, x := range fields {
-			item.Update(x.String(), values[pos])
+			item.clickhouseSet(x, scan[pos])
 		}
 		res = append(res, &item)
 	}
@@ -2057,6 +999,121 @@ primary key (uid)`
 // parse clickhouse query
 func (a *StatCQL) Fields() (res []StatIndexTyped) {
 	return []StatIndexTyped{StatIndexID, StatIndexUID, StatIndexType, StatIndexName, StatIndexSource, StatIndexIP, StatIndexImage, StatIndexStack, StatIndexUints, StatIndexUints8, StatIndexUints16, StatIndexUints32, StatIndexUints64, StatIndexInts8, StatIndexInts16, StatIndexInts32, StatIndexInts64}
+}
+
+// clickhouseSet sets field from value of clickhouse row
+func (a *Stat) clickhouseSet(f StatIndexTyped, v any) {
+	if v == nil {
+		return
+	}
+	switch f {
+	case StatIndexID:
+		statCHAssign(reflect.ValueOf(&a.ID).Elem(), reflect.ValueOf(v))
+	case StatIndexUID:
+		statCHAssign(reflect.ValueOf(&a.UID).Elem(), reflect.ValueOf(v))
+	case StatIndexType:
+		statCHAssign(reflect.ValueOf(&a.Type).Elem(), reflect.ValueOf(v))
+	case StatIndexName:
+		statCHAssign(reflect.ValueOf(&a.Name).Elem(), reflect.ValueOf(v))
+	case StatIndexSource:
+		statCHAssign(reflect.ValueOf(&a.Source).Elem(), reflect.ValueOf(v))
+	case StatIndexIP:
+		statCHAssign(reflect.ValueOf(&a.IP).Elem(), reflect.ValueOf(v))
+	case StatIndexImage:
+		statCHAssign(reflect.ValueOf(&a.Image).Elem(), reflect.ValueOf(v))
+	case StatIndexStack:
+		statCHAssign(reflect.ValueOf(&a.Stack).Elem(), reflect.ValueOf(v))
+	case StatIndexUints:
+		statCHAssign(reflect.ValueOf(&a.Uints).Elem(), reflect.ValueOf(v))
+	case StatIndexUints8:
+		statCHAssign(reflect.ValueOf(&a.Uints8).Elem(), reflect.ValueOf(v))
+	case StatIndexUints16:
+		statCHAssign(reflect.ValueOf(&a.Uints16).Elem(), reflect.ValueOf(v))
+	case StatIndexUints32:
+		statCHAssign(reflect.ValueOf(&a.Uints32).Elem(), reflect.ValueOf(v))
+	case StatIndexUints64:
+		statCHAssign(reflect.ValueOf(&a.Uints64).Elem(), reflect.ValueOf(v))
+	case StatIndexInts8:
+		statCHAssign(reflect.ValueOf(&a.Ints8).Elem(), reflect.ValueOf(v))
+	case StatIndexInts16:
+		statCHAssign(reflect.ValueOf(&a.Ints16).Elem(), reflect.ValueOf(v))
+	case StatIndexInts32:
+		statCHAssign(reflect.ValueOf(&a.Ints32).Elem(), reflect.ValueOf(v))
+	case StatIndexInts64:
+		statCHAssign(reflect.ValueOf(&a.Ints64).Elem(), reflect.ValueOf(v))
+	}
+}
+
+// statCHAssign sets d from clickhouse value s: same type, number, string, time, slice
+func statCHAssign(d, s reflect.Value) {
+	for s.Kind() == reflect.Pointer || s.Kind() == reflect.Interface {
+		if s.IsNil() {
+			return
+		}
+		s = s.Elem()
+	}
+
+	number := func(k reflect.Kind) bool {
+		return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
+	}
+
+	switch {
+	case s.Type().AssignableTo(d.Type()):
+		d.Set(s)
+
+	// *T
+	case d.Kind() == reflect.Pointer:
+		p := reflect.New(d.Type().Elem())
+		statCHAssign(p.Elem(), s)
+		d.Set(p)
+
+	// IPv4, UUID, DateTime > string
+	case d.Kind() == reflect.String:
+		switch v := s.Interface().(type) {
+		case fmt.Stringer:
+			d.SetString(v.String())
+		case []byte:
+			d.SetString(string(v))
+		default:
+			d.SetString(fmt.Sprint(v))
+		}
+
+	case d.Kind() == reflect.Bool:
+		d.SetBool(!s.IsZero())
+
+	case number(d.Kind()):
+		switch v := s.Interface().(type) {
+		// DateTime > unix time
+		case time.Time:
+			if !v.IsZero() {
+				d.Set(reflect.ValueOf(v.Unix()).Convert(d.Type()))
+			}
+		case bool:
+			if v {
+				d.Set(reflect.ValueOf(1).Convert(d.Type()))
+			}
+		case string:
+			if n, err := strconv.ParseFloat(v, 64); err == nil {
+				d.Set(reflect.ValueOf(n).Convert(d.Type()))
+			}
+		default:
+			if number(s.Kind()) {
+				d.Set(s.Convert(d.Type()))
+			}
+		}
+
+	// Array(UInt64) > []int
+	case d.Kind() == reflect.Slice && s.Kind() == reflect.Slice:
+		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
+		for i := range s.Len() {
+			statCHAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// named types
+	case s.Kind() == d.Kind() && s.Type().ConvertibleTo(d.Type()):
+		d.Set(s.Convert(d.Type()))
+	}
 }
 
 const (

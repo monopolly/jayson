@@ -362,17 +362,17 @@ func (a *Clickhouse) scanOneCode(args string) string {
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 `, args)
@@ -389,22 +389,125 @@ func (a *Clickhouse) scanListCode(args string) string {
 		return
 	}
 	defer rows.Close()
+	// scan targets by column types: clickhouse needs exact types
+	types := rows.ColumnTypes()
 	for rows.Next() {
 		var item %s
-		values := make([]any, len(fields))
-		scan := make([]any, len(fields))
-		for i := range values {
-			scan[i] = &values[i]
+		scan := make([]any, len(types))
+		for i, t := range types {
+			scan[i] = reflect.New(t.ScanType()).Interface()
 		}
-		err = rows.Scan(scan...)
-		if err != nil {
-			continue
+		if err = rows.Scan(scan...); err != nil {
+			return
 		}
 		for pos, x := range fields {
-			item.Update(x.String(), values[pos])
+			item.clickhouseSet(x, scan[pos])
 		}
 		res = append(res, &item)
 	}
 	err = rows.Err()
 `, args, settings.Go.StructName)
+}
+
+// values of clickhouse row to struct fields
+func (a *Clickhouse) Assign() []byte {
+
+	priv := strings.ToLower(settings.Go.StructName[:1]) + settings.Go.StructName[1:] + "CH"
+
+	var cases []string
+	for _, x := range fields {
+		if x.Clickhouse.Skip {
+			continue
+		}
+		cases = append(cases, fmt.Sprintf("case %s:\n%sAssign(reflect.ValueOf(&a.%s).Elem(), reflect.ValueOf(v))", x.Go.Index, priv, x.Go.Name))
+	}
+
+	s := `
+// clickhouseSet sets field from value of clickhouse row
+func (a *#STRUCT) clickhouseSet(f #INDEX, v any) {
+	if v == nil {
+		return
+	}
+	switch f {
+	#CASES
+	}
+}
+
+// #PRIVAssign sets d from clickhouse value s: same type, number, string, time, slice
+func #PRIVAssign(d, s reflect.Value) {
+	for s.Kind() == reflect.Pointer || s.Kind() == reflect.Interface {
+		if s.IsNil() {
+			return
+		}
+		s = s.Elem()
+	}
+
+	number := func(k reflect.Kind) bool {
+		return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
+	}
+
+	switch {
+	case s.Type().AssignableTo(d.Type()):
+		d.Set(s)
+
+	// *T
+	case d.Kind() == reflect.Pointer:
+		p := reflect.New(d.Type().Elem())
+		#PRIVAssign(p.Elem(), s)
+		d.Set(p)
+
+	// IPv4, UUID, DateTime > string
+	case d.Kind() == reflect.String:
+		switch v := s.Interface().(type) {
+		case fmt.Stringer:
+			d.SetString(v.String())
+		case []byte:
+			d.SetString(string(v))
+		default:
+			d.SetString(fmt.Sprint(v))
+		}
+
+	case d.Kind() == reflect.Bool:
+		d.SetBool(!s.IsZero())
+
+	case number(d.Kind()):
+		switch v := s.Interface().(type) {
+		// DateTime > unix time
+		case time.Time:
+			if !v.IsZero() {
+				d.Set(reflect.ValueOf(v.Unix()).Convert(d.Type()))
+			}
+		case bool:
+			if v {
+				d.Set(reflect.ValueOf(1).Convert(d.Type()))
+			}
+		case string:
+			if n, err := strconv.ParseFloat(v, 64); err == nil {
+				d.Set(reflect.ValueOf(n).Convert(d.Type()))
+			}
+		default:
+			if number(s.Kind()) {
+				d.Set(s.Convert(d.Type()))
+			}
+		}
+
+	// Array(UInt64) > []int
+	case d.Kind() == reflect.Slice && s.Kind() == reflect.Slice:
+		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
+		for i := range s.Len() {
+			#PRIVAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// named types
+	case s.Kind() == d.Kind() && s.Type().ConvertibleTo(d.Type()):
+		d.Set(s.Convert(d.Type()))
+	}
+}
+`
+	s = strings.ReplaceAll(s, "#STRUCT", settings.Go.StructName)
+	s = strings.ReplaceAll(s, "#INDEX", settings.IndexTypeName)
+	s = strings.ReplaceAll(s, "#PRIV", priv)
+	s = strings.ReplaceAll(s, "#CASES", strings.Join(cases, "\n"))
+	return []byte(s)
 }

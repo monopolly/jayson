@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +14,6 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/monopolly/cast"
-	"github.com/monopolly/jsons"
 	"github.com/niubaoshu/gotiny"
 	"github.com/vmihailenco/msgpack/v5"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -36,11 +35,8 @@ import (
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
 	debug                         Debug mode
-	demo                          Generate demo json file with default values
-	enum                          Generate swift enum
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	gotiny                        Create gotiny marshal/unmarshal
-	js=NewsJson                   Change json struct names. Ex: js=NewsJson
 	lock                          Lock model for generation. Can't change model.
 	msgp                          Create message pack marshal/unmarshal
 	noinit                        No New() init function for struct
@@ -48,12 +44,11 @@ import (
 	optimize                      Try to create golang padding optimized struct
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
-	swift                         Generate swift model
 	test                          Generate go tests for generated model
-	ts=news                       Set typescript struct names. Ex: ts=NewsJson
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
+	js{name=""}                   Replace json field name. Ex: js{name="sid"}
 	title{}                       Add custom title for index. title{Nice & Sweet}
 
 	GO:
@@ -99,20 +94,6 @@ import (
 	name="field"                  Rewrite proto field name
 	skip                          Skip field for proto
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
-
-	SWIFT:
-	file=""                       Create another swift file for this field Swift model. file="f1", file="f2"
-	must                          Swift field with required values
-	skip                          Ignore field for Swift
-	type=""                       Replace type for Swift model. Ex: type="string"
-
-	JSON:
-	bool                          Add set jsons function for bool fields
-	inc                           Add inc jsons function for numbers fields
-	name=""                       Replace json field name. Ex: name="sid"
-	raw                           Set Raw json function inside field
-	skip                          Skip json field
-	time                          Create convert jsons function for unixtime fields
 */
 
 // field type
@@ -391,203 +372,6 @@ func NewNews() (a *News) {
 	return
 }
 
-// Parse []any to ID struct
-func ParseNewsToStruct(r []any) (a News) {
-
-	for pos, x := range r {
-		switch NewsIndexTyped(pos) {
-		case NewsIndexInc:
-			cast.Convert(&a.Inc, x) //int
-		case NewsIndexRole:
-			var v int
-			cast.Convert(&v, x)
-			a.Role = Role(v) //Role
-		case NewsIndexKey:
-			switch v := x.(type) {
-			case uuid.UUID:
-				a.Key = v
-			case [16]byte:
-				a.Key = v
-			case string:
-				a.Key, _ = uuid.Parse(v)
-			case []byte:
-				if len(v) == 16 {
-					a.Key, _ = uuid.FromBytes(v)
-				} else {
-					a.Key, _ = uuid.ParseBytes(v)
-				}
-			} //uuid.UUID
-		case NewsIndexT:
-			cast.Convert(&a.T, x) //time.Time
-		case NewsIndexD:
-			cast.Convert(&a.D, x) //time.Duration
-		case NewsIndexInts:
-			cast.Convert(&a.Ints, x) //int
-		case NewsIndexInts8:
-			cast.Convert(&a.Ints8, x) //int8
-		case NewsIndexInts16:
-			cast.Convert(&a.Ints16, x) //int16
-		case NewsIndexInts32:
-			cast.Convert(&a.Ints32, x) //int32
-		case NewsIndexInts64:
-			cast.Convert(&a.Ints64, x) //int64
-		case NewsIndexUints:
-			if n, ok := x.(interface{ MarshalJSON() ([]byte, error) }); ok {
-				b, _ := n.MarshalJSON()
-				cast.Convert(&a.Uints, string(b))
-			} else {
-				cast.Convert(&a.Uints, x)
-			} //uint
-		case NewsIndexUints8:
-			cast.Convert(&a.Uints8, x) //uint8
-		case NewsIndexUints16:
-			cast.Convert(&a.Uints16, x) //uint16
-		case NewsIndexUints32:
-			cast.Convert(&a.Uints32, x) //uint32
-		case NewsIndexUints64:
-			if n, ok := x.(interface{ MarshalJSON() ([]byte, error) }); ok {
-				b, _ := n.MarshalJSON()
-				cast.Convert(&a.Uints64, string(b))
-			} else {
-				cast.Convert(&a.Uints64, x)
-			} //uint64
-		case NewsIndexFloats32:
-			cast.Convert(&a.Floats32, x) //float32
-		case NewsIndexFloats64:
-			cast.Convert(&a.Floats64, x) //float64
-		case NewsIndexBools:
-			cast.Convert(&a.Bools, x) //bool
-		case NewsIndexByte1:
-			cast.Convert(&a.Byte1, x) //byte
-		case NewsIndexBytes:
-			cast.Convert(&a.Bytes, x) //[]byte
-		case NewsIndexList_ints:
-			switch v0 := x.(type) {
-			case nil:
-			case []int:
-				a.List_ints = v0
-			case []any:
-				r0 := make([]int, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 int
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.List_ints = r0
-			default:
-				cast.Convert(&a.List_ints, v0)
-			} //[]int
-		case NewsIndexList_string:
-			switch v0 := x.(type) {
-			case nil:
-			case []string:
-				a.List_string = v0
-			case []any:
-				r0 := make([]string, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 string
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.List_string = r0
-			default:
-				cast.Convert(&a.List_string, v0)
-			} //[]string
-		case NewsIndexList_float:
-			switch v0 := x.(type) {
-			case nil:
-			case []float64:
-				a.List_float = v0
-			case []any:
-				r0 := make([]float64, 0, len(v0))
-				for _, e0 := range v0 {
-					var el0 float64
-					cast.Convert(&el0, e0)
-					r0 = append(r0, el0)
-				}
-				a.List_float = r0
-			default:
-				cast.Convert(&a.List_float, v0)
-			} //[]float64
-		case NewsIndexMap_string_string:
-			cast.Convert(&a.Map_string_string, x) //map[string]string
-		case NewsIndexMap_string_bytes:
-			cast.Convert(&a.Map_string_bytes, x) //map[string][]byte
-		case NewsIndexMap_string_bool:
-			cast.Convert(&a.Map_string_bool, x) //map[string]bool
-		case NewsIndexMap_string_int:
-			cast.Convert(&a.Map_string_int, x) //map[string]int
-		case NewsIndexMap_string_float64:
-			cast.Convert(&a.Map_string_float64, x) //map[string]float64
-		case NewsIndexMap_string_any:
-			cast.Convert(&a.Map_string_any, x) //map[string]any
-		case NewsIndexMap_int_string:
-			cast.Convert(&a.Map_int_string, x) //map[int]string
-		case NewsIndexMap_int_int:
-			cast.Convert(&a.Map_int_int, x) //map[int]int
-		case NewsIndexMap_int_bool:
-			cast.Convert(&a.Map_int_bool, x) //map[int]bool
-		case NewsIndexRenameSQL:
-			cast.Convert(&a.RenameSQL, x) //string
-		case NewsIndexRenameGO_OK:
-			cast.Convert(&a.RenameGO_OK, x) //string
-		case NewsIndexRenameJS:
-			cast.Convert(&a.RenameJS, x) //string
-		case NewsIndexMAST_UPPER_GO:
-			cast.Convert(&a.MAST_UPPER_GO, x) //string
-		case NewsIndexIntToSmallInt:
-			cast.Convert(&a.IntToSmallInt, x) //int
-		case NewsIndexSkip:
-			cast.Convert(&a.Skip, x) //string
-		case NewsIndexSql_unique_u1_1:
-			cast.Convert(&a.Sql_unique_u1_1, x) //int
-		case NewsIndexSql_unique_u1_2:
-			cast.Convert(&a.Sql_unique_u1_2, x) //int
-		case NewsIndexSql_index1_1:
-			cast.Convert(&a.Sql_index1_1, x) //int
-		case NewsIndexSql_index1_2:
-			cast.Convert(&a.Sql_index1_2, x) //int
-		case NewsIndexSql_index1_3:
-			cast.Convert(&a.Sql_index1_3, x) //int
-		case NewsIndexSql_keys_1:
-			cast.Convert(&a.Sql_keys_1, x) //int
-		case NewsIndexSql_keys_2:
-			cast.Convert(&a.Sql_keys_2, x) //int
-		case NewsIndexSql_keys_3:
-			cast.Convert(&a.Sql_keys_3, x) //int
-		case NewsIndexSql_search:
-			cast.Convert(&a.Sql_search, x) //string
-		case NewsIndexSql_get:
-			cast.Convert(&a.Sql_get, x) //string
-		case NewsIndexSql_unique_x1:
-			cast.Convert(&a.Sql_unique_x1, x) //int
-		case NewsIndexSql_unique_x2:
-			cast.Convert(&a.Sql_unique_x2, x) //int
-		case NewsIndexSql_unique_x1_x2:
-			cast.Convert(&a.Sql_unique_x1_x2, x) //int
-		case NewsIndexSql_primary:
-			cast.Convert(&a.Sql_primary, x) //float64
-		case NewsIndexSql_jsonb_index:
-			cast.Convert(&a.Sql_jsonb_index, x) //map[string]any
-		case NewsIndexTime_duration:
-			cast.Convert(&a.Time_duration, x) //time.Duration
-		case NewsIndexPublic_field1:
-			cast.Convert(&a.Public_field1, x) //int
-		case NewsIndexPublic_field2:
-			cast.Convert(&a.Public_field2, x) //int
-		case NewsIndexPublic_field3:
-			cast.Convert(&a.Public_field3, x) //int
-		case NewsIndexPublic_field_me1:
-			cast.Convert(&a.Public_field_me1, x) //int
-		case NewsIndexPublic_field_me2:
-			cast.Convert(&a.Public_field_me2, x) //int
-		case NewsIndexPublic_field_me3:
-			cast.Convert(&a.Public_field_me3, x) //int
-		}
-	}
-	return
-}
-
 // Tuple create an array from struct
 func (a *News) Tuple() (r []any) {
 	return []any{a.Inc, a.Role, a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.List_ints, a.List_string, a.List_float, a.Map_string_string, a.Map_string_bytes, a.Map_string_bool, a.Map_string_int, a.Map_string_float64, a.Map_string_any, a.Map_int_string, a.Map_int_int, a.Map_int_bool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MAST_UPPER_GO, a.IntToSmallInt, a.Skip, a.Sql_unique_u1_1, a.Sql_unique_u1_2, a.Sql_index1_1, a.Sql_index1_2, a.Sql_index1_3, a.Sql_keys_1, a.Sql_keys_2, a.Sql_keys_3, a.Sql_search, a.Sql_get, a.Sql_unique_x1, a.Sql_unique_x2, a.Sql_unique_x1_x2, a.Sql_primary, a.Sql_jsonb_index, a.Time_duration, a.Go_type_int_to_strings, a.Public_field1, a.Public_field2, a.Public_field3, a.Public_field_me1, a.Public_field_me2, a.Public_field_me3}
@@ -596,199 +380,6 @@ func (a *News) Tuple() (r []any) {
 // Tuple create an array from struct for clickhouse
 func (a *News) clickhouseTuple() (r []any) {
 	return []any{a.Inc, int(a.Role), a.Key, a.T, a.D, a.Ints, a.Ints8, a.Ints16, a.Ints32, a.Ints64, a.Uints, a.Uints8, a.Uints16, a.Uints32, a.Uints64, a.Floats32, a.Floats64, a.Bools, a.Byte1, a.Bytes, a.List_ints, a.List_string, a.List_float, a.Map_string_string, a.Map_string_bytes, a.Map_string_bool, a.Map_string_int, a.Map_string_float64, a.Map_string_any, a.Map_int_string, a.Map_int_int, a.Map_int_bool, a.RenameSQL, a.RenameGO_OK, a.RenameJS, a.MAST_UPPER_GO, a.IntToSmallInt, a.Skip, a.Sql_unique_u1_1, a.Sql_unique_u1_2, a.Sql_index1_1, a.Sql_index1_2, a.Sql_index1_3, a.Sql_keys_1, a.Sql_keys_2, a.Sql_keys_3, a.Sql_search, a.Sql_get, a.Sql_unique_x1, a.Sql_unique_x2, a.Sql_unique_x1_x2, a.Sql_primary, a.Sql_jsonb_index, a.Time_duration, a.Go_type_int_to_strings, a.Public_field1, a.Public_field2, a.Public_field3, a.Public_field_me1, a.Public_field_me2, a.Public_field_me3}
-}
-
-// update struct with function
-func (a *News) Update(k string, x any) {
-	switch k {
-	case "inc":
-		cast.Convert(&a.Inc, x) //int
-	case "role":
-		var v int
-		cast.Convert(&v, x)
-		a.Role = Role(v) //Role
-	case "key":
-		switch v := x.(type) {
-		case uuid.UUID:
-			a.Key = v
-		case [16]byte:
-			a.Key = v
-		case string:
-			a.Key, _ = uuid.Parse(v)
-		case []byte:
-			if len(v) == 16 {
-				a.Key, _ = uuid.FromBytes(v)
-			} else {
-				a.Key, _ = uuid.ParseBytes(v)
-			}
-		} //uuid.UUID
-	case "t":
-		cast.Convert(&a.T, x) //time.Time
-	case "d":
-		cast.Convert(&a.D, x) //time.Duration
-	case "ints":
-		cast.Convert(&a.Ints, x) //int
-	case "ints8":
-		cast.Convert(&a.Ints8, x) //int8
-	case "ints16":
-		cast.Convert(&a.Ints16, x) //int16
-	case "ints32":
-		cast.Convert(&a.Ints32, x) //int32
-	case "ints64":
-		cast.Convert(&a.Ints64, x) //int64
-	case "uints":
-		if n, ok := x.(interface{ MarshalJSON() ([]byte, error) }); ok {
-			b, _ := n.MarshalJSON()
-			cast.Convert(&a.Uints, string(b))
-		} else {
-			cast.Convert(&a.Uints, x)
-		} //uint
-	case "uints8":
-		cast.Convert(&a.Uints8, x) //uint8
-	case "uints16":
-		cast.Convert(&a.Uints16, x) //uint16
-	case "uints32":
-		cast.Convert(&a.Uints32, x) //uint32
-	case "uints64":
-		if n, ok := x.(interface{ MarshalJSON() ([]byte, error) }); ok {
-			b, _ := n.MarshalJSON()
-			cast.Convert(&a.Uints64, string(b))
-		} else {
-			cast.Convert(&a.Uints64, x)
-		} //uint64
-	case "floats32":
-		cast.Convert(&a.Floats32, x) //float32
-	case "floats64":
-		cast.Convert(&a.Floats64, x) //float64
-	case "bools":
-		cast.Convert(&a.Bools, x) //bool
-	case "byte1":
-		cast.Convert(&a.Byte1, x) //byte
-	case "bytes":
-		cast.Convert(&a.Bytes, x) //[]byte
-	case "list_ints":
-		switch v0 := x.(type) {
-		case nil:
-		case []int:
-			a.List_ints = v0
-		case []any:
-			r0 := make([]int, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 int
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.List_ints = r0
-		default:
-			cast.Convert(&a.List_ints, v0)
-		} //[]int
-	case "list_string":
-		switch v0 := x.(type) {
-		case nil:
-		case []string:
-			a.List_string = v0
-		case []any:
-			r0 := make([]string, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 string
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.List_string = r0
-		default:
-			cast.Convert(&a.List_string, v0)
-		} //[]string
-	case "list_float":
-		switch v0 := x.(type) {
-		case nil:
-		case []float64:
-			a.List_float = v0
-		case []any:
-			r0 := make([]float64, 0, len(v0))
-			for _, e0 := range v0 {
-				var el0 float64
-				cast.Convert(&el0, e0)
-				r0 = append(r0, el0)
-			}
-			a.List_float = r0
-		default:
-			cast.Convert(&a.List_float, v0)
-		} //[]float64
-	case "map_string_string":
-		cast.Convert(&a.Map_string_string, x) //map[string]string
-	case "map_string_bytes":
-		cast.Convert(&a.Map_string_bytes, x) //map[string][]byte
-	case "map_string_bool":
-		cast.Convert(&a.Map_string_bool, x) //map[string]bool
-	case "map_string_int":
-		cast.Convert(&a.Map_string_int, x) //map[string]int
-	case "map_string_float64":
-		cast.Convert(&a.Map_string_float64, x) //map[string]float64
-	case "map_string_any":
-		cast.Convert(&a.Map_string_any, x) //map[string]any
-	case "map_int_string":
-		cast.Convert(&a.Map_int_string, x) //map[int]string
-	case "map_int_int":
-		cast.Convert(&a.Map_int_int, x) //map[int]int
-	case "map_int_bool":
-		cast.Convert(&a.Map_int_bool, x) //map[int]bool
-	case "renameSQL":
-		cast.Convert(&a.RenameSQL, x) //string
-	case "renameGO":
-		cast.Convert(&a.RenameGO_OK, x) //string
-	case "renameJS":
-		cast.Convert(&a.RenameJS, x) //string
-	case "mast_upper_go":
-		cast.Convert(&a.MAST_UPPER_GO, x) //string
-	case "intToSmallInt":
-		cast.Convert(&a.IntToSmallInt, x) //int
-	case "skip":
-		cast.Convert(&a.Skip, x) //string
-	case "sql_unique_u1_1":
-		cast.Convert(&a.Sql_unique_u1_1, x) //int
-	case "sql_unique_u1_2":
-		cast.Convert(&a.Sql_unique_u1_2, x) //int
-	case "sql_index1_1":
-		cast.Convert(&a.Sql_index1_1, x) //int
-	case "sql_index1_2":
-		cast.Convert(&a.Sql_index1_2, x) //int
-	case "sql_index1_3":
-		cast.Convert(&a.Sql_index1_3, x) //int
-	case "sql_keys_1":
-		cast.Convert(&a.Sql_keys_1, x) //int
-	case "sql_keys_2":
-		cast.Convert(&a.Sql_keys_2, x) //int
-	case "sql_keys_3":
-		cast.Convert(&a.Sql_keys_3, x) //int
-	case "sql_search":
-		cast.Convert(&a.Sql_search, x) //string
-	case "sql_get":
-		cast.Convert(&a.Sql_get, x) //string
-	case "sql_unique_x1":
-		cast.Convert(&a.Sql_unique_x1, x) //int
-	case "sql_unique_x2":
-		cast.Convert(&a.Sql_unique_x2, x) //int
-	case "sql_unique_x1_x2":
-		cast.Convert(&a.Sql_unique_x1_x2, x) //int
-	case "sql_primary":
-		cast.Convert(&a.Sql_primary, x) //float64
-	case "sql_jsonb_index":
-		cast.Convert(&a.Sql_jsonb_index, x) //map[string]any
-	case "time_duration":
-		cast.Convert(&a.Time_duration, x) //time.Duration
-	case "public_field1":
-		cast.Convert(&a.Public_field1, x) //int
-	case "public_field2":
-		cast.Convert(&a.Public_field2, x) //int
-	case "public_field3":
-		cast.Convert(&a.Public_field3, x) //int
-	case "public_field_me1":
-		cast.Convert(&a.Public_field_me1, x) //int
-	case "public_field_me2":
-		cast.Convert(&a.Public_field_me2, x) //int
-	case "public_field_me3":
-		cast.Convert(&a.Public_field_me3, x) //int
-	}
 }
 
 // get struct value with function
@@ -1047,73 +638,6 @@ func (a *News) String(k string) (v string) {
 		return fmt.Sprint(a.Public_field_me3) //int
 	}
 	return
-}
-
-// Struct to json
-func (a *News) ToJson() (r []byte) {
-	js := jsons.Create().
-		Add(NewsFieldInc, a.Inc).
-		Add(NewsFieldRole, a.Role).
-		Add(NewsFieldKey, a.Key).
-		Add(NewsFieldT, a.T).
-		Add(NewsFieldD, a.D).
-		Add(NewsFieldInts, a.Ints).
-		Add(NewsFieldInts8, a.Ints8).
-		Add(NewsFieldInts16, a.Ints16).
-		Add(NewsFieldInts32, a.Ints32).
-		Add(NewsFieldInts64, a.Ints64).
-		Add(NewsFieldUints, a.Uints).
-		Add(NewsFieldUints8, a.Uints8).
-		Add(NewsFieldUints16, a.Uints16).
-		Add(NewsFieldUints32, a.Uints32).
-		Add(NewsFieldUints64, a.Uints64).
-		Add(NewsFieldFloats32, a.Floats32).
-		Add(NewsFieldFloats64, a.Floats64).
-		Add(NewsFieldBools, a.Bools).
-		Add(NewsFieldByte1, a.Byte1).
-		Add(NewsFieldBytes, a.Bytes).
-		Add(NewsFieldList_ints, a.List_ints).
-		Add(NewsFieldList_string, a.List_string).
-		Add(NewsFieldList_float, a.List_float).
-		Add(NewsFieldMap_string_string, a.Map_string_string).
-		Add(NewsFieldMap_string_bytes, a.Map_string_bytes).
-		Add(NewsFieldMap_string_bool, a.Map_string_bool).
-		Add(NewsFieldMap_string_int, a.Map_string_int).
-		Add(NewsFieldMap_string_float64, a.Map_string_float64).
-		Add(NewsFieldMap_string_any, a.Map_string_any).
-		Add(NewsFieldMap_int_string, a.Map_int_string).
-		Add(NewsFieldMap_int_int, a.Map_int_int).
-		Add(NewsFieldMap_int_bool, a.Map_int_bool).
-		Add(NewsFieldRenameSQL, a.RenameSQL).
-		Add(NewsFieldRenameGO_OK, a.RenameGO_OK).
-		Add(NewsFieldRenameJS, a.RenameJS).
-		Add(NewsFieldMAST_UPPER_GO, a.MAST_UPPER_GO).
-		Add(NewsFieldIntToSmallInt, a.IntToSmallInt).
-		Add(NewsFieldSkip, a.Skip).
-		Add(NewsFieldSql_unique_u1_1, a.Sql_unique_u1_1).
-		Add(NewsFieldSql_unique_u1_2, a.Sql_unique_u1_2).
-		Add(NewsFieldSql_index1_1, a.Sql_index1_1).
-		Add(NewsFieldSql_index1_2, a.Sql_index1_2).
-		Add(NewsFieldSql_index1_3, a.Sql_index1_3).
-		Add(NewsFieldSql_keys_1, a.Sql_keys_1).
-		Add(NewsFieldSql_keys_2, a.Sql_keys_2).
-		Add(NewsFieldSql_keys_3, a.Sql_keys_3).
-		Add(NewsFieldSql_search, a.Sql_search).
-		Add(NewsFieldSql_get, a.Sql_get).
-		Add(NewsFieldSql_unique_x1, a.Sql_unique_x1).
-		Add(NewsFieldSql_unique_x2, a.Sql_unique_x2).
-		Add(NewsFieldSql_unique_x1_x2, a.Sql_unique_x1_x2).
-		Add(NewsFieldSql_primary, a.Sql_primary).
-		Add(NewsFieldSql_jsonb_index, a.Sql_jsonb_index).
-		Add(NewsFieldTime_duration, a.Time_duration).
-		Add(NewsFieldGo_type_int_to_strings, a.Go_type_int_to_strings).
-		Add(NewsFieldPublic_field1, a.Public_field1).
-		Add(NewsFieldPublic_field2, a.Public_field2).
-		Add(NewsFieldPublic_field3, a.Public_field3).
-		Add(NewsFieldPublic_field_me1, a.Public_field_me1).
-		Add(NewsFieldPublic_field_me2, a.Public_field_me2).
-		Add(NewsFieldPublic_field_me3, a.Public_field_me3)
-	return js.Bytes()
 }
 
 func NewsMeList() []NewsIndexTyped {
@@ -2062,1062 +1586,6 @@ func ParseNews(v []byte) (a News, err error) {
 	return
 }
 
-// Parse []any to json
-func ParseTupleToNewsJson(r []any) (a NewsJson) {
-	for pos, x := range r {
-		switch NewsIndexTyped(pos) {
-		case NewsIndexInc:
-			a.Set(NewsFieldInc, x)
-		case NewsIndexRole:
-			a.Set(NewsFieldRole, x)
-		case NewsIndexKey:
-			a.Set(NewsFieldKey, x)
-		case NewsIndexT:
-			a.Set(NewsFieldT, x)
-		case NewsIndexD:
-			a.Set(NewsFieldD, x)
-		case NewsIndexInts:
-			a.Set(NewsFieldInts, x)
-		case NewsIndexInts8:
-			a.Set(NewsFieldInts8, x)
-		case NewsIndexInts16:
-			a.Set(NewsFieldInts16, x)
-		case NewsIndexInts32:
-			a.Set(NewsFieldInts32, x)
-		case NewsIndexInts64:
-			a.Set(NewsFieldInts64, x)
-		case NewsIndexUints:
-			a.Set(NewsFieldUints, x)
-		case NewsIndexUints8:
-			a.Set(NewsFieldUints8, x)
-		case NewsIndexUints16:
-			a.Set(NewsFieldUints16, x)
-		case NewsIndexUints32:
-			a.Set(NewsFieldUints32, x)
-		case NewsIndexUints64:
-			a.Set(NewsFieldUints64, x)
-		case NewsIndexFloats32:
-			a.Set(NewsFieldFloats32, x)
-		case NewsIndexFloats64:
-			a.Set(NewsFieldFloats64, x)
-		case NewsIndexBools:
-			a.Set(NewsFieldBools, x)
-		case NewsIndexByte1:
-			a.Set(NewsFieldByte1, x)
-		case NewsIndexBytes:
-			a.Set(NewsFieldBytes, x)
-		case NewsIndexList_ints:
-			a.Set(NewsFieldList_ints, x)
-		case NewsIndexList_string:
-			a.Set(NewsFieldList_string, x)
-		case NewsIndexList_float:
-			a.Set(NewsFieldList_float, x)
-		case NewsIndexMap_string_string:
-			a.Set(NewsFieldMap_string_string, x)
-		case NewsIndexMap_string_bytes:
-			a.Set(NewsFieldMap_string_bytes, x)
-		case NewsIndexMap_string_bool:
-			a.Set(NewsFieldMap_string_bool, x)
-		case NewsIndexMap_string_int:
-			a.Set(NewsFieldMap_string_int, x)
-		case NewsIndexMap_string_float64:
-			a.Set(NewsFieldMap_string_float64, x)
-		case NewsIndexMap_string_any:
-			a.Set(NewsFieldMap_string_any, x)
-		case NewsIndexMap_int_string:
-			a.Set(NewsFieldMap_int_string, x)
-		case NewsIndexMap_int_int:
-			a.Set(NewsFieldMap_int_int, x)
-		case NewsIndexMap_int_bool:
-			a.Set(NewsFieldMap_int_bool, x)
-		case NewsIndexRenameSQL:
-			a.Set(NewsFieldRenameSQL, x)
-		case NewsIndexRenameGO_OK:
-			a.Set(NewsFieldRenameGO_OK, x)
-		case NewsIndexRenameJS:
-			a.Set(NewsFieldRenameJS, x)
-		case NewsIndexMAST_UPPER_GO:
-			a.Set(NewsFieldMAST_UPPER_GO, x)
-		case NewsIndexIntToSmallInt:
-			a.Set(NewsFieldIntToSmallInt, x)
-		case NewsIndexSkip:
-			a.Set(NewsFieldSkip, x)
-		case NewsIndexSql_unique_u1_1:
-			a.Set(NewsFieldSql_unique_u1_1, x)
-		case NewsIndexSql_unique_u1_2:
-			a.Set(NewsFieldSql_unique_u1_2, x)
-		case NewsIndexSql_index1_1:
-			a.Set(NewsFieldSql_index1_1, x)
-		case NewsIndexSql_index1_2:
-			a.Set(NewsFieldSql_index1_2, x)
-		case NewsIndexSql_index1_3:
-			a.Set(NewsFieldSql_index1_3, x)
-		case NewsIndexSql_keys_1:
-			a.Set(NewsFieldSql_keys_1, x)
-		case NewsIndexSql_keys_2:
-			a.Set(NewsFieldSql_keys_2, x)
-		case NewsIndexSql_keys_3:
-			a.Set(NewsFieldSql_keys_3, x)
-		case NewsIndexSql_search:
-			a.Set(NewsFieldSql_search, x)
-		case NewsIndexSql_get:
-			a.Set(NewsFieldSql_get, x)
-		case NewsIndexSql_unique_x1:
-			a.Set(NewsFieldSql_unique_x1, x)
-		case NewsIndexSql_unique_x2:
-			a.Set(NewsFieldSql_unique_x2, x)
-		case NewsIndexSql_unique_x1_x2:
-			a.Set(NewsFieldSql_unique_x1_x2, x)
-		case NewsIndexSql_primary:
-			a.Set(NewsFieldSql_primary, x)
-		case NewsIndexSql_jsonb_index:
-			a.Set(NewsFieldSql_jsonb_index, x)
-		case NewsIndexTime_duration:
-			a.Set(NewsFieldTime_duration, x)
-		case NewsIndexGo_type_int_to_strings:
-			a.Set(NewsFieldGo_type_int_to_strings, x)
-		case NewsIndexPublic_field1:
-			a.Set(NewsFieldPublic_field1, x)
-		case NewsIndexPublic_field2:
-			a.Set(NewsFieldPublic_field2, x)
-		case NewsIndexPublic_field3:
-			a.Set(NewsFieldPublic_field3, x)
-		case NewsIndexPublic_field_me1:
-			a.Set(NewsFieldPublic_field_me1, x)
-		case NewsIndexPublic_field_me2:
-			a.Set(NewsFieldPublic_field_me2, x)
-		case NewsIndexPublic_field_me3:
-			a.Set(NewsFieldPublic_field_me3, x)
-		}
-	}
-	return
-}
-
-// NewNewsJson create struct
-func NewNewsJson() NewsJson {
-	return []byte("{}")
-}
-
-// NewsJson is a struct
-type NewsJson []byte
-
-// Set value
-func (a *NewsJson) Set(k string, v any) *NewsJson {
-	(*a) = jsons.Set((*a), k, v)
-	return a
-}
-
-// Get value
-func (a *NewsJson) Get(k string) jsons.Result {
-	return jsons.Get((*a), k)
-}
-
-// Get value
-func (a *NewsJson) DeleteFields(fields ...string) {
-	(*a) = jsons.Delete((*a), fields...)
-}
-
-// Inc set or get value
-func (a *NewsJson) Inc(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldInc)
-	}
-	a.Set(NewsFieldInc, v[0])
-	return
-}
-
-// Role set or get value
-func (a *NewsJson) Role(v ...Role) (res Role) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldRole).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldRole, v[0])
-	return
-}
-
-// Key set or get value
-func (a *NewsJson) Key(v ...uuid.UUID) (res uuid.UUID) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldKey).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldKey, v[0])
-	return
-}
-
-// T set or get value
-func (a *NewsJson) T(v ...time.Time) (res time.Time) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldT).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldT, v[0])
-	return
-}
-
-// D set or get value
-func (a *NewsJson) D(v ...time.Duration) (res time.Duration) {
-	if v == nil {
-		return jsons.TimeDuration((*a), NewsFieldD)
-	}
-	a.Set(NewsFieldD, v[0])
-	return
-}
-
-// DString get value as time
-func (a *NewsJson) DString() (res string) {
-	return a.D().String()
-}
-
-// Ints set or get value
-func (a *NewsJson) Ints(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldInts)
-	}
-	a.Set(NewsFieldInts, v[0])
-	return
-}
-
-// Ints8 set or get value
-func (a *NewsJson) Ints8(v ...int8) (res int8) {
-	if v == nil {
-		return int8(jsons.Int((*a), NewsFieldInts8))
-	}
-	a.Set(NewsFieldInts8, v[0])
-	return
-}
-
-// Ints16 set or get value
-func (a *NewsJson) Ints16(v ...int16) (res int16) {
-	if v == nil {
-		return int16(jsons.Int((*a), NewsFieldInts16))
-	}
-	a.Set(NewsFieldInts16, v[0])
-	return
-}
-
-// Ints32 set or get value
-func (a *NewsJson) Ints32(v ...int32) (res int32) {
-	if v == nil {
-		return int32(jsons.Int((*a), NewsFieldInts32))
-	}
-	a.Set(NewsFieldInts32, v[0])
-	return
-}
-
-// Ints64 set or get value
-func (a *NewsJson) Ints64(v ...int64) (res int64) {
-	if v == nil {
-		return jsons.Int64((*a), NewsFieldInts64)
-	}
-	a.Set(NewsFieldInts64, v[0])
-	return
-}
-
-// Uints set or get value
-func (a *NewsJson) Uints(v ...uint) (res uint) {
-	if v == nil {
-		return jsons.Uint((*a), NewsFieldUints)
-	}
-	a.Set(NewsFieldUints, v[0])
-	return
-}
-
-// Uints8 set or get value
-func (a *NewsJson) Uints8(v ...uint8) (res uint8) {
-	if v == nil {
-		return jsons.Uint8((*a), NewsFieldUints8)
-	}
-	a.Set(NewsFieldUints8, v[0])
-	return
-}
-
-// Uints16 set or get value
-func (a *NewsJson) Uints16(v ...uint16) (res uint16) {
-	if v == nil {
-		return uint16(jsons.Uint((*a), NewsFieldUints16))
-	}
-	a.Set(NewsFieldUints16, v[0])
-	return
-}
-
-// Uints32 set or get value
-func (a *NewsJson) Uints32(v ...uint32) (res uint32) {
-	if v == nil {
-		return jsons.Uint32((*a), NewsFieldUints32)
-	}
-	a.Set(NewsFieldUints32, v[0])
-	return
-}
-
-// Uints64 set or get value
-func (a *NewsJson) Uints64(v ...uint64) (res uint64) {
-	if v == nil {
-		return jsons.Uint64((*a), NewsFieldUints64)
-	}
-	a.Set(NewsFieldUints64, v[0])
-	return
-}
-
-// Floats32 set or get value
-func (a *NewsJson) Floats32(v ...float32) (res float32) {
-	if v == nil {
-		return jsons.Float32((*a), NewsFieldFloats32)
-	}
-	a.Set(NewsFieldFloats32, v[0])
-	return
-}
-
-// Floats64 set or get value
-func (a *NewsJson) Floats64(v ...float64) (res float64) {
-	if v == nil {
-		return jsons.Float64((*a), NewsFieldFloats64)
-	}
-	a.Set(NewsFieldFloats64, v[0])
-	return
-}
-
-// Bools set or get value
-func (a *NewsJson) Bools(v ...bool) (res bool) {
-	if v == nil {
-		return jsons.Bool((*a), NewsFieldBools)
-	}
-	a.Set(NewsFieldBools, v[0])
-	return
-}
-
-// Byte1 set or get value
-func (a *NewsJson) Byte1(v ...byte) (res byte) {
-	if v == nil {
-		return jsons.Byte((*a), NewsFieldByte1)
-	}
-	a.Set(NewsFieldByte1, v[0])
-	return
-}
-
-// Bytes set or get value
-func (a *NewsJson) Bytes(v ...[]byte) (res []byte) {
-	if v == nil {
-		return jsons.Bytes((*a), NewsFieldBytes)
-	}
-	a.Set(NewsFieldBytes, v[0])
-	return
-}
-
-// List_ints set or get value
-func (a *NewsJson) List_ints(v ...int) (res []int) {
-	if v == nil {
-		return jsons.ArrayInt((*a), NewsFieldList_ints)
-	}
-	a.Set(NewsFieldList_ints, v)
-	return
-}
-
-// List_intsAdd add values
-func (a *NewsJson) List_intsAdd(v ...int) {
-	a.Set(NewsFieldList_ints, append(a.List_ints(), v...))
-}
-
-// List_intsPrepend add values
-func (a *NewsJson) List_intsPrepend(v ...int) {
-	a.Set(NewsFieldList_ints, append(v, a.List_ints()...))
-}
-
-// List_intsAddUnique add unique values only
-func (a *NewsJson) List_intsAddUnique(v ...int) {
-	var list []int
-	un := map[int]bool{}
-	for _, x := range a.List_ints() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.List_ints(list...)
-}
-
-// List_intsDelete add unique values only
-func (a *NewsJson) List_intsDelete(v int) {
-	var list []int
-	for _, x := range a.List_ints() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.List_ints(list...)
-}
-
-// List_string set or get value
-func (a *NewsJson) List_string(v ...string) (res []string) {
-	if v == nil {
-		return jsons.ArrayString((*a), NewsFieldList_string)
-	}
-	a.Set(NewsFieldList_string, v)
-	return
-}
-
-// List_stringAdd add values
-func (a *NewsJson) List_stringAdd(v ...string) {
-	a.Set(NewsFieldList_string, append(a.List_string(), v...))
-}
-
-// List_stringPrepend add values
-func (a *NewsJson) List_stringPrepend(v ...string) {
-	a.Set(NewsFieldList_string, append(v, a.List_string()...))
-}
-
-// List_stringAddUnique add unique values only
-func (a *NewsJson) List_stringAddUnique(v ...string) {
-	var list []string
-	un := map[string]bool{}
-	for _, x := range a.List_string() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.List_string(list...)
-}
-
-// List_stringDelete add unique values only
-func (a *NewsJson) List_stringDelete(v string) {
-	var list []string
-	for _, x := range a.List_string() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.List_string(list...)
-}
-
-// List_float set or get value
-func (a *NewsJson) List_float(v ...float64) (res []float64) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldList_float).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldList_float, v)
-	return
-}
-
-// List_floatAdd add values
-func (a *NewsJson) List_floatAdd(v ...float64) {
-	a.Set(NewsFieldList_float, append(a.List_float(), v...))
-}
-
-// List_floatPrepend add values
-func (a *NewsJson) List_floatPrepend(v ...float64) {
-	a.Set(NewsFieldList_float, append(v, a.List_float()...))
-}
-
-// List_floatAddUnique add unique values only
-func (a *NewsJson) List_floatAddUnique(v ...float64) {
-	var list []float64
-	un := map[float64]bool{}
-	for _, x := range a.List_float() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.List_float(list...)
-}
-
-// List_floatDelete add unique values only
-func (a *NewsJson) List_floatDelete(v float64) {
-	var list []float64
-	for _, x := range a.List_float() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.List_float(list...)
-}
-
-// Map_string_string set or get value
-func (a *NewsJson) Map_string_string(v ...map[string]string) (res map[string]string) {
-	if v == nil {
-		return jsons.MapString((*a), NewsFieldMap_string_string)
-	}
-	a.Set(NewsFieldMap_string_string, v[0])
-	return
-}
-
-// Map_string_stringAdd add values
-func (a *NewsJson) Map_string_stringAdd(k string, v string) {
-	maps := a.Map_string_string()
-	maps[k] = v
-	a.Map_string_string(maps)
-}
-
-// Map_string_stringDelete add unique values only
-func (a *NewsJson) Map_string_stringDelete(k string) {
-	maps := a.Map_string_string()
-	delete(maps, k)
-	a.Map_string_string(maps)
-}
-
-// Map_string_stringHas check value
-func (a *NewsJson) Map_string_stringHas(k string) bool {
-	maps := a.Map_string_string()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_string_bytes set or get value
-func (a *NewsJson) Map_string_bytes(v ...map[string][]byte) (res map[string][]byte) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldMap_string_bytes).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldMap_string_bytes, v[0])
-	return
-}
-
-// Map_string_bool set or get value
-func (a *NewsJson) Map_string_bool(v ...map[string]bool) (res map[string]bool) {
-	if v == nil {
-		return jsons.MapBool((*a), NewsFieldMap_string_bool)
-	}
-	a.Set(NewsFieldMap_string_bool, v[0])
-	return
-}
-
-// Map_string_boolAdd add values
-func (a *NewsJson) Map_string_boolAdd(k string, v bool) {
-	maps := a.Map_string_bool()
-	maps[k] = v
-	a.Map_string_bool(maps)
-}
-
-// Map_string_boolDelete add unique values only
-func (a *NewsJson) Map_string_boolDelete(k string) {
-	maps := a.Map_string_bool()
-	delete(maps, k)
-	a.Map_string_bool(maps)
-}
-
-// Map_string_boolHas check value
-func (a *NewsJson) Map_string_boolHas(k string) bool {
-	maps := a.Map_string_bool()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_string_int set or get value
-func (a *NewsJson) Map_string_int(v ...map[string]int) (res map[string]int) {
-	if v == nil {
-		return jsons.MapInt((*a), NewsFieldMap_string_int)
-	}
-	a.Set(NewsFieldMap_string_int, v[0])
-	return
-}
-
-// Map_string_intAdd add values
-func (a *NewsJson) Map_string_intAdd(k string, v int) {
-	maps := a.Map_string_int()
-	maps[k] = v
-	a.Map_string_int(maps)
-}
-
-// Map_string_intDelete add unique values only
-func (a *NewsJson) Map_string_intDelete(k string) {
-	maps := a.Map_string_int()
-	delete(maps, k)
-	a.Map_string_int(maps)
-}
-
-// Map_string_intHas check value
-func (a *NewsJson) Map_string_intHas(k string) bool {
-	maps := a.Map_string_int()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_string_float64 set or get value
-func (a *NewsJson) Map_string_float64(v ...map[string]float64) (res map[string]float64) {
-	if v == nil {
-		return jsons.MapFloats((*a), NewsFieldMap_string_float64)
-	}
-	a.Set(NewsFieldMap_string_float64, v[0])
-	return
-}
-
-// Map_string_float64Add add values
-func (a *NewsJson) Map_string_float64Add(k string, v float64) {
-	maps := a.Map_string_float64()
-	maps[k] = v
-	a.Map_string_float64(maps)
-}
-
-// Map_string_float64Delete add unique values only
-func (a *NewsJson) Map_string_float64Delete(k string) {
-	maps := a.Map_string_float64()
-	delete(maps, k)
-	a.Map_string_float64(maps)
-}
-
-// Map_string_float64Has check value
-func (a *NewsJson) Map_string_float64Has(k string) bool {
-	maps := a.Map_string_float64()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_string_any set or get value
-func (a *NewsJson) Map_string_any(v ...map[string]any) (res map[string]any) {
-	if v == nil {
-		return jsons.MapAny((*a), NewsFieldMap_string_any)
-	}
-	a.Set(NewsFieldMap_string_any, v[0])
-	return
-}
-
-// Map_string_anyAdd add values
-func (a *NewsJson) Map_string_anyAdd(k string, v any) {
-	maps := a.Map_string_any()
-	maps[k] = v
-	a.Map_string_any(maps)
-}
-
-// Map_string_anyDelete add unique values only
-func (a *NewsJson) Map_string_anyDelete(k string) {
-	maps := a.Map_string_any()
-	delete(maps, k)
-	a.Map_string_any(maps)
-}
-
-// Map_string_anyHas check value
-func (a *NewsJson) Map_string_anyHas(k string) bool {
-	maps := a.Map_string_any()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_int_string set or get value
-func (a *NewsJson) Map_int_string(v ...map[int]string) (res map[int]string) {
-	if v == nil {
-		return jsons.MapIntString((*a), NewsFieldMap_int_string)
-	}
-	a.Set(NewsFieldMap_int_string, v[0])
-	return
-}
-
-// Map_int_stringAdd add values
-func (a *NewsJson) Map_int_stringAdd(k int, v string) {
-	maps := a.Map_int_string()
-	maps[k] = v
-	a.Map_int_string(maps)
-}
-
-// Map_int_stringDelete add unique values only
-func (a *NewsJson) Map_int_stringDelete(k int) {
-	maps := a.Map_int_string()
-	delete(maps, k)
-	a.Map_int_string(maps)
-}
-
-// Map_int_stringHas check value
-func (a *NewsJson) Map_int_stringHas(k int) bool {
-	maps := a.Map_int_string()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_int_int set or get value
-func (a *NewsJson) Map_int_int(v ...map[int]int) (res map[int]int) {
-	if v == nil {
-		return jsons.MapIntInt((*a), NewsFieldMap_int_int)
-	}
-	a.Set(NewsFieldMap_int_int, v[0])
-	return
-}
-
-// Map_int_intAdd add values
-func (a *NewsJson) Map_int_intAdd(k int, v int) {
-	maps := a.Map_int_int()
-	maps[k] = v
-	a.Map_int_int(maps)
-}
-
-// Map_int_intDelete add unique values only
-func (a *NewsJson) Map_int_intDelete(k int) {
-	maps := a.Map_int_int()
-	delete(maps, k)
-	a.Map_int_int(maps)
-}
-
-// Map_int_intHas check value
-func (a *NewsJson) Map_int_intHas(k int) bool {
-	maps := a.Map_int_int()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Map_int_bool set or get value
-func (a *NewsJson) Map_int_bool(v ...map[int]bool) (res map[int]bool) {
-	if v == nil {
-		_ = jsoniter.Unmarshal([]byte(jsons.Get((*a), NewsFieldMap_int_bool).Raw), &res)
-		return
-	}
-	a.Set(NewsFieldMap_int_bool, v[0])
-	return
-}
-
-// RenameSQL set or get value
-func (a *NewsJson) RenameSQL(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldRenameSQL)
-	}
-	a.Set(NewsFieldRenameSQL, v[0])
-	return
-}
-
-// RenameGO_OK set or get value
-func (a *NewsJson) RenameGO_OK(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldRenameGO_OK)
-	}
-	a.Set(NewsFieldRenameGO_OK, v[0])
-	return
-}
-
-// RenameJS set or get value
-func (a *NewsJson) RenameJS(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldRenameJS)
-	}
-	a.Set(NewsFieldRenameJS, v[0])
-	return
-}
-
-// MAST_UPPER_GO set or get value
-func (a *NewsJson) MAST_UPPER_GO(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldMAST_UPPER_GO)
-	}
-	a.Set(NewsFieldMAST_UPPER_GO, v[0])
-	return
-}
-
-// IntToSmallInt set or get value
-func (a *NewsJson) IntToSmallInt(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldIntToSmallInt)
-	}
-	a.Set(NewsFieldIntToSmallInt, v[0])
-	return
-}
-
-// Skip set or get value
-func (a *NewsJson) Skip(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldSkip)
-	}
-	a.Set(NewsFieldSkip, v[0])
-	return
-}
-
-// Sql_unique_u1_1 set or get value
-func (a *NewsJson) Sql_unique_u1_1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_unique_u1_1)
-	}
-	a.Set(NewsFieldSql_unique_u1_1, v[0])
-	return
-}
-
-// Sql_unique_u1_2 set or get value
-func (a *NewsJson) Sql_unique_u1_2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_unique_u1_2)
-	}
-	a.Set(NewsFieldSql_unique_u1_2, v[0])
-	return
-}
-
-// Sql_index1_1 set or get value
-func (a *NewsJson) Sql_index1_1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_index1_1)
-	}
-	a.Set(NewsFieldSql_index1_1, v[0])
-	return
-}
-
-// Sql_index1_2 set or get value
-func (a *NewsJson) Sql_index1_2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_index1_2)
-	}
-	a.Set(NewsFieldSql_index1_2, v[0])
-	return
-}
-
-// Sql_index1_3 set or get value
-func (a *NewsJson) Sql_index1_3(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_index1_3)
-	}
-	a.Set(NewsFieldSql_index1_3, v[0])
-	return
-}
-
-// Sql_keys_1 set or get value
-func (a *NewsJson) Sql_keys_1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_keys_1)
-	}
-	a.Set(NewsFieldSql_keys_1, v[0])
-	return
-}
-
-// Sql_keys_2 set or get value
-func (a *NewsJson) Sql_keys_2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_keys_2)
-	}
-	a.Set(NewsFieldSql_keys_2, v[0])
-	return
-}
-
-// Sql_keys_3 set or get value
-func (a *NewsJson) Sql_keys_3(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_keys_3)
-	}
-	a.Set(NewsFieldSql_keys_3, v[0])
-	return
-}
-
-// Sql_search set or get value
-func (a *NewsJson) Sql_search(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldSql_search)
-	}
-	a.Set(NewsFieldSql_search, v[0])
-	return
-}
-
-// Sql_get set or get value
-func (a *NewsJson) Sql_get(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), NewsFieldSql_get)
-	}
-	a.Set(NewsFieldSql_get, v[0])
-	return
-}
-
-// Sql_unique_x1 set or get value
-func (a *NewsJson) Sql_unique_x1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_unique_x1)
-	}
-	a.Set(NewsFieldSql_unique_x1, v[0])
-	return
-}
-
-// Sql_unique_x2 set or get value
-func (a *NewsJson) Sql_unique_x2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_unique_x2)
-	}
-	a.Set(NewsFieldSql_unique_x2, v[0])
-	return
-}
-
-// Sql_unique_x1_x2 set or get value
-func (a *NewsJson) Sql_unique_x1_x2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldSql_unique_x1_x2)
-	}
-	a.Set(NewsFieldSql_unique_x1_x2, v[0])
-	return
-}
-
-// Sql_primary set or get value
-func (a *NewsJson) Sql_primary(v ...float64) (res float64) {
-	if v == nil {
-		return jsons.Float64((*a), NewsFieldSql_primary)
-	}
-	a.Set(NewsFieldSql_primary, v[0])
-	return
-}
-
-// Sql_jsonb_index set or get value
-func (a *NewsJson) Sql_jsonb_index(v ...map[string]any) (res map[string]any) {
-	if v == nil {
-		return jsons.MapAny((*a), NewsFieldSql_jsonb_index)
-	}
-	a.Set(NewsFieldSql_jsonb_index, v[0])
-	return
-}
-
-// Sql_jsonb_indexAdd add values
-func (a *NewsJson) Sql_jsonb_indexAdd(k string, v any) {
-	maps := a.Sql_jsonb_index()
-	maps[k] = v
-	a.Sql_jsonb_index(maps)
-}
-
-// Sql_jsonb_indexDelete add unique values only
-func (a *NewsJson) Sql_jsonb_indexDelete(k string) {
-	maps := a.Sql_jsonb_index()
-	delete(maps, k)
-	a.Sql_jsonb_index(maps)
-}
-
-// Sql_jsonb_indexHas check value
-func (a *NewsJson) Sql_jsonb_indexHas(k string) bool {
-	maps := a.Sql_jsonb_index()
-	return !reflect.ValueOf(maps[k]).IsZero()
-}
-
-// Time_duration set or get value
-func (a *NewsJson) Time_duration(v ...time.Duration) (res time.Duration) {
-	if v == nil {
-		return jsons.TimeDuration((*a), NewsFieldTime_duration)
-	}
-	a.Set(NewsFieldTime_duration, v[0])
-	return
-}
-
-// Time_durationString get value as time
-func (a *NewsJson) Time_durationString() (res string) {
-	return a.Time_duration().String()
-}
-
-// Go_type_int_to_strings set or get value
-func (a *NewsJson) Go_type_int_to_strings(v ...string) (res []string) {
-	if v == nil {
-		return jsons.ArrayString((*a), NewsFieldGo_type_int_to_strings)
-	}
-	a.Set(NewsFieldGo_type_int_to_strings, v)
-	return
-}
-
-// Go_type_int_to_stringsAdd add values
-func (a *NewsJson) Go_type_int_to_stringsAdd(v ...string) {
-	a.Set(NewsFieldGo_type_int_to_strings, append(a.Go_type_int_to_strings(), v...))
-}
-
-// Go_type_int_to_stringsPrepend add values
-func (a *NewsJson) Go_type_int_to_stringsPrepend(v ...string) {
-	a.Set(NewsFieldGo_type_int_to_strings, append(v, a.Go_type_int_to_strings()...))
-}
-
-// Go_type_int_to_stringsAddUnique add unique values only
-func (a *NewsJson) Go_type_int_to_stringsAddUnique(v ...string) {
-	var list []string
-	un := map[string]bool{}
-	for _, x := range a.Go_type_int_to_strings() {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-	for _, x := range v {
-		if un[x] {
-			continue
-		}
-		list = append(list, x)
-		un[x] = true
-	}
-
-	a.Go_type_int_to_strings(list...)
-}
-
-// Go_type_int_to_stringsDelete add unique values only
-func (a *NewsJson) Go_type_int_to_stringsDelete(v string) {
-	var list []string
-	for _, x := range a.Go_type_int_to_strings() {
-		if x == v {
-			continue
-		}
-		list = append(list, x)
-	}
-	a.Go_type_int_to_strings(list...)
-}
-
-// Public_field1 set or get value
-func (a *NewsJson) Public_field1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field1)
-	}
-	a.Set(NewsFieldPublic_field1, v[0])
-	return
-}
-
-// Public_field2 set or get value
-func (a *NewsJson) Public_field2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field2)
-	}
-	a.Set(NewsFieldPublic_field2, v[0])
-	return
-}
-
-// Public_field3 set or get value
-func (a *NewsJson) Public_field3(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field3)
-	}
-	a.Set(NewsFieldPublic_field3, v[0])
-	return
-}
-
-// Public_field_me1 set or get value
-func (a *NewsJson) Public_field_me1(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field_me1)
-	}
-	a.Set(NewsFieldPublic_field_me1, v[0])
-	return
-}
-
-// Public_field_me2 set or get value
-func (a *NewsJson) Public_field_me2(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field_me2)
-	}
-	a.Set(NewsFieldPublic_field_me2, v[0])
-	return
-}
-
-// Public_field_me3 set or get value
-func (a *NewsJson) Public_field_me3(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), NewsFieldPublic_field_me3)
-	}
-	a.Set(NewsFieldPublic_field_me3, v[0])
-	return
-}
-
 // clickhouse NewsCQL class
 type NewsCQL struct {
 	conn driver.Conn
@@ -3236,17 +1704,17 @@ func (a *NewsCQL) Get(id any, fields ...NewsIndexTyped) (res *News, err error) {
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -3281,17 +1749,17 @@ func (a *NewsCQL) GetWhere(where string, fields ...NewsIndexTyped) (res *News, e
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -3408,19 +1876,19 @@ func (a *NewsCQL) Select(where string, fields ...NewsIndexTyped) (res []*News, e
 		return
 	}
 	defer rows.Close()
+	// scan targets by column types: clickhouse needs exact types
+	types := rows.ColumnTypes()
 	for rows.Next() {
 		var item News
-		values := make([]any, len(fields))
-		scan := make([]any, len(fields))
-		for i := range values {
-			scan[i] = &values[i]
+		scan := make([]any, len(types))
+		for i, t := range types {
+			scan[i] = reflect.New(t.ScanType()).Interface()
 		}
-		err = rows.Scan(scan...)
-		if err != nil {
-			continue
+		if err = rows.Scan(scan...); err != nil {
+			return
 		}
 		for pos, x := range fields {
-			item.Update(x.String(), values[pos])
+			item.clickhouseSet(x, scan[pos])
 		}
 		res = append(res, &item)
 	}
@@ -3563,6 +2031,209 @@ order by tuple()`
 // parse clickhouse query
 func (a *NewsCQL) Fields() (res []NewsIndexTyped) {
 	return []NewsIndexTyped{NewsIndexInc, NewsIndexRole, NewsIndexKey, NewsIndexT, NewsIndexD, NewsIndexInts, NewsIndexInts8, NewsIndexInts16, NewsIndexInts32, NewsIndexInts64, NewsIndexUints, NewsIndexUints8, NewsIndexUints16, NewsIndexUints32, NewsIndexUints64, NewsIndexFloats32, NewsIndexFloats64, NewsIndexBools, NewsIndexByte1, NewsIndexBytes, NewsIndexList_ints, NewsIndexList_string, NewsIndexList_float, NewsIndexMap_string_string, NewsIndexMap_string_bytes, NewsIndexMap_string_bool, NewsIndexMap_string_int, NewsIndexMap_string_float64, NewsIndexMap_string_any, NewsIndexMap_int_string, NewsIndexMap_int_int, NewsIndexMap_int_bool, NewsIndexRenameSQL, NewsIndexRenameGO_OK, NewsIndexRenameJS, NewsIndexMAST_UPPER_GO, NewsIndexIntToSmallInt, NewsIndexSkip, NewsIndexSql_unique_u1_1, NewsIndexSql_unique_u1_2, NewsIndexSql_index1_1, NewsIndexSql_index1_2, NewsIndexSql_index1_3, NewsIndexSql_keys_1, NewsIndexSql_keys_2, NewsIndexSql_keys_3, NewsIndexSql_search, NewsIndexSql_get, NewsIndexSql_unique_x1, NewsIndexSql_unique_x2, NewsIndexSql_unique_x1_x2, NewsIndexSql_primary, NewsIndexSql_jsonb_index, NewsIndexTime_duration, NewsIndexGo_type_int_to_strings, NewsIndexPublic_field1, NewsIndexPublic_field2, NewsIndexPublic_field3, NewsIndexPublic_field_me1, NewsIndexPublic_field_me2, NewsIndexPublic_field_me3}
+}
+
+// clickhouseSet sets field from value of clickhouse row
+func (a *News) clickhouseSet(f NewsIndexTyped, v any) {
+	if v == nil {
+		return
+	}
+	switch f {
+	case NewsIndexInc:
+		newsCHAssign(reflect.ValueOf(&a.Inc).Elem(), reflect.ValueOf(v))
+	case NewsIndexRole:
+		newsCHAssign(reflect.ValueOf(&a.Role).Elem(), reflect.ValueOf(v))
+	case NewsIndexKey:
+		newsCHAssign(reflect.ValueOf(&a.Key).Elem(), reflect.ValueOf(v))
+	case NewsIndexT:
+		newsCHAssign(reflect.ValueOf(&a.T).Elem(), reflect.ValueOf(v))
+	case NewsIndexD:
+		newsCHAssign(reflect.ValueOf(&a.D).Elem(), reflect.ValueOf(v))
+	case NewsIndexInts:
+		newsCHAssign(reflect.ValueOf(&a.Ints).Elem(), reflect.ValueOf(v))
+	case NewsIndexInts8:
+		newsCHAssign(reflect.ValueOf(&a.Ints8).Elem(), reflect.ValueOf(v))
+	case NewsIndexInts16:
+		newsCHAssign(reflect.ValueOf(&a.Ints16).Elem(), reflect.ValueOf(v))
+	case NewsIndexInts32:
+		newsCHAssign(reflect.ValueOf(&a.Ints32).Elem(), reflect.ValueOf(v))
+	case NewsIndexInts64:
+		newsCHAssign(reflect.ValueOf(&a.Ints64).Elem(), reflect.ValueOf(v))
+	case NewsIndexUints:
+		newsCHAssign(reflect.ValueOf(&a.Uints).Elem(), reflect.ValueOf(v))
+	case NewsIndexUints8:
+		newsCHAssign(reflect.ValueOf(&a.Uints8).Elem(), reflect.ValueOf(v))
+	case NewsIndexUints16:
+		newsCHAssign(reflect.ValueOf(&a.Uints16).Elem(), reflect.ValueOf(v))
+	case NewsIndexUints32:
+		newsCHAssign(reflect.ValueOf(&a.Uints32).Elem(), reflect.ValueOf(v))
+	case NewsIndexUints64:
+		newsCHAssign(reflect.ValueOf(&a.Uints64).Elem(), reflect.ValueOf(v))
+	case NewsIndexFloats32:
+		newsCHAssign(reflect.ValueOf(&a.Floats32).Elem(), reflect.ValueOf(v))
+	case NewsIndexFloats64:
+		newsCHAssign(reflect.ValueOf(&a.Floats64).Elem(), reflect.ValueOf(v))
+	case NewsIndexBools:
+		newsCHAssign(reflect.ValueOf(&a.Bools).Elem(), reflect.ValueOf(v))
+	case NewsIndexByte1:
+		newsCHAssign(reflect.ValueOf(&a.Byte1).Elem(), reflect.ValueOf(v))
+	case NewsIndexBytes:
+		newsCHAssign(reflect.ValueOf(&a.Bytes).Elem(), reflect.ValueOf(v))
+	case NewsIndexList_ints:
+		newsCHAssign(reflect.ValueOf(&a.List_ints).Elem(), reflect.ValueOf(v))
+	case NewsIndexList_string:
+		newsCHAssign(reflect.ValueOf(&a.List_string).Elem(), reflect.ValueOf(v))
+	case NewsIndexList_float:
+		newsCHAssign(reflect.ValueOf(&a.List_float).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_string:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_string).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_bytes:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_bytes).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_bool:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_bool).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_int:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_int).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_float64:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_float64).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_string_any:
+		newsCHAssign(reflect.ValueOf(&a.Map_string_any).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_int_string:
+		newsCHAssign(reflect.ValueOf(&a.Map_int_string).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_int_int:
+		newsCHAssign(reflect.ValueOf(&a.Map_int_int).Elem(), reflect.ValueOf(v))
+	case NewsIndexMap_int_bool:
+		newsCHAssign(reflect.ValueOf(&a.Map_int_bool).Elem(), reflect.ValueOf(v))
+	case NewsIndexRenameSQL:
+		newsCHAssign(reflect.ValueOf(&a.RenameSQL).Elem(), reflect.ValueOf(v))
+	case NewsIndexRenameGO_OK:
+		newsCHAssign(reflect.ValueOf(&a.RenameGO_OK).Elem(), reflect.ValueOf(v))
+	case NewsIndexRenameJS:
+		newsCHAssign(reflect.ValueOf(&a.RenameJS).Elem(), reflect.ValueOf(v))
+	case NewsIndexMAST_UPPER_GO:
+		newsCHAssign(reflect.ValueOf(&a.MAST_UPPER_GO).Elem(), reflect.ValueOf(v))
+	case NewsIndexIntToSmallInt:
+		newsCHAssign(reflect.ValueOf(&a.IntToSmallInt).Elem(), reflect.ValueOf(v))
+	case NewsIndexSkip:
+		newsCHAssign(reflect.ValueOf(&a.Skip).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_unique_u1_1:
+		newsCHAssign(reflect.ValueOf(&a.Sql_unique_u1_1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_unique_u1_2:
+		newsCHAssign(reflect.ValueOf(&a.Sql_unique_u1_2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_index1_1:
+		newsCHAssign(reflect.ValueOf(&a.Sql_index1_1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_index1_2:
+		newsCHAssign(reflect.ValueOf(&a.Sql_index1_2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_index1_3:
+		newsCHAssign(reflect.ValueOf(&a.Sql_index1_3).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_keys_1:
+		newsCHAssign(reflect.ValueOf(&a.Sql_keys_1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_keys_2:
+		newsCHAssign(reflect.ValueOf(&a.Sql_keys_2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_keys_3:
+		newsCHAssign(reflect.ValueOf(&a.Sql_keys_3).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_search:
+		newsCHAssign(reflect.ValueOf(&a.Sql_search).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_get:
+		newsCHAssign(reflect.ValueOf(&a.Sql_get).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_unique_x1:
+		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x1).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_unique_x2:
+		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_unique_x1_x2:
+		newsCHAssign(reflect.ValueOf(&a.Sql_unique_x1_x2).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_primary:
+		newsCHAssign(reflect.ValueOf(&a.Sql_primary).Elem(), reflect.ValueOf(v))
+	case NewsIndexSql_jsonb_index:
+		newsCHAssign(reflect.ValueOf(&a.Sql_jsonb_index).Elem(), reflect.ValueOf(v))
+	case NewsIndexTime_duration:
+		newsCHAssign(reflect.ValueOf(&a.Time_duration).Elem(), reflect.ValueOf(v))
+	case NewsIndexGo_type_int_to_strings:
+		newsCHAssign(reflect.ValueOf(&a.Go_type_int_to_strings).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field1:
+		newsCHAssign(reflect.ValueOf(&a.Public_field1).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field2:
+		newsCHAssign(reflect.ValueOf(&a.Public_field2).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field3:
+		newsCHAssign(reflect.ValueOf(&a.Public_field3).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field_me1:
+		newsCHAssign(reflect.ValueOf(&a.Public_field_me1).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field_me2:
+		newsCHAssign(reflect.ValueOf(&a.Public_field_me2).Elem(), reflect.ValueOf(v))
+	case NewsIndexPublic_field_me3:
+		newsCHAssign(reflect.ValueOf(&a.Public_field_me3).Elem(), reflect.ValueOf(v))
+	}
+}
+
+// newsCHAssign sets d from clickhouse value s: same type, number, string, time, slice
+func newsCHAssign(d, s reflect.Value) {
+	for s.Kind() == reflect.Pointer || s.Kind() == reflect.Interface {
+		if s.IsNil() {
+			return
+		}
+		s = s.Elem()
+	}
+
+	number := func(k reflect.Kind) bool {
+		return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
+	}
+
+	switch {
+	case s.Type().AssignableTo(d.Type()):
+		d.Set(s)
+
+	// *T
+	case d.Kind() == reflect.Pointer:
+		p := reflect.New(d.Type().Elem())
+		newsCHAssign(p.Elem(), s)
+		d.Set(p)
+
+	// IPv4, UUID, DateTime > string
+	case d.Kind() == reflect.String:
+		switch v := s.Interface().(type) {
+		case fmt.Stringer:
+			d.SetString(v.String())
+		case []byte:
+			d.SetString(string(v))
+		default:
+			d.SetString(fmt.Sprint(v))
+		}
+
+	case d.Kind() == reflect.Bool:
+		d.SetBool(!s.IsZero())
+
+	case number(d.Kind()):
+		switch v := s.Interface().(type) {
+		// DateTime > unix time
+		case time.Time:
+			if !v.IsZero() {
+				d.Set(reflect.ValueOf(v.Unix()).Convert(d.Type()))
+			}
+		case bool:
+			if v {
+				d.Set(reflect.ValueOf(1).Convert(d.Type()))
+			}
+		case string:
+			if n, err := strconv.ParseFloat(v, 64); err == nil {
+				d.Set(reflect.ValueOf(n).Convert(d.Type()))
+			}
+		default:
+			if number(s.Kind()) {
+				d.Set(s.Convert(d.Type()))
+			}
+		}
+
+	// Array(UInt64) > []int
+	case d.Kind() == reflect.Slice && s.Kind() == reflect.Slice:
+		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
+		for i := range s.Len() {
+			newsCHAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// named types
+	case s.Kind() == d.Kind() && s.Type().ConvertibleTo(d.Type()):
+		d.Set(s.Convert(d.Type()))
+	}
 }
 
 const (

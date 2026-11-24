@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/monopolly/cast"
+	"strconv"
 )
 
 // source file: imports and dir for custom types detection
@@ -75,11 +75,6 @@ func (a *Field) parseBaseType() {
 
 	// time.Time, netip.Addr, pgtype.Date, json.RawMessage...: own type, no base
 	if _, ok := sqlSpecialTypes[t]; ok {
-		return
-	}
-
-	// time.Time, time.Duration, date.Int...
-	if a.Go.Base == "" && (goConvertSupported(t) || cast.Supported(t) == nil) {
 		return
 	}
 
@@ -231,7 +226,7 @@ func sourcePackage(name string, imports []string) *types.Package {
 	// by path: github.com/x/role, github.com/x/role/v2
 	for _, x := range imports {
 		base := path.Base(x)
-		if strings.HasPrefix(base, "v") && cast.Int(base[1:]) > 0 {
+		if importVersion(base) {
 			base = path.Base(path.Dir(x))
 		}
 		if base != name {
@@ -276,7 +271,7 @@ func typeImports(expr ast.Expr) (res []string) {
 func sourceImportPath(name string, imports []string) string {
 	for _, x := range imports {
 		base := path.Base(x)
-		if strings.HasPrefix(base, "v") && cast.Int(base[1:]) > 0 {
+		if importVersion(base) {
 			base = path.Base(path.Dir(x))
 		}
 		if base == name {
@@ -284,4 +279,13 @@ func sourceImportPath(name string, imports []string) string {
 		}
 	}
 	return ""
+}
+
+// version suffix of import path: v2, v5
+func importVersion(base string) bool {
+	if !strings.HasPrefix(base, "v") {
+		return false
+	}
+	n, err := strconv.Atoi(base[1:])
+	return err == nil && n > 0
 }

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/monopolly/file"
 	goimports "golang.org/x/tools/imports"
 )
 
@@ -15,5 +15,16 @@ func saveGo(filename string, src []byte) {
 		fmt.Println("go format:", filename, err)
 		res = src
 	}
-	file.Save(filename, res)
+	saveFile(filename, res)
+}
+
+func saveFile(filename string, data []byte) {
+	if err := os.WriteFile(filename, data, 0o644); err != nil {
+		fmt.Println("save:", filename, err)
+	}
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }

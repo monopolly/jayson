@@ -31,6 +31,7 @@ func (a *Clickhouse) Generate() []byte {
 	list = append(list, a.Stat())
 	list = append(list, a.CreateTable())
 	list = append(list, a.Fields())
+	list = append(list, a.Assign())
 
 	return bytes.Join(list, []byte("\n\n"))
 }

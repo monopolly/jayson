@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 func (a *Golang) Tags() []byte {

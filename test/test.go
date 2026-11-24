@@ -9,7 +9,7 @@ import (
 
 type Role = role.Role
 
-// go=News sql=news js=NewsJson ch=news proto ts=news swift demo enum=Category noprefix msgp gotiny
+// go=News sql=news ch=news proto msgp gotiny
 type news struct {
 	inc int // sql{inc}  #readonly
 

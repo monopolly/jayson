@@ -10,8 +10,6 @@ import (
 	"path"
 	"slices"
 	"strings"
-
-	"github.com/monopolly/file"
 )
 
 var (
@@ -67,61 +65,32 @@ func render() {
 	//go
 	goFile.Write(golang.Generate())
 
-	// js
-	if settings.JS.Name != "" {
-		A("generate js")
-		goFile.Write(golang.generateParseTupleToJsons())
-		goFile.Write(jsn.generateJsonsInit())
-		goFile.Write(jsn.generateJsonsGeneral())
-		goFile.Write(jsn.generateJsonsFunctions())
-	}
-
 	// sql
 	if settings.SQL.Table != "" {
 		A("sql table", settings.SQL.Table)
 		saveGo(settings.File.golangSQL, sqlGenerate())
-		file.Save(settings.File.sql, sqlFile())
+		saveFile(settings.File.sql, sqlFile())
 	}
 
 	// clickhouse
 	if settings.Clickhouse.Table != "" {
 		A("sql table", settings.Clickhouse.Table)
 		goFile.Write(clickhouse.Generate())
-		file.Save(settings.File.clickhouse, clickhouse.File())
+		saveFile(settings.File.clickhouse, clickhouse.File())
 	}
 
 	if settings.Proto.Name != "" {
-		file.Save(settings.File.proto, proto.File())
+		saveFile(settings.File.proto, proto.File())
 		goFile.Write(protoCompile())
 	}
 
 	// gosql
 	saveGo(settings.File.golang, goFile.Bytes())
 	// goFile.Write(easyjsonCompile())
-	// file.Save(settings.File.golang, addGoImports(goFile.Bytes(), easyjsonImports()))
+	// saveFile(settings.File.golang, addGoImports(goFile.Bytes(), easyjsonImports()))
 
-	// ts
-	if settings.TS.Name != "" {
-		file.Save(settings.File.ts, generateTypeScript())
-		file.Save(settings.File.js, generateJSModel())
-	}
-
-	// swift
-	if settings.Swift.Model {
-		for name, v := range generateSwiftFiles() {
-			file.Save(name, v)
-		}
-	}
-	// swift
-	if settings.Swift.Enum != "" {
-		file.Save(settings.File.enum, generateSwiftEnum())
-	}
-
-	if settings.Options.Demo {
-		file.Save(settings.File.demo, jsonDemo())
-	}
 	if settings.Options.Test {
-		file.Save(settings.File.golangTest, goTestFile())
+		saveFile(settings.File.golangTest, goTestFile())
 	}
 
 	// msgp
@@ -143,9 +112,9 @@ func parsePath() (in string) {
 	}
 
 	in = files[1]
-	if !file.Exists(in) {
+	if !fileExists(in) {
 		in = in + ".go"
-		if !file.Exists(in) {
+		if !fileExists(in) {
 			log.Fatal("Error: file not found", in)
 		}
 		return
@@ -164,11 +133,6 @@ func parsePath() (in string) {
 	settings.File.sql = strings.ReplaceAll(in, ".go", ".sql")
 	settings.File.clickhouse = strings.ReplaceAll(in, ".go", ".cql")
 	settings.File.proto = strings.ReplaceAll(in, ".go", ".proto")
-	settings.File.ts = strings.ReplaceAll(in, ".go", ".ts")
-	settings.File.js = strings.ReplaceAll(in, ".go", ".js")
-	settings.File.demo = strings.ReplaceAll(in, ".go", ".json")
-	settings.File.swift = strings.ReplaceAll(in, ".go", ".swift")
-	settings.File.enum = strings.ReplaceAll(in, ".go", "Enum.swift")
 	return
 }
 
@@ -183,10 +147,10 @@ func goModTidy() {
 func goFmt() {
 	// go fmt
 	args := []string{"fmt"}
-	if file.Exists(settings.File.golang) {
+	if fileExists(settings.File.golang) {
 		args = append(args, settings.File.golang)
 	}
-	if file.Exists(settings.File.golangTest) {
+	if fileExists(settings.File.golangTest) {
 		args = append(args, settings.File.golangTest)
 	}
 	if len(args) == 1 {
@@ -315,9 +279,7 @@ var imports = map[string]bool{}
 func importers() []byte {
 
 	imports = map[string]bool{
-		"fmt":                        true,
-		"github.com/monopolly/cast":  true,
-		"github.com/monopolly/jsons": true,
+		"fmt": true,
 	}
 	imports["jsoniter \"github.com/json-iterator/go\""] = true
 
@@ -335,18 +297,6 @@ func importers() []byte {
 		imports["github.com/ClickHouse/clickhouse-go/v2/lib/driver"] = true
 		if hasClickhouseIPFields() {
 			imports["net"] = true
-		}
-	}
-	if settings.JS.Name != "" {
-		for _, x := range fields {
-			fieldType := x.Type
-			if x.Go.Type != "" {
-				fieldType = x.Go.Type
-			}
-			if strings.HasPrefix(fieldType, "map[") {
-				imports["reflect"] = true
-				break
-			}
 		}
 	}
 	if settings.Go.Gotiny {

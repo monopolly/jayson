@@ -150,7 +150,7 @@ func TestToJSON(ggggg *testing.T) {
 	_ = a
 
 	p := testStructure()
-	b := p.ToJson()
+	b := p.Pack()
 
 	fmt.Println("toJson size", len(b))
 	os.WriteFile("test_test_to.json", b, os.ModePerm)
@@ -175,7 +175,7 @@ func BenchmarkJSON(bbbbbbbb *testing.B) {
 	bbbbbbbb.ReportAllocs()
 	bbbbbbbb.ResetTimer()
 	for n := 0; n < bbbbbbbb.N; n++ {
-		p.ToJson()
+		p.Pack()
 	}
 }
 
@@ -183,7 +183,7 @@ func BenchmarkJSONParallel(bbbbbbbb *testing.B) {
 	p := testStructure()
 	bbbbbbbb.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			p.ToJson()
+			p.Pack()
 		}
 	})
 }

@@ -1,6 +1,6 @@
 # jsonsgenerator
 
-`jsonsgenerator` is a beta Go code generator driven by compact struct annotations. It reads a regular `.go` file with a model declaration and generates production-oriented code around that model: JSON helpers, PostgreSQL CRUD, ClickHouse ingestion helpers, protobuf, gotiny, TypeScript, Swift, tests, and benchmarks.
+`jsonsgenerator` is a beta Go code generator driven by compact struct annotations. It reads a regular `.go` file with a model declaration and generates production-oriented code around that model: PostgreSQL queries on pgx, ClickHouse ingestion helpers, protobuf, gotiny, MessagePack, tests, and benchmarks.
 
 The main idea is simple: describe the model once, then let the generator create the repetitive plumbing around it.
 
@@ -8,15 +8,12 @@ The main idea is simple: describe the model once, then let the generator create 
 
 Depending on the options in the comment above the struct, the generator can create:
 
-- `NameGO.go` - the main Go file with the generated struct, field indexes, JSON helpers, easyjson code, gotiny/protobuf code.
+- `NameGO.go` - the main Go file with the generated struct, field indexes, JSON pack/parse, ClickHouse class, gotiny/protobuf code.
 - `NameGO_test.go` - tests and benchmarks for a specific generated struct.
 - `NameSQL.go` - PostgreSQL queries on pgx.
 - `Name.sql` - PostgreSQL DDL.
 - `Name.cql` - ClickHouse DDL.
 - `Name.proto` - protobuf schema.
-- `Name.ts`, `Name.js` - TypeScript/JS model.
-- `Name.swift`, `NameEnum.swift` - Swift model and enum.
-- `Name.json` - demo JSON.
 
 ## Installation
 
@@ -32,12 +29,6 @@ go install .
 
 Go 1.25+ is required.
 
-The generator uses `easyjson`, so the `easyjson` binary must be available in `PATH`:
-
-```bash
-go install github.com/mailru/easyjson/...@latest
-```
-
 If you use the `proto` option, you also need `protoc` and the Go protobuf plugin:
 
 ```bash
@@ -51,7 +42,7 @@ Create `news.go`:
 ```go
 package model
 
-// go sql js proto test gotiny
+// go sql proto test gotiny
 type news struct {
 	id     int    // sql{inc} #readonly
 	title  string
@@ -74,9 +65,9 @@ The generated files will be written next to the source file:
 ```text
 newsGO.go
 newsGO_test.go
+newsSQL.go
 news.sql
 news.proto
-news.js
 ```
 
 If you add the `ch` option, the generator will also create `news.cql` and a ClickHouse class.
@@ -86,7 +77,7 @@ If you add the `ch` option, the generator will also create `news.cql` and a Clic
 Options are written in the comment above the struct:
 
 ```go
-// go=News sql=news ch=news js=NewsJson proto=NewsProto test gotiny
+// go=News sql=news ch=news proto=NewsProto test gotiny
 type news struct {
 	// ...
 }
@@ -95,7 +86,7 @@ type news struct {
 Short option names are supported too:
 
 ```go
-// go sql ch js proto
+// go sql ch proto
 type news struct {
 	// ...
 }
@@ -106,7 +97,6 @@ In short form, names are derived from the original struct name:
 - `go` -> `News`
 - `sql` -> table `news`, class `NewsSQL`
 - `ch` -> table `news`, class `NewsCQL`
-- `js` -> `NewsJson`
 - `proto` -> `NewsProto`
 
 Common struct options:
@@ -116,19 +106,13 @@ Common struct options:
 | `go` / `go=News` | Generate the main Go type. |
 | `sql` / `sql=news` | Generate PostgreSQL class and `.sql` file. |
 | `ch` / `ch=news` | Generate ClickHouse class and `.cql` file. |
-| `js` / `js=NewsJson` | Generate a JSON wrapper based on `jsons`. |
 | `proto` / `proto=NewsProto` | Generate `.proto` and embed protobuf Go code into `GO.go`. |
 | `test` | Generate `GO_test.go` with tests and benchmarks. |
 | `gotiny` | Add `MarshalGotiny` and `UnmarshalNewsGotiny`. |
 | `msgp` | Add MessagePack support. |
-| `ts=name` | Generate a TypeScript model. |
-| `swift` | Generate a Swift model. |
-| `enum=Name` | Generate a Swift enum. |
-| `demo` | Generate a demo JSON file. |
 | `optimize` | Try to reorder fields to reduce Go struct padding. |
 | `noinit` | Do not generate the `New...()` init function. |
 | `!omit` | Remove `omitempty` from JSON tags. |
-| `noprefix` | Use shorter field index names: `IndexID` instead of `IndexNewsID`. |
 
 ## Field Options
 
@@ -137,11 +121,11 @@ Field options are written in the comment after a field:
 ```go
 type news struct {
 	id       int            // sql{inc} #readonly
-	title    string         // sql{index} json{name="headline"}
+	title    string         // sql{index} js{name="headline"}
 	lang     string         // ch{low}
 	ip       string         // ch{type=ip}
 	payload  map[string]any // sql{type="jsonb"} proto{type="google.protobuf.Value"}
-	internal string         // sql{skip} proto{skip} js{skip}
+	internal string         // sql{skip} proto{skip}
 }
 ```
 
@@ -164,8 +148,7 @@ Common field options:
 | `ch{primary}` | Use the field as the ClickHouse key/primary field. |
 | `ch{low}` | Wrap the ClickHouse type in `LowCardinality(...)`. Useful for languages, countries, statuses, and similar fields. |
 | `ch{type=ip}` | Use ClickHouse `IPv4`. A field named `ip` is also treated as IPv4 automatically. |
-| `json{name="..."}` | Override the JSON field name. |
-| `json{skip}` | Exclude the field from JSON helpers. |
+| `js{name="..."}` | Override the JSON field name. |
 | `proto{name="..."}` | Override the protobuf field name. |
 | `proto{type="..."}` | Override the protobuf field type. |
 | `proto{skip}` | Exclude the field from protobuf generation. |
@@ -177,7 +160,7 @@ Common field options:
 ```go
 package model
 
-// go=Account sql=accounts js=AccountJson test
+// go=Account sql=accounts test
 type account struct {
 	id      int    // sql{inc} #readonly
 	email   string // sql{unique="email"}
@@ -291,8 +274,6 @@ err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 
 `NULL` in a scalar column is read as the zero value. Use a pointer or `sql.Null*` to see `NULL`.
 
-SQL tests need a database: `JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres go test ./test/...`
-
 ## Example: ClickHouse Buffer
 
 ```go
@@ -357,13 +338,13 @@ Usage:
 ```go
 item := Stat{ID: 1, Name: "views", Values: []uint64{1, 2, 3}}
 
-jsonBytes := item.Marshal()
-fromJSON := StatUnmarshal(jsonBytes)
+jsonBytes := item.Pack()
+fromJSON, err := ParseStat(jsonBytes)
 
 tinyBytes := item.MarshalGotiny()
 fromTiny := UnmarshalStatGotiny(tinyBytes)
 
-_ = fromJSON
+_, _ = fromJSON, err
 _ = fromTiny
 ```
 
@@ -372,23 +353,24 @@ _ = fromTiny
 The `test` option generates tests for the specific struct, so multiple generated models can live in the same package without function name collisions:
 
 ```go
-func TestStatMarshal(t *testing.T)
-func TestStat2Marshal(t *testing.T)
-func BenchmarkStatMarshal(b *testing.B)
-func BenchmarkStat2Marshal(b *testing.B)
+func TestStatGotinyMarshal(t *testing.T)
+func TestStat2GotinyMarshal(t *testing.T)
+func BenchmarkStatProtoMarshal(b *testing.B)
 ```
 
-Benchmarks use the modern `testing.B.Loop` API:
+Benchmarks use the modern `testing.B.Loop` API.
 
-```go
-for b.Loop() {
-	_ = item.Marshal()
-}
+Database tests are skipped without connection strings:
+
+```bash
+JAYSON_TEST_DB=postgres://postgres@127.0.0.1:5432/postgres \
+JAYSON_TEST_CH=clickhouse://default:pass@127.0.0.1:9000/default \
+go test ./test/ ./test/alltypes/
 ```
 
 ## Supported Types
 
-The generator supports common Go scalar types, strings, booleans, numbers, `time.Time`, `time.Duration`, `[]byte`, arrays/slices of strings and numbers, and several `map[...]...` shapes for JSON/SQL/protobuf scenarios.
+For PostgreSQL see the type table above. Protobuf and ClickHouse support common Go scalar types, strings, booleans, numbers, `time.Time`, `time.Duration`, `[]byte`, slices of strings and numbers, and several `map[...]...` shapes.
 
 For ClickHouse, numeric arrays, string arrays, `LowCardinality`, and IPv4 fields are supported. IP fields are always generated as ClickHouse `IPv4`.
 

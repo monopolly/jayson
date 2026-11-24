@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 // sql options

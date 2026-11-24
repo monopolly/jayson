@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 // key="value"

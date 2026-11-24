@@ -28,13 +28,6 @@ type Settings struct {
 		Indexes     []string //string list all indexes [IndexNewsID, IndexNewsTitle...]
 	}
 
-	TS struct {
-		Name string //struct name: news
-	}
-	JS struct {
-		Name string //go js struct name: NewsJson
-	}
-
 	Proto struct {
 		Name    string //NewsProto
 		Package string //pb
@@ -53,14 +46,8 @@ type Settings struct {
 		QueryName string //NewsClickhouseQuery
 	}
 
-	Swift struct {
-		Model bool   //generate swift
-		Enum  string //CategoryItem in swift
-	}
-
 	Options struct {
 		Noinit   bool // removes New() entirely
-		Demo     bool //demo json file with default values
 		Optimize bool //demo json file with default values
 		Test     bool //generate go tests for generated file
 	}
@@ -75,15 +62,9 @@ type Settings struct {
 		golangTest     string //test/newsGO_test.go
 		golangSQL      string //test/newsSQL.go
 		golangSQLQuery string //test/newsQuery.go
-		golangJSON     string //test/newsJson.go
-		swift          string //test/news.swift
-		enum           string //test/newsEnum.swift
 		sql            string //test/news.sql
 		clickhouse     string //test/news.cql
 		proto          string //test/news.proto
-		ts             string //test/news.ts
-		js             string //test/news.js
-		demo           string //test/news.json
 	}
 
 	Padding int //max len field title

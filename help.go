@@ -20,8 +20,6 @@ type Help struct {
 	Struct     map[string]string //value
 	Golang     map[string]string
 	Field      map[string]string
-	JS         map[string]string
-	Swift      map[string]string
 	SQL        map[string]string
 	Clickhouse map[string]string
 	Proto      map[string]string
@@ -32,8 +30,6 @@ func (a *Help) init() (b *Help) {
 	a.Struct = make(map[string]string)
 	a.Golang = make(map[string]string)
 	a.Field = make(map[string]string)
-	a.JS = make(map[string]string)
-	a.Swift = make(map[string]string)
 	a.SQL = make(map[string]string)
 	a.Clickhouse = make(map[string]string)
 	a.Proto = make(map[string]string)
@@ -88,16 +84,6 @@ func (a *Help) Render() (res []byte) {
 	list = append(list, "")
 	list = append(list, "PROTO:")
 	list = append(list, helpLines(a.Proto)...)
-
-	// swift
-	list = append(list, "")
-	list = append(list, "SWIFT:")
-	list = append(list, helpLines(a.Swift)...)
-
-	// js
-	list = append(list, "")
-	list = append(list, "JSON:")
-	list = append(list, helpLines(a.JS)...)
 
 	// add \t
 	for p := range list {

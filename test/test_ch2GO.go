@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/monopolly/cast"
-	"github.com/monopolly/jsons"
 	"github.com/niubaoshu/gotiny"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -33,11 +32,8 @@ import (
 	ch=views                      Set clickhouse sql table name. Ex: ch=views
 	chengine=MergeTree            Optional, mergeTree by default
 	debug                         Debug mode
-	demo                          Generate demo json file with default values
-	enum                          Generate swift enum
 	go=News                       Set golang struct names. Ex: go=News1 > type News1 struct{}
 	gotiny                        Create gotiny marshal/unmarshal
-	js=NewsJson                   Change json struct names. Ex: js=NewsJson
 	lock                          Lock model for generation. Can't change model.
 	msgp                          Create message pack marshal/unmarshal
 	noinit                        No New() init function for struct
@@ -45,12 +41,11 @@ import (
 	optimize                      Try to create golang padding optimized struct
 	proto=NewsProto               Generate proto file and compile to current package
 	sql=news                      Set sql table name. Ex: sql=accounts
-	swift                         Generate swift model
 	test                          Generate go tests for generated model
-	ts=news                       Set typescript struct names. Ex: ts=NewsJson
 
 	Field:
 	desc{}                        Add custom desc for index. desc{This field for success}
+	js{name=""}                   Replace json field name. Ex: js{name="sid"}
 	title{}                       Add custom title for index. title{Nice & Sweet}
 
 	GO:
@@ -96,20 +91,6 @@ import (
 	name="field"                  Rewrite proto field name
 	skip                          Skip field for proto
 	type="string"                 Rewrite proto type for field. Ex: type="google.protobuf.Value"
-
-	SWIFT:
-	file=""                       Create another swift file for this field Swift model. file="f1", file="f2"
-	must                          Swift field with required values
-	skip                          Ignore field for Swift
-	type=""                       Replace type for Swift model. Ex: type="string"
-
-	JSON:
-	bool                          Add set jsons function for bool fields
-	inc                           Add inc jsons function for numbers fields
-	name=""                       Replace json field name. Ex: name="sid"
-	raw                           Set Raw json function inside field
-	skip                          Skip json field
-	time                          Create convert jsons function for unixtime fields
 */
 
 // field type
@@ -156,30 +137,6 @@ type Stat2 struct {
 	Image  bool   `json:"image,omitempty"`  //
 }
 
-// Parse []any to ID struct
-func ParseStat2ToStruct(r []any) (a Stat2) {
-
-	for pos, x := range r {
-		switch Stat2IndexTyped(pos) {
-		case Stat2IndexID:
-			cast.Convert(&a.ID, x) //int
-		case Stat2IndexUID:
-			cast.Convert(&a.UID, x) //int
-		case Stat2IndexType:
-			cast.Convert(&a.Type, x) //int
-		case Stat2IndexName:
-			cast.Convert(&a.Name, x) //string
-		case Stat2IndexSource:
-			cast.Convert(&a.Source, x) //string
-		case Stat2IndexIP:
-			cast.Convert(&a.IP, x) //string
-		case Stat2IndexImage:
-			cast.Convert(&a.Image, x) //bool
-		}
-	}
-	return
-}
-
 // Tuple create an array from struct
 func (a *Stat2) Tuple() (r []any) {
 	return []any{a.ID, a.UID, a.Type, a.Name, a.Source, a.IP, a.Image}
@@ -188,26 +145,6 @@ func (a *Stat2) Tuple() (r []any) {
 // Tuple create an array from struct for clickhouse
 func (a *Stat2) clickhouseTuple() (r []any) {
 	return []any{a.ID, a.UID, a.Type, a.Name, a.Source, net.ParseIP(a.IP), a.Image}
-}
-
-// update struct with function
-func (a *Stat2) Update(k string, x any) {
-	switch k {
-	case "id":
-		cast.Convert(&a.ID, x) //int
-	case "uid":
-		cast.Convert(&a.UID, x) //int
-	case "type":
-		cast.Convert(&a.Type, x) //int
-	case "name":
-		cast.Convert(&a.Name, x) //string
-	case "source":
-		cast.Convert(&a.Source, x) //string
-	case "ip":
-		cast.Convert(&a.IP, x) //string
-	case "image":
-		cast.Convert(&a.Image, x) //bool
-	}
 }
 
 // get struct value with function
@@ -250,19 +187,6 @@ func (a *Stat2) String(k string) (v string) {
 		return fmt.Sprint(a.Image) //bool
 	}
 	return
-}
-
-// Struct to json
-func (a *Stat2) ToJson() (r []byte) {
-	js := jsons.Create().
-		Add(Stat2FieldID, a.ID).
-		Add(Stat2FieldUID, a.UID).
-		Add(Stat2FieldType, a.Type).
-		Add(Stat2FieldName, a.Name).
-		Add(Stat2FieldSource, a.Source).
-		Add(Stat2FieldIP, a.IP).
-		Add(Stat2FieldImage, a.Image)
-	return js.Bytes()
 }
 
 func Stat2ReadonlyList() []Stat2IndexTyped {
@@ -473,116 +397,6 @@ func ParseStat2(v []byte) (a Stat2, err error) {
 	return
 }
 
-// Parse []any to json
-func ParseTupleToStat2Json(r []any) (a Stat2Json) {
-	for pos, x := range r {
-		switch Stat2IndexTyped(pos) {
-		case Stat2IndexID:
-			a.Set(Stat2FieldID, x)
-		case Stat2IndexUID:
-			a.Set(Stat2FieldUID, x)
-		case Stat2IndexType:
-			a.Set(Stat2FieldType, x)
-		case Stat2IndexName:
-			a.Set(Stat2FieldName, x)
-		case Stat2IndexSource:
-			a.Set(Stat2FieldSource, x)
-		case Stat2IndexIP:
-			a.Set(Stat2FieldIP, x)
-		case Stat2IndexImage:
-			a.Set(Stat2FieldImage, x)
-		}
-	}
-	return
-}
-
-// NewStat2Json create struct
-func NewStat2Json() Stat2Json {
-	return []byte("{}")
-}
-
-// Stat2Json is a struct
-type Stat2Json []byte
-
-// Set value
-func (a *Stat2Json) Set(k string, v any) *Stat2Json {
-	(*a) = jsons.Set((*a), k, v)
-	return a
-}
-
-// Get value
-func (a *Stat2Json) Get(k string) jsons.Result {
-	return jsons.Get((*a), k)
-}
-
-// Get value
-func (a *Stat2Json) DeleteFields(fields ...string) {
-	(*a) = jsons.Delete((*a), fields...)
-}
-
-// ID set or get value
-func (a *Stat2Json) ID(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), Stat2FieldID)
-	}
-	a.Set(Stat2FieldID, v[0])
-	return
-}
-
-// UID set or get value
-func (a *Stat2Json) UID(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), Stat2FieldUID)
-	}
-	a.Set(Stat2FieldUID, v[0])
-	return
-}
-
-// Type set or get value
-func (a *Stat2Json) Type(v ...int) (res int) {
-	if v == nil {
-		return jsons.Int((*a), Stat2FieldType)
-	}
-	a.Set(Stat2FieldType, v[0])
-	return
-}
-
-// Name set or get value
-func (a *Stat2Json) Name(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), Stat2FieldName)
-	}
-	a.Set(Stat2FieldName, v[0])
-	return
-}
-
-// Source set or get value
-func (a *Stat2Json) Source(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), Stat2FieldSource)
-	}
-	a.Set(Stat2FieldSource, v[0])
-	return
-}
-
-// IP set or get value
-func (a *Stat2Json) IP(v ...string) (res string) {
-	if v == nil {
-		return jsons.String((*a), Stat2FieldIP)
-	}
-	a.Set(Stat2FieldIP, v[0])
-	return
-}
-
-// Image set or get value
-func (a *Stat2Json) Image(v ...bool) (res bool) {
-	if v == nil {
-		return jsons.Bool((*a), Stat2FieldImage)
-	}
-	a.Set(Stat2FieldImage, v[0])
-	return
-}
-
 // clickhouse Stat2CQL class
 type Stat2CQL struct {
 	conn driver.Conn
@@ -701,17 +515,17 @@ func (a *Stat2CQL) Get(id any, fields ...Stat2IndexTyped) (res *Stat2, err error
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -746,17 +560,17 @@ func (a *Stat2CQL) GetWhere(where string, fields ...Stat2IndexTyped) (res *Stat2
 		err = errors.New("not found")
 		return
 	}
-	rowValues := make([]any, len(fields))
+	// scan targets by column types: clickhouse needs exact types
 	scan := make([]any, len(fields))
-	for i := range rowValues {
-		scan[i] = &rowValues[i]
+	for i, t := range rows.ColumnTypes() {
+		scan[i] = reflect.New(t.ScanType()).Interface()
 	}
 	err = rows.Scan(scan...)
 	if err != nil {
 		return
 	}
 	for pos, x := range fields {
-		res.Update(x.String(), rowValues[pos])
+		res.clickhouseSet(x, scan[pos])
 	}
 	err = rows.Err()
 
@@ -873,19 +687,19 @@ func (a *Stat2CQL) Select(where string, fields ...Stat2IndexTyped) (res []*Stat2
 		return
 	}
 	defer rows.Close()
+	// scan targets by column types: clickhouse needs exact types
+	types := rows.ColumnTypes()
 	for rows.Next() {
 		var item Stat2
-		values := make([]any, len(fields))
-		scan := make([]any, len(fields))
-		for i := range values {
-			scan[i] = &values[i]
+		scan := make([]any, len(types))
+		for i, t := range types {
+			scan[i] = reflect.New(t.ScanType()).Interface()
 		}
-		err = rows.Scan(scan...)
-		if err != nil {
-			continue
+		if err = rows.Scan(scan...); err != nil {
+			return
 		}
 		for pos, x := range fields {
-			item.Update(x.String(), values[pos])
+			item.clickhouseSet(x, scan[pos])
 		}
 		res = append(res, &item)
 	}
@@ -975,6 +789,101 @@ primary key (uid)`
 // parse clickhouse query
 func (a *Stat2CQL) Fields() (res []Stat2IndexTyped) {
 	return []Stat2IndexTyped{Stat2IndexID, Stat2IndexUID, Stat2IndexType, Stat2IndexName, Stat2IndexSource, Stat2IndexIP, Stat2IndexImage}
+}
+
+// clickhouseSet sets field from value of clickhouse row
+func (a *Stat2) clickhouseSet(f Stat2IndexTyped, v any) {
+	if v == nil {
+		return
+	}
+	switch f {
+	case Stat2IndexID:
+		stat2CHAssign(reflect.ValueOf(&a.ID).Elem(), reflect.ValueOf(v))
+	case Stat2IndexUID:
+		stat2CHAssign(reflect.ValueOf(&a.UID).Elem(), reflect.ValueOf(v))
+	case Stat2IndexType:
+		stat2CHAssign(reflect.ValueOf(&a.Type).Elem(), reflect.ValueOf(v))
+	case Stat2IndexName:
+		stat2CHAssign(reflect.ValueOf(&a.Name).Elem(), reflect.ValueOf(v))
+	case Stat2IndexSource:
+		stat2CHAssign(reflect.ValueOf(&a.Source).Elem(), reflect.ValueOf(v))
+	case Stat2IndexIP:
+		stat2CHAssign(reflect.ValueOf(&a.IP).Elem(), reflect.ValueOf(v))
+	case Stat2IndexImage:
+		stat2CHAssign(reflect.ValueOf(&a.Image).Elem(), reflect.ValueOf(v))
+	}
+}
+
+// stat2CHAssign sets d from clickhouse value s: same type, number, string, time, slice
+func stat2CHAssign(d, s reflect.Value) {
+	for s.Kind() == reflect.Pointer || s.Kind() == reflect.Interface {
+		if s.IsNil() {
+			return
+		}
+		s = s.Elem()
+	}
+
+	number := func(k reflect.Kind) bool {
+		return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
+	}
+
+	switch {
+	case s.Type().AssignableTo(d.Type()):
+		d.Set(s)
+
+	// *T
+	case d.Kind() == reflect.Pointer:
+		p := reflect.New(d.Type().Elem())
+		stat2CHAssign(p.Elem(), s)
+		d.Set(p)
+
+	// IPv4, UUID, DateTime > string
+	case d.Kind() == reflect.String:
+		switch v := s.Interface().(type) {
+		case fmt.Stringer:
+			d.SetString(v.String())
+		case []byte:
+			d.SetString(string(v))
+		default:
+			d.SetString(fmt.Sprint(v))
+		}
+
+	case d.Kind() == reflect.Bool:
+		d.SetBool(!s.IsZero())
+
+	case number(d.Kind()):
+		switch v := s.Interface().(type) {
+		// DateTime > unix time
+		case time.Time:
+			if !v.IsZero() {
+				d.Set(reflect.ValueOf(v.Unix()).Convert(d.Type()))
+			}
+		case bool:
+			if v {
+				d.Set(reflect.ValueOf(1).Convert(d.Type()))
+			}
+		case string:
+			if n, err := strconv.ParseFloat(v, 64); err == nil {
+				d.Set(reflect.ValueOf(n).Convert(d.Type()))
+			}
+		default:
+			if number(s.Kind()) {
+				d.Set(s.Convert(d.Type()))
+			}
+		}
+
+	// Array(UInt64) > []int
+	case d.Kind() == reflect.Slice && s.Kind() == reflect.Slice:
+		r := reflect.MakeSlice(d.Type(), s.Len(), s.Len())
+		for i := range s.Len() {
+			stat2CHAssign(r.Index(i), s.Index(i))
+		}
+		d.Set(r)
+
+	// named types
+	case s.Kind() == d.Kind() && s.Type().ConvertibleTo(d.Type()):
+		d.Set(s.Convert(d.Type()))
+	}
 }
 
 const (

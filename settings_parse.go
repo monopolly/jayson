@@ -5,8 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/monopolly/cast"
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 func (a *Settings) Parse(in string) {
@@ -57,30 +56,10 @@ func (a *Settings) Parse(in string) {
 	a.Go.StructName = optionName(res.Options, "go", tools.Title(a.Origin))
 	helps.Struct["go=News"] = "Set golang struct names. Ex: go=News1 > type News1 struct{}"
 
-	// js
-	a.JS.Name = optionName(res.Options, "js", fmt.Sprintf("%sJson", tools.Title(a.Origin)))
-	helps.Struct["js=NewsJson"] = "Change json struct names. Ex: js=NewsJson"
-
 	// proto
 	a.Proto.Name = optionName(res.Options, "proto", fmt.Sprintf("%sProto", a.Go.StructName))
 	a.Proto.Package = a.PackageName
 	helps.Struct["proto=NewsProto"] = "Generate proto file and compile to current package"
-
-	// ts
-	a.TS.Name = cast.String(res.Options["ts"])
-	helps.Struct["ts=news"] = "Set typescript struct names. Ex: ts=NewsJson"
-
-	// swift
-	a.Swift.Model = res.Options["swift"] != nil
-	helps.Struct["swift"] = "Generate swift model"
-
-	// swift enum
-	a.Swift.Enum = cast.String(res.Options["enum"])
-	helps.Struct["enum"] = "Generate swift enum"
-
-	// generate json demo
-	a.Options.Demo = res.Options["demo"] != nil
-	helps.Struct["demo"] = "Generate demo json file with default values"
 
 	// generate json demo
 	a.Options.Optimize = res.Options["optimize"] != nil
@@ -100,7 +79,7 @@ func (a *Settings) Parse(in string) {
 
 	// clickhouse
 	a.Clickhouse.Table = optionName(res.Options, "ch", a.Origin)
-	a.Clickhouse.Engine = cast.String(res.Options["chengine"])
+	a.Clickhouse.Engine, _ = res.Options["chengine"].(string)
 	helps.Struct["ch=views"] = "Set clickhouse sql table name. Ex: ch=views"
 	helps.Struct["chengine=MergeTree"] = "Optional, mergeTree by default"
 
@@ -171,7 +150,7 @@ func optionName(options map[string]any, key, defaultValue string) string {
 		}
 		return value
 	default:
-		res := cast.String(v)
+		res := fmt.Sprint(v)
 		if res == "" {
 			return defaultValue
 		}

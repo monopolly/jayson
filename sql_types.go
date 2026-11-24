@@ -5,8 +5,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/types"
+	"regexp"
 	"strings"
 )
+
+const (
+	uuidType   = "uuid.UUID"
+	uuidImport = "github.com/google/uuid"
+)
+
+// [16]byte, [32]uint8
+var goFixedBytes = regexp.MustCompile(`^\[\d+\](byte|uint8)$`)
 
 // go type > postgres type, checked before base types: time.Duration is not int64 here
 var sqlSpecialTypes = map[string]string{

@@ -7,7 +7,7 @@ import (
 
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 func (a *Field) Parse() {
@@ -66,9 +66,6 @@ func (a *Field) Parse() {
 
 	// js
 	a.parseJSOptions(tools.Between(a.Comment, "js{", "}"))
-
-	// swift
-	a.parseSwiftOptions(tools.Between(a.Comment, "swift{", "}"))
 
 	// users
 	a.parseUserOptions()

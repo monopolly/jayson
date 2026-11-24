@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 // sql view of model for templates/sql.go.tmpl

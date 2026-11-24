@@ -7,24 +7,8 @@ type Field struct {
 	Comment   string //nice touch
 	FieldName string // fieldType for field index
 
-	Swift struct {
-		Must  bool     //field required {{swift/must}}
-		Skip  bool     //not use field {{swift/not}}
-		Type  string   //new swift type {{swift/type/string}}
-		Files []string //several swift file names
-		Enum  struct {
-			Skip bool //skip field in swift enum
-		}
-	}
-
 	Json struct {
-		Skip  bool
-		Inc   bool
-		Bool  bool
-		Time  bool
-		Name  string //id
-		Raw   bool   // only when []byte contains json
-		Named string // JsonFieldNewsID generates named fields when [] is used, but json must be passed
+		Name string // json field name: js{name="sid"}
 	}
 
 	MessagePack struct {

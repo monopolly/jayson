@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/monopolly/jsonsgenerator/tools"
+	"github.com/monopolly/jayson/tools"
 )
 
 // field names for json
